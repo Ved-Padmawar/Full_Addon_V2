@@ -278,29 +278,32 @@ function exportCurrentEntitySheet(expectedEntity) {
       // Build customers payload
       const customers = dataRows.map(row => {
         const customer = {};
+
         headers.forEach((header, index) => {
           const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
           let value = row[index];
 
-          if (value === '' || value === null || value === undefined) {
-            return;
-          }
+          // Convert value to string, skip if empty
+          const stringValue = (value === null || value === undefined || value === '') ? null : String(value).trim();
 
-          // Map to customer fields
-          if (cleanHeader === 'customercode') {
-            customer.customerCode = String(value);
-          } else if (cleanHeader === 'contactperson') {
-            customer.contactPerson = String(value);
-          } else if (cleanHeader === 'firmname') {
-            customer.firmName = String(value);
-          } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
-            customer.mobileNumber = String(value);
-          } else if (cleanHeader === 'email') {
-            customer.email = String(value);
+          // Only add field if it has a value
+          if (stringValue) {
+            // Map to customer fields
+            if (cleanHeader === 'customercode') {
+              customer.customerCode = stringValue;
+            } else if (cleanHeader === 'contactname') {
+              customer.contactName = stringValue;
+            } else if (cleanHeader === 'firmname') {
+              customer.firmName = stringValue;
+            } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
+              customer.mobile = stringValue;
+            } else if (cleanHeader === 'email') {
+              customer.email = stringValue;
+            }
           }
         });
         return customer;
-      }).filter(customer => customer.customerCode && String(customer.customerCode).trim() !== '');
+      }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
 
       if (customers.length === 0) {
         Logger.log('❌ No valid customer records found with customerCode');
