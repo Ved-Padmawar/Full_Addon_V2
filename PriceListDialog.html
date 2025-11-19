@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f8fafc', 100: '#f1f5f9', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' },
+            zotoks: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' },
+            price: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c', 700: '#c2410c', 900: '#9a3412' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .dialog-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f8fafc;
+    }
+    .header-container, .footer-container {
+      flex-shrink: 0;
+    }
+    .main-content-area {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .tab-button.active {
+      background-color: #0ea5e9 !important;
+      color: white !important;
+    }
+    .tab-hidden { display: none !important; }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50">
+  <div class="dialog-container bg-white">
+    
+    <!-- Header -->
+    <div class="header-container border-b border-slate-200 p-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-price-100 rounded flex items-center justify-center">
+                    <svg class="w-3 h-3 text-price-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                </div>
+                <h1 class="text-sm font-semibold text-slate-900">Price Lists</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content-area p-3">
+        <div class="flex flex-col h-full w-full">
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <h2 class="text-sm font-medium text-slate-900">Import Price Lists from Zono Digital</h2>
+                    <p class="text-xs text-slate-600">Select price lists to create as Google Sheets</p>
+                </div>
+                <button onclick="importPriceLists()" id="importButton" class="px-4 py-1.5 bg-price-600 text-white rounded text-xs font-medium hover:bg-price-700 transition-colors shadow-sm flex items-center gap-1.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
+                    Fetch Price Lists
+                </button>
+            </div>
+            
+            <div class="flex flex-col flex-1" id="priceListsPreview" style="display: none;">
+                <div class="bg-white rounded border border-slate-200 flex flex-col flex-1">
+                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-medium text-slate-900 text-xs">Available Price Lists (<span id="selectedCount">0</span> selected)</h3>
+                            <button onclick="createSelectedSheets()" id="createSheetsButton" disabled class="px-3 py-1 bg-zotoks-600 text-white rounded text-xs font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                Create Sheets
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="w-full text-xs">
+                            <thead class="bg-slate-50 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-2 py-2 text-left w-8">
+                                        <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()" class="w-3 h-3 text-price-600 border-slate-300 rounded focus:ring-price-500">
+                                    </th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+                                </tr>
+                            </thead>
+                            <tbody id="priceListTableBody" class="bg-white divide-y divide-slate-200">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-container border-t border-slate-200 px-3 py-2 bg-slate-50">
+        <div class="flex justify-end items-center">
+            <button onclick="closeDialog()" class="px-3 py-1 border border-slate-300 text-slate-700 rounded text-xs font-medium hover:bg-slate-100 transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="text-center">
+            <div class="w-5 h-5 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-2"></div>
+            <p class="text-slate-600 font-medium text-sm" id="loadingText">Processing...</p>
+            <p class="text-xs text-slate-500 mt-0.5" id="loadingSubtext">Please wait</p>
+        </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // GLOBAL STATE MANAGEMENT
+    // ==========================================
+    
+    let currentTab = 'import';
+    let priceListsData = [];
+    let selectedPriceLists = new Set();
+    let priceListSheets = [];
+
+    // ==========================================
+    // TAB MANAGEMENT
+    // ==========================================
+    
+    function showTab(tabName) {
+      console.log('Switching to tab:', tabName);
+      
+      // Update tab buttons - remove active from all, add to selected
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.add('bg-slate-200', 'text-slate-700');
+      });
+      
+      const activeButton = document.getElementById(tabName + 'TabButton');
+      if (activeButton) {
+        activeButton.classList.add('active');
+        activeButton.classList.remove('bg-slate-200', 'text-slate-700');
+      }
+      
+      // Update tab content - hide all, show selected
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('tab-hidden');
+      });
+      
+      const activeContent = document.getElementById(tabName + 'TabContent');
+      if (activeContent) {
+        activeContent.classList.remove('tab-hidden');
+        activeContent.classList.add('fade-in');
+      }
+      
+      currentTab = tabName;
+      
+      // Initialize tab-specific functionality
+      if (tabName === 'sync') {
+        setTimeout(() => {
+          loadPriceListSheets();
+        }, 100);
+      }
+    }
+
+    // ==========================================
+    // IMPORT TAB FUNCTIONALITY
+    // ==========================================
+    
+    function importPriceLists() {
+      showLoading(true, 'Fetching price lists from Zono Digital...', 'This may take a few moments');
+      
+      google.script.run
+        .withSuccessHandler(handlePriceListsResult)
+        .withFailureHandler(handleError)
+        .fetchZotoksPriceLists();
+    }
+    
+    function handlePriceListsResult(result) {
+      showLoading(false);
+      
+      if (result.success) {
+        let data = result.data;
+        if (!Array.isArray(data)) {
+          console.warn('API returned non-array data:', data);
+          if (data && typeof data === 'object') {
+            if (data.data && Array.isArray(data.data)) data = data.data;
+            else if (data.items && Array.isArray(data.items)) data = data.items;
+            else if (data.results && Array.isArray(data.results)) data = data.results;
+            else {
+              data = Object.values(data).filter(item => item && typeof item === 'object');
+              if (data.length === 0) data = [result.data];
+            }
+          } else {
+            data = [];
+          }
+        }
+        
+        priceListsData = data;
+        console.log('🏷️ Received price lists data:', priceListsData); // DEBUG
+        displayPriceListsForSelection(priceListsData);
+        showToast(`Successfully fetched ${priceListsData.length} price lists`, 'success');
+      } else {
+        showToast('Failed to fetch price lists: ' + result.message, 'error');
+      }
+    }
+    
+    function displayPriceListsForSelection(data) {
+      const tableBody = document.getElementById('priceListTableBody');
+      const priceListsPreview = document.getElementById('priceListsPreview');
+      
+      tableBody.innerHTML = '';
+      selectedPriceLists.clear();
+      updateSelectedCount();
+      
+      if (!data || !Array.isArray(data) || data.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="2" class="px-3 py-4 text-center text-slate-500">
+              <p class="text-xs">No price lists found</p>
+            </td>
+          </tr>
+        `;
+      } else {
+        data.forEach((priceList, index) => {
+          const row = document.createElement('tr');
+          row.className = 'hover:bg-slate-50 transition-colors';
+          
+          // FIXED: Use consistent ID extraction logic matching API spec
+          const id = priceList.priceListId || priceList.id || `item_${index}`;
+          const name = priceList.name || priceList.priceListName || 'Unnamed Price List';
+          
+          console.log(`🏷️ Processing price list: ID=${id}, Name=${name}`); // DEBUG
+          
+          row.innerHTML = `
+            <td class="px-2 py-2 whitespace-nowrap">
+              <input type="checkbox" class="price-list-checkbox w-3 h-3 text-price-600 border-slate-300 rounded focus:ring-price-500" 
+                     data-price-list-id="${id}" onchange="updateSelection()">
+            </td>
+            <td class="px-3 py-2 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="w-1 h-1 bg-price-500 rounded-full mr-1.5"></div>
+                <div>
+                  <div class="text-xs font-medium text-slate-900">${name}</div>
+                  <div class="text-xs text-slate-500">ID: ${id}</div>
+                </div>
+              </div>
+            </td>
+          `;
+          
+          tableBody.appendChild(row);
+        });
+      }
+      
+      priceListsPreview.style.display = 'flex';
+      priceListsPreview.classList.add('fade-in');
+    }
+    
+    function toggleSelectAll() {
+      const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+      const priceListCheckboxes = document.querySelectorAll('.price-list-checkbox');
+      
+      priceListCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+      });
+      
+      updateSelection();
+    }
+    
+    function updateSelection() {
+      const priceListCheckboxes = document.querySelectorAll('.price-list-checkbox');
+      const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+      
+      selectedPriceLists.clear();
+      
+      let checkedCount = 0;
+      priceListCheckboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+          selectedPriceLists.add(checkbox.dataset.priceListId);
+          checkedCount++;
+        }
+      });
+      
+      selectAllCheckbox.checked = checkedCount === priceListCheckboxes.length && priceListCheckboxes.length > 0;
+      selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < priceListCheckboxes.length;
+      
+      updateSelectedCount();
+      
+      document.getElementById('createSheetsButton').disabled = selectedPriceLists.size === 0;
+    }
+    
+    function updateSelectedCount() {
+      document.getElementById('selectedCount').textContent = selectedPriceLists.size;
+    }
+    
+    function createSelectedSheets() {
+      if (selectedPriceLists.size === 0) {
+        showToast('Please select at least one price list', 'error');
+        return;
+      }
+      
+      console.log('🔍 Selected price list IDs:', Array.from(selectedPriceLists)); // DEBUG
+      console.log('🔍 Available price lists data:', priceListsData); // DEBUG
+      
+      // FIXED: More robust filtering logic with debugging
+      const selectedPriceListsData = priceListsData.filter(pl => {
+        // Try multiple possible ID properties in order of preference
+        const id = pl.priceListId || pl.id;
+        const isSelected = selectedPriceLists.has(String(id));
+        
+        console.log(`🏷️ Checking price list: ${pl.name}, ID=${id}, Selected=${isSelected}`); // DEBUG
+        
+        return isSelected;
+      });
+      
+      console.log('📋 Filtered selected price lists:', selectedPriceListsData); // DEBUG
+      
+      if (selectedPriceListsData.length === 0) {
+        console.error('❌ No matching price lists found after filtering!');
+        showToast('Error: Could not find selected price lists in data', 'error');
+        return;
+      }
+      
+      // FIXED: Ensure each object has the correct priceListId property
+      const normalizedData = selectedPriceListsData.map(pl => ({
+        id: pl.priceListId || pl.id, // Use priceListId as primary
+        priceListId: pl.priceListId || pl.id, // Ensure priceListId exists
+        name: pl.name || pl.priceListName || 'Unnamed Price List',
+        // Preserve other properties that might be needed
+        ...pl
+      }));
+      
+      console.log('✅ Normalized data being sent to server:', normalizedData); // DEBUG
+      
+      showLoading(true, 'Creating sheets...');
+      google.script.run
+        .withSuccessHandler(handleSheetCreationResult)
+        .withFailureHandler(handleError)
+        .createZotoksPriceListSheets(normalizedData);
+    }
+    
+    function handleSheetCreationResult(result) {
+      showLoading(false);
+      if (result.success) {
+        showToast(`Created ${result.successCount} sheets`, 'success');
+        
+        // Show detailed results if there were errors
+        if (result.errors && result.errors.length > 0) {
+          console.warn('❌ Some errors occurred:', result.errors);
+          setTimeout(() => {
+            showToast(`${result.errors.length} items had errors - check logs`, 'warning');
+          }, 2000);
+        }
+        
+        closeDialog();
+      } else {
+        showToast('Failed to create sheets: ' + result.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // UTILITY FUNCTIONS
+    // ==========================================
+    
+    function showLoading(show, text = 'Processing...', subtext = 'Please wait') {
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      const loadingSubtext = document.getElementById('loadingSubtext');
+      
+      if (show) {
+        loadingText.textContent = text;
+        loadingSubtext.textContent = subtext;
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+    
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `fixed top-3 right-3 px-3 py-1.5 rounded text-xs font-medium z-50 transition-all shadow-md max-w-xs ${
+        type === 'success' ? 'bg-green-600 text-white' : 
+        type === 'error' ? 'bg-red-600 text-white' : 
+        type === 'warning' ? 'bg-yellow-600 text-white' : 'bg-slate-600 text-white'
+      }`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      }, 100);
+      
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+    
+    function handleError(error) {
+      console.error('Error:', error);
+      showLoading(false);
+      showToast('Error: ' + error.message, 'error');
+    }
+    
+    function closeDialog() {
+      google.script.host.close();
+    }
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+    
+    document.addEventListener('DOMContentLoaded', function() {
+      showTab('import');
+    });
+  </script>
+</body>
+</html>
