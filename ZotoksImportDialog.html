@@ -619,41 +619,6 @@
     </div>
   </div>
 
-  <!-- Custom Modal for Information Display -->
-  <div id="infoModal"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-hidden">
-      <!-- Modal Header -->
-      <div class="bg-gradient-to-r from-zotoks-600 to-zotoks-700 px-4 py-3">
-        <div class="flex items-center justify-between">
-          <h3 class="text-lg font-semibold text-white" id="infoModalTitle">Information</h3>
-          <button onclick="closeInfoModal()" class="text-white/80 hover:text-white transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Modal Content -->
-      <div class="p-6 overflow-y-auto max-h-[calc(80vh-6rem)]">
-        <div id="infoModalContent" class="text-slate-700 leading-relaxed">
-          <!-- Content will be populated dynamically -->
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
-        <div class="flex justify-end">
-          <button onclick="closeInfoModal()"
-            class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Custom Confirmation Modal -->
   <div id="confirmModal"
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -884,37 +849,7 @@
         `;
     }
 
-    // Existing modal functions (info and confirm)
-    function showInfoModal(title, content) {
-      document.getElementById('infoModalTitle').textContent = title;
-      const contentDiv = document.getElementById('infoModalContent');
-
-      // Check if content is HTML or plain text
-      if (content.includes('<') || content.includes('\n')) {
-        // Convert newlines to HTML breaks and preserve formatting
-        const htmlContent = content
-          .replace(/\n/g, '<br>')
-          .replace(/•/g, '&bull;')
-          .replace(/✅/g, '<span class="text-green-600">✅</span>')
-          .replace(/❌/g, '<span class="text-red-600">❌</span>')
-          .replace(/📊/g, '<span class="text-blue-600">📊</span>');
-        contentDiv.innerHTML = htmlContent;
-      } else {
-        contentDiv.textContent = content;
-      }
-
-      document.getElementById('infoModal').classList.remove('hidden');
-
-      // Focus trap
-      setTimeout(() => {
-        document.querySelector('#infoModal button').focus();
-      }, 100);
-    }
-
-    function closeInfoModal() {
-      document.getElementById('infoModal').classList.add('hidden');
-    }
-
+    // Existing modal functions (confirm only)
     function showConfirmModal(title, message, onConfirm, confirmText = 'Confirm', confirmStyle = 'red') {
       document.getElementById('confirmModalTitle').textContent = title;
       document.getElementById('confirmModalMessage').textContent = message;
@@ -955,9 +890,6 @@
         if (!document.getElementById('mappingManagementModal').classList.contains('hidden')) {
           closeMappingManagementModal();
         }
-        if (!document.getElementById('infoModal').classList.contains('hidden')) {
-          closeInfoModal();
-        }
         if (!document.getElementById('confirmModal').classList.contains('hidden')) {
           closeConfirmModal();
         }
@@ -967,12 +899,6 @@
     document.getElementById('mappingManagementModal').addEventListener('click', function (e) {
       if (e.target === this) {
         closeMappingManagementModal();
-      }
-    });
-
-    document.getElementById('infoModal').addEventListener('click', function (e) {
-      if (e.target === this) {
-        closeInfoModal();
       }
     });
 

@@ -9,132 +9,40 @@
 const ZotoksAPI = {
   
   /**
-   * Transform API response - keeping existing logic
+   * Transform API response - expects {headers, data} format
    */
   transformApiResponse(apiResponse) {
     try {
-      // Log the raw response structure for debugging
-      Logger.log('Raw API response type: ' + typeof apiResponse);
-      Logger.log('Raw API response keys: ' + (apiResponse && typeof apiResponse === 'object' ? Object.keys(apiResponse).join(', ') : 'N/A'));
-      
-      // Check if response is already in old format (backward compatibility)
-      if (Array.isArray(apiResponse)) {
-        Logger.log('API response is in legacy format, no transformation needed');
-        return {
-          success: true,
-          data: apiResponse,
-          isLegacyFormat: true
-        };
-      }
-      
-      // Check if response has new structured format
+      // Validate response structure
       if (!apiResponse || typeof apiResponse !== 'object') {
         throw new Error(`Invalid API response format: expected object, got ${typeof apiResponse}`);
       }
-      
-      // Handle new structured format
-      if (apiResponse.hasOwnProperty('headers') && apiResponse.hasOwnProperty('data')) {
-        Logger.log('API response is in new structured format, analyzing...');
-        
-        const { headers, data } = apiResponse;
-        
-        // Validate that data is an array
-        if (!Array.isArray(data)) {
-          throw new Error(`Data must be an array, got ${typeof data}. Data value: ${JSON.stringify(data).substring(0, 200)}`);
-        }
-        
-        Logger.log(`Found ${data.length} data records`);
-        
-        // Check what format the data is in
-        if (data.length > 0) {
-          const firstRecord = data[0];
-          Logger.log('First data record type: ' + typeof firstRecord + ', isArray: ' + Array.isArray(firstRecord));
-          
-          if (typeof firstRecord === 'object' && !Array.isArray(firstRecord)) {
-            // Data is already in object format - no transformation needed!
-            Logger.log('Data is already in object format, using as-is');
-            return {
-              success: true,
-              data: data,
-              headers: headers,
-              isLegacyFormat: false
-            };
-          } else if (Array.isArray(firstRecord)) {
-            // Data is in array format, needs transformation
-            Logger.log('Data is in array format, transforming to objects...');
-            
-            // Extract field names from headers
-            let fieldNames = [];
-            if (Array.isArray(headers)) {
-              fieldNames = headers.map(h => h.field || h.label || h || '');
-            } else if (typeof headers === 'object') {
-              fieldNames = Object.keys(headers);
-            } else {
-              // Fallback - create generic field names
-              const maxFields = Math.max(...data.map(row => Array.isArray(row) ? row.length : 0));
-              fieldNames = Array.from({ length: maxFields }, (_, i) => `field_${i + 1}`);
-              Logger.log(`No header mapping available, created ${fieldNames.length} generic field names`);
-            }
-            
-            // Transform array data to objects
-            const transformedData = data.map(row => {
-              if (!Array.isArray(row)) return row; // Skip non-array items
-              
-              const obj = {};
-              fieldNames.forEach((fieldName, index) => {
-                obj[fieldName] = row[index];
-              });
-              return obj;
-            });
-            
-            Logger.log(`Successfully transformed ${transformedData.length} records from array to object format`);
-            
-            return {
-              success: true,
-              data: transformedData,
-              headers: headers,
-              isLegacyFormat: false,
-              transformedFromArrays: true
-            };
-          } else {
-            Logger.log('Unknown data format, using fallback approach');
-            // Fallback for unknown formats
-            return {
-              success: true,
-              data: Array.isArray(apiResponse) ? apiResponse : [apiResponse],
-              isLegacyFormat: false,
-              fallbackUsed: true
-            };
-          }
-        } else {
-          // Empty data array
-          Logger.log('Empty data array in response');
-          return {
-            success: true,
-            data: [],
-            headers: headers,
-            isLegacyFormat: false
-          };
-        }
-      } else {
-        // Try to handle other response formats
-        Logger.log('API response does not have expected structure, using fallback');
-        
-        return {
-          success: true,
-          data: Array.isArray(apiResponse) ? apiResponse : [apiResponse],
-          isLegacyFormat: false,
-          fallbackUsed: true
-        };
+
+      // Expect {headers, data} format
+      if (!apiResponse.hasOwnProperty('headers') || !apiResponse.hasOwnProperty('data')) {
+        throw new Error('API response missing required "headers" or "data" properties');
       }
-      
+
+      const { headers, data } = apiResponse;
+
+      // Validate data is an array
+      if (!Array.isArray(data)) {
+        throw new Error(`Data must be an array, got ${typeof data}`);
+      }
+
+      Logger.log(`✅ API returned ${data.length} records`);
+
+      return {
+        success: true,
+        data: data,
+        headers: headers
+      };
+
     } catch (error) {
-      Logger.log(`Error transforming API response: ${error.message}`);
-      
+      Logger.log(`❌ Error transforming API response: ${error.message}`);
       return {
         success: false,
-        error: error.message,
-        originalResponse: apiResponse
+        error: error.message
       };
     }
   },
@@ -194,18 +102,13 @@ const ZotoksAPI = {
             
             const pageData = transformResult.data;
             Logger.log(`Successfully fetched page ${page}: ${pageData.length} records`);
-            
+
             return {
               success: true,
               data: pageData,
               page: page,
               recordCount: pageData.length,
-              hasNextPage: pageData.length === pageSize, // If we got a full page, there might be more
-              apiFormat: {
-                isLegacyFormat: transformResult.isLegacyFormat,
-                hasHeaders: transformResult.headers ? true : false,
-                transformedAt: new Date().toISOString()
-              }
+              hasNextPage: pageData.length === pageSize
             };
             
           } else if (responseCode === 401) {
@@ -396,15 +299,10 @@ const ZotoksAPI = {
           maxPagesReached: pagesProcessed >= maxPages,
           memoryLimitReached: totalRecords >= memoryLimit,
           timeLimitReached: executionTime > maxExecutionTime,
-          stoppedReason: !hasNextPage ? 'all_data_fetched' : 
-            (pagesProcessed >= maxPages ? 'max_pages_reached' : 
-             totalRecords >= memoryLimit ? 'memory_limit_reached' : 
+          stoppedReason: !hasNextPage ? 'all_data_fetched' :
+            (pagesProcessed >= maxPages ? 'max_pages_reached' :
+             totalRecords >= memoryLimit ? 'memory_limit_reached' :
              'time_limit_reached')
-        },
-        apiFormat: {
-          isLegacyFormat: false,
-          transformedAt: new Date().toISOString(),
-          periodFormat: 'raw_number'
         }
       };
       
