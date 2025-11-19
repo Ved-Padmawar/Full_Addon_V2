@@ -268,10 +268,40 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
     
     // Get target sheet columns with enhanced validation
     const targetColumns = this.getTargetSheetColumns(targetSheet);
+
+    // If sheet is empty (no headers), treat it like a new sheet
     if (!targetColumns || targetColumns.length === 0) {
+      Logger.log('Target sheet is empty, treating as new sheet with direct import');
+
+      // Import data with headers (same as new sheet)
+      const importResult = this.importDataToSheet(targetSheet, dataResult.data, true);
+
+      if (importResult.success) {
+        // Store metadata for the sheet
+        Logger.log(`Storing metadata for empty sheet: ${targetSheetName}, endpoint: ${endpoint}, period: ${period}`);
+
+        const headers = targetSheet.getRange(1, 1, 1, targetSheet.getLastColumn()).getValues()[0];
+        const mappingObj = {};
+        headers.forEach(header => {
+          mappingObj[header] = header;  // 1:1 mapping
+        });
+
+        const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
+        if (storeResult.success) {
+          Logger.log(`✅ Metadata stored for ${targetSheetName}`);
+        }
+      }
+
       return {
-        success: false,
-        message: 'Target sheet appears to be empty or has no headers'
+        success: importResult.success,
+        message: importResult.success ?
+          (endpoint === 'products' ?
+            `Import completed to empty sheet. ${importResult.rowCount} rows of ${endpoint} data added.` :
+            `Import completed to empty sheet. ${importResult.rowCount} rows added from ${period} days of data.`) :
+          importResult.message,
+        rowCount: importResult.rowCount,
+        needsMapping: false,
+        emptySheetImport: true
       };
     }
     
