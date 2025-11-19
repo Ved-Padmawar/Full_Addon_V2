@@ -6,99 +6,11 @@
  * Utility functions for UI integration and general purposes
  */
 const Utils = {
+  // REMOVED: Connection status functionality has been removed
+
   /**
-   * Get connection status with caching
+   * Get mapping management data
    */
-  getConnectionStatusData() {
-    try {
-      // Check cache first
-      const validationKey = 'connection_status_data';
-      const cachedResult = PerformanceCache.getCachedValidationResult(validationKey);
-      if (cachedResult) {
-        return {
-          ...cachedResult,
-          cached: true
-        };
-      }
-      
-      const hasCredentials = AuthManager.hasCredentials();
-      
-      if (!hasCredentials) {
-        const result = {
-          success: true,
-          status: 'not_configured',
-          title: 'Zotoks Integration Status',
-          data: {
-            credentials: 'Not configured',
-            connection: 'Not available',
-            message: 'Please configure your Zotoks credentials first'
-          }
-        };
-        
-        PerformanceCache.setCachedValidationResult(validationKey, result);
-        return result;
-      }
-      
-      // Get token status and connection test with optimized operations
-      const tokenStatus = AuthManager.getTokenStatus();
-      const connectionTest = ZotoksAPI.testConnection();
-      
-      if (connectionTest.success) {
-        const status = ZotoksAPI.getIntegrationStatus();
-        const mappingsResult = MappingManager.getAllSheetsWithMappings();
-        const mappingCount = mappingsResult.success ? mappingsResult.sheets.length : 0;
-        
-        const result = {
-          success: true,
-          status: 'active',
-          title: 'Zotoks Integration Status',
-          data: {
-            credentials: 'Configured',
-            connection: 'Active',
-            token: tokenStatus.hasToken ? 
-              `${tokenStatus.status} (${tokenStatus.daysUntilExpiry} days remaining)` : 
-              'No token',
-            endpoints: status.availableEndpoints || [],
-            mappedSheets: mappingCount,
-            tokenHealth: tokenStatus,
-            message: 'All systems operational! Token will auto-refresh as needed.'
-          }
-        };
-        
-        PerformanceCache.setCachedValidationResult(validationKey, result);
-        return result;
-      } else {
-        const result = {
-          success: true,
-          status: 'error',
-          title: 'Zotoks Integration Status',
-          data: {
-            credentials: 'Configured',
-            connection: 'Failed',
-            token: tokenStatus.hasToken ? 
-              `${tokenStatus.status} (${tokenStatus.daysUntilExpiry} days remaining)` : 
-              'No token',
-            error: connectionTest.message,
-            tokenHealth: tokenStatus,
-            message: 'Connection failed. Token will auto-refresh when needed.'
-          }
-        };
-        
-        PerformanceCache.setCachedValidationResult(validationKey, result);
-        return result;
-      }
-      
-    } catch (error) {
-      Logger.log(`Error getting connection status: ${error.message}`);
-      const result = {
-        success: false,
-        message: 'Error checking status: ' + error.message
-      };
-      
-      PerformanceCache.setCachedValidationResult(validationKey, result);
-      return result;
-    }
-  },
 
   /**
    * Get mapping management data for frontend display

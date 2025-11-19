@@ -707,14 +707,7 @@ function showZotoksColumnMappingDialog(targetSheetName, endpoint, period, source
 // STATUS AND INFORMATION EXPOSED FUNCTIONS
 // ==========================================
 
-function getConnectionStatusData() {
-  try {
-    return Utils.getConnectionStatusData();
-  } catch (error) {
-    Logger.log(`Error getting connection status: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
+// REMOVED: Connection status functionality has been removed
 
 function getMappingManagementData() {
   try {
