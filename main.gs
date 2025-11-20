@@ -283,23 +283,20 @@ function exportCurrentEntitySheet(expectedEntity) {
           const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
           let value = row[index];
 
-          // Convert value to string, skip if empty
-          const stringValue = (value === null || value === undefined || value === '') ? null : String(value).trim();
+          // Convert value to string, use empty string if empty
+          const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
 
-          // Only add field if it has a value
-          if (stringValue) {
-            // Map to customer fields
-            if (cleanHeader === 'customercode') {
-              customer.customerCode = stringValue;
-            } else if (cleanHeader === 'contactname') {
-              customer.contactName = stringValue;
-            } else if (cleanHeader === 'firmname') {
-              customer.firmName = stringValue;
-            } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
-              customer.mobile = stringValue;
-            } else if (cleanHeader === 'email') {
-              customer.email = stringValue;
-            }
+          // Map to customer fields
+          if (cleanHeader === 'customercode') {
+            customer.customerCode = stringValue;
+          } else if (cleanHeader === 'contactname') {
+            customer.contactName = stringValue;
+          } else if (cleanHeader === 'firmname') {
+            customer.firmName = stringValue;
+          } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
+            customer.mobile = stringValue;
+          } else if (cleanHeader === 'email') {
+            customer.email = stringValue;
           }
         });
         return customer;
