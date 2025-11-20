@@ -1275,10 +1275,11 @@
           showToast(`Preview limited to ${previewPeriod} days for performance. Full import will use ${period} days.`, 'info');
         }
 
+        // Use optimized preview function (fetches only 3 rows for paginated endpoints)
         google.script.run
           .withSuccessHandler(handlePreviewResult)
           .withFailureHandler(handlePreviewError)
-          .fetchZotoksData(dataSource, previewPeriod);
+          .fetchZotoksPreview(dataSource, previewPeriod);
       }
     }
 

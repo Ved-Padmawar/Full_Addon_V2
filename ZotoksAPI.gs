@@ -4,7 +4,7 @@
 
 /**
  * Zotoks API utilities with pagination support and Price List management
- * Handles fetching large datasets in chunks of 300 records per page
+ * Handles fetching large datasets in chunks (page size configured in Config.gs)
  */
 const ZotoksAPI = {
   
@@ -151,6 +151,126 @@ const ZotoksAPI = {
   },
 
   /**
+   * Fetch preview data (optimized for UI preview - only 3 rows)
+   * For paginated endpoints: fetches only 1 page with 3 records
+   * For non-paginated endpoints: fetches all data (assumed small)
+   */
+  fetchPreview(endpoint, period = 30) {
+    try {
+      Logger.log(`🔍 Fetching preview data for ${endpoint} (period: ${period})`);
+
+      // Validate endpoint
+      if (!Config.isValidEndpoint(endpoint)) {
+        return {
+          success: false,
+          message: `Invalid endpoint: ${endpoint}. Valid endpoints: ${Config.getAvailableEndpoints().join(', ')}`
+        };
+      }
+
+      const endpointConfig = Config.getEndpointConfig(endpoint);
+
+      // Validate period if endpoint supports time period
+      if (endpointConfig.supportsTimePeriod && period) {
+        if (endpointConfig.allowedTimePeriods.length > 0 &&
+            !endpointConfig.allowedTimePeriods.includes(String(period))) {
+          return {
+            success: false,
+            message: `Invalid period ${period} for endpoint ${endpoint}. Allowed periods: ${endpointConfig.allowedTimePeriods.join(', ')}`
+          };
+        }
+      }
+
+      // Get token
+      const tokenResult = AuthManager.getLoginToken();
+      if (!tokenResult.success) {
+        return tokenResult;
+      }
+
+      const token = tokenResult.token;
+
+      // Check if endpoint supports pagination
+      if (endpointConfig.supportsPagination) {
+        // OPTIMIZATION: Fetch only 1 page with 3 records for preview
+        Logger.log(`📄 Paginated endpoint - fetching single page with 3 records`);
+
+        let dataUrl = Config.buildApiUrl(endpoint, period);
+        const separator = dataUrl.includes('?') ? '&' : '?';
+        dataUrl += `${separator}page=1&page_size=3`;
+
+        const response = UrlFetchApp.fetch(dataUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          muteHttpExceptions: true,
+          timeout: Config.getTimeout()
+        });
+
+        const responseCode = response.getResponseCode();
+        const responseText = response.getContentText();
+
+        if (responseCode >= 200 && responseCode < 300) {
+          const rawApiResponse = JSON.parse(responseText);
+          const transformResult = this.transformApiResponse(rawApiResponse);
+
+          if (!transformResult.success) {
+            throw new Error(`Failed to transform preview data: ${transformResult.error}`);
+          }
+
+          Logger.log(`✅ Preview fetched: ${transformResult.data.length} records`);
+
+          return {
+            success: true,
+            data: transformResult.data,
+            headers: transformResult.headers,
+            recordCount: transformResult.data.length,
+            endpoint: endpoint,
+            period: period,
+            fetchedAt: new Date().toISOString(),
+            isPreview: true
+          };
+        } else if (responseCode === 401) {
+          throw new Error(`Authentication failed (${responseCode}): ${responseText}`);
+        } else {
+          throw new Error(`Preview API request failed (${responseCode}): ${responseText}`);
+        }
+
+      } else {
+        // Non-paginated endpoint - fetch all data (assumed to be small dataset)
+        Logger.log(`📄 Non-paginated endpoint - fetching all data`);
+
+        const result = this.fetchSinglePage(endpoint, period, 1, token);
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch preview data');
+        }
+
+        Logger.log(`✅ Preview fetched: ${result.data.length} records`);
+
+        return {
+          success: true,
+          data: result.data,
+          headers: result.headers,
+          recordCount: result.data.length,
+          endpoint: endpoint,
+          period: period,
+          fetchedAt: new Date().toISOString(),
+          isPreview: true
+        };
+      }
+
+    } catch (error) {
+      Logger.log(`❌ Error fetching preview: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error fetching preview data: ' + error.message,
+        endpoint: endpoint
+      };
+    }
+  },
+
+  /**
    * Main paginated fetch function with timeout and memory management
    */
   fetchData(endpoint, period = 30) {
@@ -184,19 +304,8 @@ const ZotoksAPI = {
         }
       }
 
-      // Check cache first
-      const cacheKey = `${endpoint}_${period}`;
-      const cachedResult = PerformanceCache.getCachedAPIResponse(cacheKey);
-      if (cachedResult) {
-        Logger.log(`Using cached result for ${endpoint} (period: ${period})`);
-        return {
-          ...cachedResult,
-          cached: true
-        };
-      }
-
       Logger.log(`Starting ${endpointConfig.supportsPagination ? 'paginated' : 'direct'} fetch for ${endpoint}${endpointConfig.supportsTimePeriod ? ` (period: ${period} days)` : ''}`);
-      
+
       // Get token
       const tokenResult = AuthManager.getLoginToken();
       if (!tokenResult.success) {
@@ -293,27 +402,9 @@ const ZotoksAPI = {
         endpoint: endpoint,
         period: period,
         fetchedAt: new Date().toISOString(),
-        executionTime: executionTime,
-        paginationInfo: {
-          totalPages: pagesProcessed,
-          maxPagesReached: pagesProcessed >= maxPages,
-          memoryLimitReached: totalRecords >= memoryLimit,
-          timeLimitReached: executionTime > maxExecutionTime,
-          stoppedReason: !hasNextPage ? 'all_data_fetched' :
-            (pagesProcessed >= maxPages ? 'max_pages_reached' :
-             totalRecords >= memoryLimit ? 'memory_limit_reached' :
-             'time_limit_reached')
-        }
+        executionTime: executionTime
       };
-      
-      // Cache the result (but not if we stopped due to limits - partial data shouldn't be cached)
-      if (result.paginationInfo.stoppedReason === 'all_data_fetched') {
-        PerformanceCache.setCachedAPIResponse(cacheKey, result);
-        Logger.log(`💾 Complete result cached for ${endpoint}`);
-      } else {
-        Logger.log(`⚠️ Partial result not cached (reason: ${result.paginationInfo.stoppedReason})`);
-      }
-      
+
       return result;
       
     } catch (error) {
@@ -346,7 +437,7 @@ const ZotoksAPI = {
 
       // Get endpoint config
       const endpointConfig = Config.getPriceListEndpointConfig('pricelist');
-      const pageSize = endpointConfig.pageSize;
+      const pageSize = Config.getPageSize();
 
       let allData = [];
       let page = 1;
@@ -418,7 +509,7 @@ const ZotoksAPI = {
 
         // Small delay between pages
         if (hasNextPage) {
-          Utilities.sleep(100);
+          Utilities.sleep(Config.getPageProcessingDelay());
         }
       }
 
@@ -429,7 +520,6 @@ const ZotoksAPI = {
         success: true,
         data: allData,
         recordCount: allData.length,
-        totalPages: page - 1,
         fetchedAt: new Date().toISOString(),
         executionTime: executionTime,
         tokenInfo: {
@@ -470,7 +560,7 @@ const ZotoksAPI = {
 
       // Get endpoint config
       const endpointConfig = Config.getPriceListEndpointConfig('pricelist-items');
-      const pageSize = endpointConfig.pageSize;
+      const pageSize = Config.getPageSize();
 
       let allData = [];
       let headers = null;
@@ -557,7 +647,7 @@ const ZotoksAPI = {
 
         // Small delay between pages
         if (hasNextPage) {
-          Utilities.sleep(100);
+          Utilities.sleep(Config.getPageProcessingDelay());
         }
       }
 
@@ -575,7 +665,6 @@ const ZotoksAPI = {
         data: itemsData,
         priceListId: priceListId,
         recordCount: allData.length,
-        totalPages: page - 1,
         fetchedAt: new Date().toISOString(),
         executionTime: executionTime,
         tokenInfo: {

@@ -12,8 +12,7 @@ const PERFORMANCE_CACHE = {
   tokenStatus: null,
   tokenStatusCacheTime: 0,
   lastTokenCheck: 0,
-  validationResults: new Map(),
-  apiResponses: new Map()
+  validationResults: new Map()
 };
 
 /**
@@ -50,13 +49,6 @@ const PerformanceCache = {
     for (const [key, data] of PERFORMANCE_CACHE.validationResults) {
       if (!this.isCacheValid(data.timestamp)) {
         PERFORMANCE_CACHE.validationResults.delete(key);
-      }
-    }
-    
-    // Clear expired API responses
-    for (const [key, data] of PERFORMANCE_CACHE.apiResponses) {
-      if (!this.isCacheValid(data.timestamp)) {
-        PERFORMANCE_CACHE.apiResponses.delete(key);
       }
     }
   },
@@ -169,69 +161,19 @@ const PerformanceCache = {
   },
 
   /**
-   * Get cached API response
-   */
-  getCachedAPIResponse(key) {
-    if (PERFORMANCE_CACHE.apiResponses.has(key)) {
-      const cachedResponse = PERFORMANCE_CACHE.apiResponses.get(key);
-      if (this.isCacheValid(cachedResponse.timestamp)) {
-        return {
-          ...cachedResponse.data,
-          fromCache: true
-        };
-      } else {
-        PERFORMANCE_CACHE.apiResponses.delete(key);
-      }
-    }
-    return null;
-  },
-
-  /**
-   * Set cached API response
-   */
-  setCachedAPIResponse(key, data) {
-    PERFORMANCE_CACHE.apiResponses.set(key, {
-      data: data,
-      timestamp: Date.now()
-    });
-  },
-
-  /**
-   * Clear API response cache by key
-   */
-  clearAPIResponseCache(key) {
-    PERFORMANCE_CACHE.apiResponses.delete(key);
-  },
-
-  /**
-   * NEW: Clear all API response caches
-   */
-  clearAllAPIResponseCaches() {
-    try {
-      PERFORMANCE_CACHE.apiResponses.clear();
-      Logger.log('🧹 All API response caches cleared');
-    } catch (error) {
-      Logger.log(`Error clearing API response caches: ${error.message}`);
-    }
-  },
-
-  /**
-   * ENHANCED: Clear all caches completely
+   * Clear all caches completely
    */
   clearAllCaches() {
     try {
       // Clear credentials cache
       this.clearCachedCredentials();
-      
-      // Clear token status cache  
+
+      // Clear token status cache
       this.clearCachedTokenStatus();
-      
+
       // Clear all validation results
       PERFORMANCE_CACHE.validationResults.clear();
-      
-      // Clear all API response caches
-      PERFORMANCE_CACHE.apiResponses.clear();
-      
+
       Logger.log('🧹 All performance caches cleared');
     } catch (error) {
       Logger.log(`Error clearing all caches: ${error.message}`);
@@ -256,10 +198,6 @@ const PerformanceCache = {
       validationResults: {
         count: PERFORMANCE_CACHE.validationResults.size,
         keys: Array.from(PERFORMANCE_CACHE.validationResults.keys())
-      },
-      apiResponses: {
-        count: PERFORMANCE_CACHE.apiResponses.size,
-        keys: Array.from(PERFORMANCE_CACHE.apiResponses.keys())
       },
       lastTokenCheck: PERFORMANCE_CACHE.lastTokenCheck,
       inCooldown: this.isTokenCheckInCooldown()

@@ -9,14 +9,16 @@ const ZOTOKS_CONFIG = {
   BASE_URL: 'https://api-qa.zono.digital',
   LOGIN_ENDPOINT: '/mdm-integration/v1/api/auth/login',
   DATA_ENDPOINT: '/hub/mdm-integration/v1/api',
-  TOKEN_DURATION: 28 * 24 * 60 * 60 * 1000, // 28 days in milliseconds
-  TOKEN_BUFFER: 5 * 60 * 1000, // 5 minutes buffer before expiry
-  TOKEN_REFRESH_THRESHOLD: 3 * 24 * 60 * 60 * 1000, // Refresh 3 days before expiry
-  PROACTIVE_REFRESH_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // Check for proactive refresh 7 days before
-  TIMEOUT: 30, // seconds
-  MAX_RETRIES: 3,
-  RETRY_DELAY: 1000, // milliseconds
-  BATCH_SIZE: 100,
+
+  // TOKEN MANAGEMENT CONFIGURATION
+  TOKEN: {
+    DURATION: 28 * 24 * 60 * 60 * 1000, // 28 days in milliseconds
+    BUFFER: 5 * 60 * 1000, // 5 minutes buffer before expiry
+    REFRESH_THRESHOLD: 3 * 24 * 60 * 60 * 1000, // Refresh 3 days before expiry
+    PROACTIVE_REFRESH_THRESHOLD: 7 * 24 * 60 * 60 * 1000, // Check for proactive refresh 7 days before
+    VERSION_CHECK_COOLDOWN: 30 * 1000, // 30 seconds cooldown between version checks
+    CHECK_COOLDOWN: 30 * 1000 // 30 seconds cooldown between token checks
+  },
 
   // NEW: Descriptive endpoint configuration
   ENDPOINTS: {
@@ -65,29 +67,38 @@ const ZOTOKS_CONFIG = {
     }
   },
 
-  // PAGINATION CONFIGURATION
-  PAGINATION: {
-    PAGE_SIZE: 300, // Records per page as required by Zotok
-    MAX_EXECUTION_TIME: 5 * 60 * 1000, // 5 minutes (leave 1 minute buffer)
+  // UNIFIED PAGINATION AND BATCH PROCESSING CONFIGURATION
+  PAGINATION_AND_BATCH: {
+    // Pagination settings
+    PAGE_SIZE: 200, // Records per page for all endpoints
     MAX_PAGES_PER_BATCH: 50, // Maximum pages to fetch in one execution
-    MAX_RECORDS_MEMORY_LIMIT: 10000, // Maximum records to hold in memory at once
     PAGE_PROCESSING_DELAY: 100, // Milliseconds delay between page requests
-    TIMEOUT_CHECK_FREQUENCY: 5 // Check timeout every N pages
+    TIMEOUT_CHECK_FREQUENCY: 5, // Check timeout every N pages
+
+    // Batch processing settings
+    BATCH_SIZE: 100, // Records per batch operation
+
+    // Execution limits
+    MAX_EXECUTION_TIME: 5 * 60 * 1000, // 5 minutes (leave 1 minute buffer)
+    MAX_RECORDS_MEMORY_LIMIT: 10000, // Maximum records to hold in memory at once
+
+    // Retry configuration
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000, // Milliseconds between retries
+    TIMEOUT: 30 // Request timeout in seconds
   },
-  
+
   // PRICE LIST CONFIGURATION
   PRICE_LIST_ENDPOINTS: {
     'pricelist': {
       label: "Price Lists",
       apiPath: '/hub/mdm-integration/v1/api/pricelist',
-      supportsPagination: true,
-      pageSize: 200
+      supportsPagination: true
     },
     'pricelist-items': {
       label: "Price List Items",
       apiPath: '/hub/mdm-integration/v1/api/pricelist/items',
-      supportsPagination: true,
-      pageSize: 200
+      supportsPagination: true
     },
     'pricelist-update': {
       label: "Update Price List",
@@ -102,20 +113,16 @@ const ZOTOKS_CONFIG = {
     MAX_SHEET_NAME_LENGTH: 100,
     DEFAULT_TARGET_TYPE: 'customer-price',
     REQUIRED_PRODUCT_FIELDS: ['sku', 'price'],
-    OPTIONAL_PRODUCT_FIELDS: ['priceWithMargin'],
-    SYNC_BATCH_SIZE: 50
+    OPTIONAL_PRODUCT_FIELDS: ['priceWithMargin']
   },
   
-  // Performance optimization constants
-  CACHE_DURATION: 5 * 60 * 1000, // 5 minutes cache for validation
-  STATUS_CACHE_DURATION: 2 * 60 * 1000, // 2 minutes cache for status checks
-  TOKEN_CHECK_COOLDOWN: 30 * 1000, // 30 seconds cooldown between token checks
-  BATCH_PROPERTY_OPERATIONS: true, // Enable batched property operations
-
-  // NEW: VERSIONED CACHING CONSTANTS
-  VERSION_CACHE_DURATION: 10 * 60 * 1000, // 10 minutes cache for version checks
-  TOKEN_VERSION_CHECK_COOLDOWN: 30 * 1000, // 30 seconds cooldown between version checks
-  MIN_CACHE_EXPIRY_BUFFER: 2 * 60 * 1000 // 2 minutes minimum buffer before using cached tokens
+  // CACHING CONFIGURATION
+  CACHE: {
+    DURATION: 5 * 60 * 1000, // 5 minutes cache for validation
+    STATUS_DURATION: 2 * 60 * 1000, // 2 minutes cache for status checks
+    VERSION_DURATION: 10 * 60 * 1000, // 10 minutes cache for version checks
+    MIN_EXPIRY_BUFFER: 2 * 60 * 1000 // 2 minutes minimum buffer before using cached tokens
+  }
 };
 
 /**
@@ -130,10 +137,10 @@ const Config = {
   },
 
   /**
-   * Get pagination configuration
+   * Get unified pagination and batch processing configuration
    */
-  getPaginationConfig() {
-    return ZOTOKS_CONFIG.PAGINATION;
+  getPaginationAndBatchConfig() {
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH;
   },
 
   /**
@@ -177,9 +184,9 @@ const Config = {
     // Add pagination params if supported
     if (config.supportsPagination) {
       const urlParams = [];
-      if (params.pageSize || config.pageSize) {
-        urlParams.push(`pageSize=${params.pageSize || config.pageSize}`);
-      }
+      const pageSize = params.pageSize || ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_SIZE;
+      urlParams.push(`pageSize=${pageSize}`);
+
       if (params.pageNo) {
         urlParams.push(`pageNo=${params.pageNo}`);
       }
@@ -259,42 +266,42 @@ const Config = {
    * Get page size for pagination
    */
   getPageSize() {
-    return ZOTOKS_CONFIG.PAGINATION.PAGE_SIZE;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_SIZE;
   },
 
   /**
    * Get maximum execution time
    */
   getMaxExecutionTime() {
-    return ZOTOKS_CONFIG.PAGINATION.MAX_EXECUTION_TIME;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.MAX_EXECUTION_TIME;
   },
 
   /**
    * Get maximum pages per batch
    */
   getMaxPagesPerBatch() {
-    return ZOTOKS_CONFIG.PAGINATION.MAX_PAGES_PER_BATCH;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.MAX_PAGES_PER_BATCH;
   },
 
   /**
    * Get memory limit for records
    */
   getMemoryLimit() {
-    return ZOTOKS_CONFIG.PAGINATION.MAX_RECORDS_MEMORY_LIMIT;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.MAX_RECORDS_MEMORY_LIMIT;
   },
 
   /**
    * Get page processing delay
    */
   getPageProcessingDelay() {
-    return ZOTOKS_CONFIG.PAGINATION.PAGE_PROCESSING_DELAY;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_PROCESSING_DELAY;
   },
 
   /**
    * Get timeout check frequency
    */
   getTimeoutCheckFrequency() {
-    return ZOTOKS_CONFIG.PAGINATION.TIMEOUT_CHECK_FREQUENCY;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.TIMEOUT_CHECK_FREQUENCY;
   },
 
   // EXISTING METHODS (keeping all your current functionality)
@@ -315,69 +322,59 @@ const Config = {
   },
 
   getTimeout() {
-    return ZOTOKS_CONFIG.TIMEOUT;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.TIMEOUT;
   },
 
   getMaxRetries() {
-    return ZOTOKS_CONFIG.MAX_RETRIES;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.MAX_RETRIES;
   },
 
   getRetryDelay() {
-    return ZOTOKS_CONFIG.RETRY_DELAY;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.RETRY_DELAY;
   },
 
   getBatchSize() {
-    return ZOTOKS_CONFIG.BATCH_SIZE;
+    return ZOTOKS_CONFIG.PAGINATION_AND_BATCH.BATCH_SIZE;
   },
 
   getTokenDuration() {
-    return ZOTOKS_CONFIG.TOKEN_DURATION;
+    return ZOTOKS_CONFIG.TOKEN.DURATION;
   },
 
   getTokenBuffer() {
-    return ZOTOKS_CONFIG.TOKEN_BUFFER;
+    return ZOTOKS_CONFIG.TOKEN.BUFFER;
   },
 
   getTokenRefreshThreshold() {
-    return ZOTOKS_CONFIG.TOKEN_REFRESH_THRESHOLD;
+    return ZOTOKS_CONFIG.TOKEN.REFRESH_THRESHOLD;
   },
 
   getProactiveRefreshThreshold() {
-    return ZOTOKS_CONFIG.PROACTIVE_REFRESH_THRESHOLD;
-  },
-
-  getCacheDuration() {
-    return ZOTOKS_CONFIG.CACHE_DURATION;
-  },
-
-  getStatusCacheDuration() {
-    return ZOTOKS_CONFIG.STATUS_CACHE_DURATION;
+    return ZOTOKS_CONFIG.TOKEN.PROACTIVE_REFRESH_THRESHOLD;
   },
 
   getTokenCheckCooldown() {
-    return ZOTOKS_CONFIG.TOKEN_CHECK_COOLDOWN;
+    return ZOTOKS_CONFIG.TOKEN.CHECK_COOLDOWN;
   },
 
-  // NEW: VERSIONED CACHING METHODS
-  /**
-   * Get version cache duration
-   */
-  getVersionCacheDuration() {
-    return ZOTOKS_CONFIG.VERSION_CACHE_DURATION;
-  },
-
-  /**
-   * Get token version check cooldown
-   */
   getTokenVersionCheckCooldown() {
-    return ZOTOKS_CONFIG.TOKEN_VERSION_CHECK_COOLDOWN;
+    return ZOTOKS_CONFIG.TOKEN.VERSION_CHECK_COOLDOWN;
   },
 
-  /**
-   * Get minimum cache expiry buffer
-   */
+  getCacheDuration() {
+    return ZOTOKS_CONFIG.CACHE.DURATION;
+  },
+
+  getStatusCacheDuration() {
+    return ZOTOKS_CONFIG.CACHE.STATUS_DURATION;
+  },
+
+  getVersionCacheDuration() {
+    return ZOTOKS_CONFIG.CACHE.VERSION_DURATION;
+  },
+
   getMinCacheExpiryBuffer() {
-    return ZOTOKS_CONFIG.MIN_CACHE_EXPIRY_BUFFER;
+    return ZOTOKS_CONFIG.CACHE.MIN_EXPIRY_BUFFER;
   },
 
   // EXISTING UTILITY METHODS
@@ -470,7 +467,7 @@ const Config = {
 
     // Add pagination if supported
     if (config.supportsPagination) {
-      params.push(`pageSize=${ZOTOKS_CONFIG.PAGINATION.PAGE_SIZE}`);
+      params.push(`pageSize=${ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_SIZE}`);
     }
 
     // Add time period if supported and provided

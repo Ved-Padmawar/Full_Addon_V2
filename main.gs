@@ -451,6 +451,15 @@ function fetchZotoksData(endpoint, period = 30) {
   }
 }
 
+function fetchZotoksPreview(endpoint, period = 30) {
+  try {
+    return ZotoksAPI.fetchPreview(endpoint, period);
+  } catch (error) {
+    Logger.log(`Error fetching preview: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
 function testZotoksConnection() {
   try {
     return ZotoksAPI.testConnection();
