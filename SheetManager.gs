@@ -434,6 +434,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
     if (sheet.getLastRow() > 1) {
       const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
       dataRange.clearContent();
+      SpreadsheetApp.flush(); // Force UI update to show cleared data
       Logger.log('Cleared existing data before import');
     }
 
@@ -565,47 +566,37 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
         };
       }
       
+      // Clear existing data for existing sheets
+      if (!isNewSheet && sheet.getLastRow() > 1) {
+        const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
+        dataRange.clearContent();
+        SpreadsheetApp.flush(); // Force UI update to show cleared data
+        Logger.log('Cleared existing data before import');
+      }
+
       // Write headers if new sheet
       if (isNewSheet) {
         sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-        
+
         // Format headers
         const headerRange = sheet.getRange(1, 1, 1, headers.length);
         headerRange.setFontWeight('bold');
         headerRange.setBackground('#f0f0f0');
       }
-      
-      // Write data in optimized batches with formula preservation
+
+      // Write data in optimized batches
       if (rows.length > 0) {
         const startRow = 2;
         const batchSize = Math.min(Config.getBatchSize(), 100);
 
-        if (isNewSheet) {
-          // For new sheets, write all data normally (no formulas to preserve)
-          for (let i = 0; i < rows.length; i += batchSize) {
-            const batch = rows.slice(i, i + batchSize);
-            const currentRow = startRow + i;
+        for (let i = 0; i < rows.length; i += batchSize) {
+          const batch = rows.slice(i, i + batchSize);
+          const currentRow = startRow + i;
 
-            sheet.getRange(currentRow, 1, batch.length, headers.length).setValues(batch);
+          sheet.getRange(currentRow, 1, batch.length, headers.length).setValues(batch);
 
-            if (i + batchSize < rows.length) {
-              Utilities.sleep(5);
-            }
-          }
-        } else {
-          // For existing sheets, use formula-safe import
-          Logger.log('🧮 Using formula-safe import for existing sheet');
-
-          for (let i = 0; i < rows.length; i += batchSize) {
-            const batch = rows.slice(i, i + batchSize);
-            const currentRow = startRow + i;
-
-            // Import batch with formula preservation
-            this.importBatchWithFormulaPreservation(sheet, batch, currentRow, headers.length);
-
-            if (i + batchSize < rows.length) {
-              Utilities.sleep(5);
-            }
+          if (i + batchSize < rows.length) {
+            Utilities.sleep(5);
           }
         }
 
