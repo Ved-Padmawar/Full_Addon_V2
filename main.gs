@@ -662,9 +662,9 @@ function prepareZotoksImportToExistingSheet(targetSheetName, endpoint, period = 
   }
 }
 
-function importZotoksDataWithMappings(targetSheetName, endpoint, period, mappings, clearExistingData = false) {
+function importZotoksDataWithMappings(targetSheetName, endpoint, period, mappings) {
   try {
-    return SheetManager.importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingData);
+    return SheetManager.importWithMappings(targetSheetName, endpoint, period, mappings);
   } catch (error) {
     Logger.log(`Error importing with mappings: ${error.message}`);
     return { success: false, message: error.message };

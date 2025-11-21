@@ -339,7 +339,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
         Logger.log(`Valid existing mappings found, importing directly with stored mappings`);
 
         // Automatically import using the valid existing mappings
-        const importResult = this.importWithMappings(targetSheetName, endpoint, period, existingMappings.mappings, false);
+        const importResult = this.importWithMappings(targetSheetName, endpoint, period, existingMappings.mappings);
 
         if (importResult.success) {
           return {
@@ -388,9 +388,9 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
 /**
  * Import with mappings and enhanced performance
  */
-importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingData = false) {
+importWithMappings(targetSheetName, endpoint, period, mappings) {
   try {
-    Logger.log(`Importing ${endpoint} data with mappings to sheet: ${targetSheetName}, clearExisting: ${clearExistingData}`);
+    Logger.log(`Importing ${endpoint} data with mappings to sheet: ${targetSheetName}`);
     // Fetch full data with caching
     const dataResult = ZotoksAPI.fetchData(endpoint, period);
     if (!dataResult.success) {
@@ -430,11 +430,11 @@ importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingDat
       sheetHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     }
 
-    // Clear existing data if requested (for sync operations)
-    if (clearExistingData && sheet.getLastRow() > 1) {
+    // Always clear existing data before importing
+    if (sheet.getLastRow() > 1) {
       const dataRange = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn());
       dataRange.clearContent();
-      Logger.log('Cleared existing data for sync operation');
+      Logger.log('Cleared existing data before import');
     }
 
     // Map the data according to column mappings
@@ -453,17 +453,17 @@ importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingDat
 
       return mappedRow;
     });
-    // Write mapped data to sheet with formula preservation
+    // Write mapped data to sheet
     if (mappedRows.length > 0) {
-      const startRow = sheet.getLastRow() + 1;
+      const startRow = 2; // Always start from row 2 after clearing
 
-      // Use formula-safe import for mapped data
+      // Write data in batches
       const batchSize = Math.min(Config.getBatchSize(), 100);
       for (let i = 0; i < mappedRows.length; i += batchSize) {
         const batch = mappedRows.slice(i, i + batchSize);
         const currentRow = startRow + i;
 
-        this.importBatchWithFormulaPreservation(sheet, batch, currentRow, sheetHeaders.length);
+        sheet.getRange(currentRow, 1, batch.length, sheetHeaders.length).setValues(batch);
 
         if (i + batchSize < mappedRows.length) {
           Utilities.sleep(5);
@@ -473,9 +473,9 @@ importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingDat
 
     // Store mappings for future use
     const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
-    let message = `Successfully ${clearExistingData ? 'synced' : 'imported'} ${mappedRows.length} rows of ${endpoint} data ${clearExistingData ? 'to' : 'into'} ${targetSheetName}`;
+    let message = `Successfully imported ${mappedRows.length} rows of ${endpoint} data to ${targetSheetName}`;
     if (storeResult.success) {
-      message += '. Column mappings saved for future sync operations.';
+      message += '. Column mappings saved for future imports.';
     }
 
     return {
@@ -484,8 +484,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings, clearExistingDat
       rowCount: mappedRows.length,
       endpoint: endpoint,
       period: period,
-      mappingsStored: storeResult.success,
-      syncMode: clearExistingData
+      mappingsStored: storeResult.success
     };
   } catch (error) {
     Logger.log(`Import with mappings error: ${error.message}`);
