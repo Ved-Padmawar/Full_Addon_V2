@@ -296,9 +296,9 @@
     function updateSelection() {
       const priceListCheckboxes = document.querySelectorAll('.price-list-checkbox');
       const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-      
+
       selectedPriceLists.clear();
-      
+
       let checkedCount = 0;
       priceListCheckboxes.forEach(checkbox => {
         if (checkbox.checked) {
@@ -306,12 +306,11 @@
           checkedCount++;
         }
       });
-      
+
       selectAllCheckbox.checked = checkedCount === priceListCheckboxes.length && priceListCheckboxes.length > 0;
-      selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < priceListCheckboxes.length;
-      
+
       updateSelectedCount();
-      
+
       document.getElementById('createSheetsButton').disabled = selectedPriceLists.size === 0;
     }
     
