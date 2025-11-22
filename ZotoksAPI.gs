@@ -913,7 +913,7 @@ const ZotoksAPI = {
       }
       
       // Construct URL for products API
-      const productsUrl = `${Config.getBaseUrl()}/hub/mdm-integration/v1/api/products`;
+      const productsUrl = Config.buildApiUrl('products');
       
       Logger.log(`Calling products API: ${productsUrl}`);
       
