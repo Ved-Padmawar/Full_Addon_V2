@@ -357,9 +357,9 @@
                     <div class="dropdown-wrapper">
                       <select id="periodSelect" class="dropdown-select">
                         <option value="7">Last 14 days</option>
-                        <option value="30" selected>Last 30 days</option>
+                        <option value="30">Last 30 days</option>
                         <option value="60">Last 60 days</option>
-                        <option value="90">Last 90 days</option>
+                        <option value="90" selected>Last 90 days</option>
                         <option value="180">Last 6 months</option>
                         <option value="365">Last year</option>
                       </select>
@@ -1001,25 +1001,50 @@
     loadEndpointsFromServer();
 
     function loadEndpointsFromServer() {
-      console.log('🔄 Loading endpoints...');
+      // Load endpoints and pre-selected endpoint in parallel
+      let endpointsLoaded = false;
+      let preSelectedLoaded = false;
+      let preSelectedEndpoint = '';
 
+      // Load endpoints
       google.script.run
         .withSuccessHandler(function(result) {
           if (result.success && result.endpoints) {
-            console.log('✅ Endpoints loaded from server');
             endpointsConfig = result.endpoints;
           } else {
-            console.log('⚠️ Server load failed, using fallback');
             useFallbackEndpoints();
           }
-          populateDataSourceDropdown();
+          endpointsLoaded = true;
+          checkAndPopulate();
         })
         .withFailureHandler(function(error) {
-          console.error('❌ Server failed:', error);
+          console.error('Failed to load endpoints:', error);
           useFallbackEndpoints();
-          populateDataSourceDropdown();
+          endpointsLoaded = true;
+          checkAndPopulate();
         })
         .getEndpointsConfiguration();
+
+      // Load pre-selected endpoint
+      google.script.run
+        .withSuccessHandler(function(endpoint) {
+          preSelectedEndpoint = endpoint || '';
+          preSelectedLoaded = true;
+          checkAndPopulate();
+        })
+        .withFailureHandler(function(error) {
+          console.error('Failed to load pre-selected endpoint:', error);
+          preSelectedLoaded = true;
+          checkAndPopulate();
+        })
+        .getPreSelectedEndpoint();
+
+      // Populate dropdown only after both calls complete
+      function checkAndPopulate() {
+        if (endpointsLoaded && preSelectedLoaded) {
+          populateDataSourceDropdown(preSelectedEndpoint);
+        }
+      }
     }
 
     function useFallbackEndpoints() {
@@ -1032,17 +1057,16 @@
       ];
     }
 
-    function populateDataSourceDropdown() {
+    function populateDataSourceDropdown(preSelectedEndpoint) {
       // Prevent multiple population
       if (dropdownPopulated) {
-        console.log('⚠️ Dropdown already populated, skipping');
         return;
       }
 
       const select = document.getElementById('dataSourceSelect');
 
       if (!select) {
-        console.error('❌ Data source select element not found!');
+        console.error('Data source select element not found');
         return;
       }
 
@@ -1072,7 +1096,19 @@
       }
 
       dropdownPopulated = true;
-      console.log('✅ Dropdown populated with endpoints');
+
+      // Apply pre-selection if provided
+      if (preSelectedEndpoint && preSelectedEndpoint.trim() !== '') {
+        const optionExists = select.querySelector(`option[value="${preSelectedEndpoint}"]`);
+
+        if (optionExists) {
+          select.value = preSelectedEndpoint;
+
+          // Trigger change event to update period dropdown and enable preview
+          const changeEvent = new Event('change', { bubbles: true });
+          select.dispatchEvent(changeEvent);
+        }
+      }
     }
 
     function updatePeriodDropdownForEndpoint(endpoint) {
@@ -1111,9 +1147,10 @@
           periodSelect.appendChild(option);
         });
 
-        // Set default to first available period
+        // Set default to 90 days if available, otherwise first available period
         if (config.allowedTimePeriods.length > 0) {
-          periodSelect.value = config.allowedTimePeriods[0];
+          const preferred = config.allowedTimePeriods.includes('90') ? '90' : config.allowedTimePeriods[0];
+          periodSelect.value = preferred;
         }
       } else {
         // Hide period dropdown for endpoints that don't support time periods

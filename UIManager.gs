@@ -13,8 +13,9 @@ const UIManager = {
 
   /**
    * Show main import dialog (entry point)
+   * @param {string} preSelectedEndpoint - Optional endpoint to pre-select (e.g., 'customers')
    */
-  showImportDialog() {
+  showImportDialog(preSelectedEndpoint) {
     try {
       // Check if credentials are configured
       if (!AuthManager.hasCredentials()) {
@@ -33,6 +34,13 @@ const UIManager = {
           this.showCredentialsDialog();
           return;
         }
+      }
+
+      // Store pre-selected endpoint in UserProperties if provided
+      if (preSelectedEndpoint) {
+        PropertiesService.getUserProperties().setProperty('TEMP_PRESELECT_ENDPOINT', preSelectedEndpoint);
+      } else {
+        PropertiesService.getUserProperties().deleteProperty('TEMP_PRESELECT_ENDPOINT');
       }
 
       // Show main import dialog

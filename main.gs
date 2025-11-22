@@ -21,7 +21,7 @@ function onOpen(e) {
       .addItem('⬆️ Upload', 'syncCurrentPriceListSheet');
 
     const customerSubmenu = ui.createMenu('👥 Customers')
-      .addItem('📥 Import', 'showZotoksImportDialog')
+      .addItem('📥 Import', 'showCustomerImportDialog')
       .addItem('⬆️ Upload', 'exportCustomers');
 
     const menu = ui.createAddonMenu()
@@ -76,7 +76,7 @@ function createZotoksMenuSafely() {
       .addItem('⬆️ Upload', 'syncCurrentPriceListSheet');
 
     const customerSubmenu = ui.createMenu('👥 Customers')
-      .addItem('📥 Import', 'showZotoksImportDialog')
+      .addItem('📥 Import', 'showCustomerImportDialog')
       .addItem('⬆️ Upload', 'exportCustomers');
 
     ui.createMenu('Zötok')
@@ -136,6 +136,13 @@ function showZotoksImportDialog() {
       Logger.log(`UI error: ${uiError.message}`);
     }
   }
+}
+
+/**
+ * Show customer import dialog with customers API pre-selected
+ */
+function showCustomerImportDialog() {
+  UIManager.showImportDialog('customers');
 }
 
 /**
@@ -433,6 +440,20 @@ function clearZotoksCredentials() {
  */
 function getEndpointsConfiguration() {
   return Utils.getEndpointsConfiguration();
+}
+
+/**
+ * Get pre-selected endpoint from temporary storage (if any)
+ */
+function getPreSelectedEndpoint() {
+  const preSelected = PropertiesService.getUserProperties().getProperty('TEMP_PRESELECT_ENDPOINT');
+
+  // Clear it after reading (one-time use)
+  if (preSelected) {
+    PropertiesService.getUserProperties().deleteProperty('TEMP_PRESELECT_ENDPOINT');
+  }
+
+  return preSelected || '';
 }
 
 // ==========================================
