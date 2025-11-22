@@ -107,7 +107,7 @@ function showZotoksImportDialog() {
     }
     
     // Test basic authentication before showing main dialog (lazy loading)
-    const connectionTest = ZotoksAPI.testConnection();
+    const connectionTest = ImportAPI.testConnection();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -157,7 +157,7 @@ function showZotoksPriceListDialog() {
     }
     
     // Test basic authentication before showing dialog
-    const connectionTest = ZotoksAPI.testConnection();
+    const connectionTest = ImportAPI.testConnection();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -337,7 +337,7 @@ function exportCurrentEntitySheet(expectedEntity) {
     Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
 
     // Make API call
-    const result = ZotoksAPI.updateEntity(endpoint, payload);
+    const result = ImportAPI.updateEntity(endpoint, payload);
     if (result.success) {
       const recordCount = endpoint === 'customers' ? payload.customers.length : 0;
       SpreadsheetApp.getUi().alert(
@@ -462,7 +462,7 @@ function getPreSelectedEndpoint() {
 
 function fetchZotoksData(endpoint, period = 30) {
   try {
-    return ZotoksAPI.fetchData(endpoint, period);
+    return ImportAPI.fetchData(endpoint, period);
   } catch (error) {
     Logger.log(`Error fetching data: ${error.message}`);
     return { success: false, message: error.message };
@@ -471,7 +471,7 @@ function fetchZotoksData(endpoint, period = 30) {
 
 function fetchZotoksPreview(endpoint, period = 30) {
   try {
-    return ZotoksAPI.fetchPreview(endpoint, period);
+    return ImportAPI.fetchPreview(endpoint, period);
   } catch (error) {
     Logger.log(`Error fetching preview: ${error.message}`);
     return { success: false, message: error.message };
@@ -480,7 +480,7 @@ function fetchZotoksPreview(endpoint, period = 30) {
 
 function testZotoksConnection() {
   try {
-    return ZotoksAPI.testConnection();
+    return ImportAPI.testConnection();
   } catch (error) {
     Logger.log(`Error testing connection: ${error.message}`);
     return { success: false, message: error.message };
@@ -493,7 +493,7 @@ function testZotoksConnection() {
 
 function fetchZotoksPriceLists() {
   try {
-    return ZotoksAPI.getPriceLists();
+    return PriceListAPI.getPriceLists();
   } catch (error) {
     Logger.log(`Error fetching price lists: ${error.message}`);
     return { success: false, message: error.message };
@@ -502,7 +502,7 @@ function fetchZotoksPriceLists() {
 
 function fetchZotoksPriceListItems(priceListId) {
   try {
-    return ZotoksAPI.getPriceListItems(priceListId);
+    return PriceListAPI.getPriceListItems(priceListId);
   } catch (error) {
     Logger.log(`Error fetching price list items: ${error.message}`);
     return { success: false, message: error.message };
@@ -511,7 +511,7 @@ function fetchZotoksPriceListItems(priceListId) {
 
 function fetchZotoksProducts() {
   try {
-    return ZotoksAPI.getProducts();
+    return ImportAPI.fetchData('products');
   } catch (error) {
     Logger.log(`Error fetching products: ${error.message}`);
     return { success: false, message: error.message };
@@ -626,7 +626,7 @@ function syncCurrentPriceListSheet() {
     Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
     Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
     
-    const result = ZotoksAPI.updatePriceList(payload);
+    const result = PriceListAPI.updatePriceList(payload);
     if (result.success) {
       SpreadsheetApp.getUi().alert(
         'Success',
@@ -839,7 +839,7 @@ function checkImportMappingCompatibility(sheetName, endpoint) {
 // PAGINATION MANAGEMENT EXPOSED FUNCTIONS
 // ==========================================
 
-// REMOVED: Deprecated pagination functions - functionality now centralized in ZotoksAPI.fetchData
+// REMOVED: Deprecated pagination functions - functionality now centralized in ImportAPI.fetchData
 
 // ==========================================
 // DEBUG AND TESTING FUNCTIONS
@@ -859,7 +859,7 @@ function testCredentialCacheClearing() {
     
     // Step 2: Test connection with current credentials  
     Logger.log('Step 2: Testing connection...');
-    const connectionTest1 = ZotoksAPI.testConnection();
+    const connectionTest1 = ImportAPI.testConnection();
     Logger.log(`Connection test result: ${connectionTest1.success ? 'SUCCESS' : 'FAILED'} - ${connectionTest1.message}`);
     
     // Step 3: Clear all caches manually
@@ -869,7 +869,7 @@ function testCredentialCacheClearing() {
     
     // Step 4: Test connection again (should fetch new token with current credentials)
     Logger.log('Step 4: Testing connection after cache clear...');
-    const connectionTest2 = ZotoksAPI.testConnection();
+    const connectionTest2 = ImportAPI.testConnection();
     Logger.log(`Connection test after cache clear: ${connectionTest2.success ? 'SUCCESS' : 'FAILED'} - ${connectionTest2.message}`);
     
     // Step 5: Check new token status
@@ -933,7 +933,7 @@ function debugCredentialFlow() {
     
     // Step 3: Test connection
     Logger.log('Step 3: Testing connection...');
-    const connectionResult = ZotoksAPI.testConnection();
+    const connectionResult = ImportAPI.testConnection();
     results.steps.testConnection = {
       success: connectionResult.success,
       cached: connectionResult.cached || false,
@@ -1174,7 +1174,7 @@ function debugPriceComparison() {
 
     // --- STEP 2: FETCH API DATA ---
     Logger.log('\n--- Fetching API Data ---');
-    const itemsResult = ZotoksAPI.getPriceListItems(TEST_PRICE_LIST_ID);
+    const itemsResult = PriceListAPI.getPriceListItems(TEST_PRICE_LIST_ID);
 
     if (!itemsResult.success) {
       Logger.log(`❌ ERROR: Failed to fetch API items: ${itemsResult.message}`);
@@ -1326,7 +1326,7 @@ function debugColumnMappingIssue(sheetName = 'Trips_Data', endpoint = 'trips', p
     
     // Step 3: Fetch data
     console.log('\n🌐 Step 3: Fetching API data...');
-    const dataResult = ZotoksAPI.fetchData(endpoint, period);
+    const dataResult = ImportAPI.fetchData(endpoint, period);
     debugResults.steps.dataFetch = {
       success: dataResult.success,
       recordCount: dataResult.recordCount || 0,
@@ -1550,7 +1550,7 @@ function debugPriceListCompleteWorkflow() {
     
     // Step 1: Test connection
     Logger.log('Step 1: Testing connection...');
-    const connectionTest = ZotoksAPI.testConnection();
+    const connectionTest = ImportAPI.testConnection();
     if (!connectionTest.success) {
       Logger.log(`❌ Connection failed: ${connectionTest.message}`);
       return {
@@ -1564,7 +1564,7 @@ function debugPriceListCompleteWorkflow() {
     
     // Step 2: Fetch price lists
     Logger.log('Step 2: Fetching price lists...');
-    const priceListsResult = ZotoksAPI.getPriceLists();
+    const priceListsResult = PriceListAPI.getPriceLists();
     if (!priceListsResult.success) {
       Logger.log(`❌ Failed to fetch price lists: ${priceListsResult.message}`);
       return {

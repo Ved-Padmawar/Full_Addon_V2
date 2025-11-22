@@ -69,13 +69,8 @@ const SheetManager = {
       Logger.log(`Creating new sheet: ${sheetName} for ${endpoint} data`);
 
       // Check if this is the products endpoint
-      let dataResult;
-      if (endpoint === 'products') {
-        dataResult = ZotoksAPI.getProducts();
-      } else {
-        // Fetch data from Zotoks with optimized caching
-        dataResult = ZotoksAPI.fetchData(endpoint, period);
-      }
+      // Fetch data from Zotoks with optimized caching
+      const dataResult = ImportAPI.fetchData(endpoint, period);
 
       if (!dataResult.success) {
         return dataResult;
@@ -239,12 +234,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
     }
 
     // Fetch sample data for mapping with enhanced error handling
-    let dataResult;
-    if (endpoint === 'products') {
-      dataResult = ZotoksAPI.getProducts();
-    } else {
-      dataResult = ZotoksAPI.fetchData(endpoint, period);
-    }
+    const dataResult = ImportAPI.fetchData(endpoint, period);
 
     if (!dataResult.success) {
       return dataResult;
@@ -392,7 +382,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
   try {
     Logger.log(`Importing ${endpoint} data with mappings to sheet: ${targetSheetName}`);
     // Fetch full data with caching
-    const dataResult = ZotoksAPI.fetchData(endpoint, period);
+    const dataResult = ImportAPI.fetchData(endpoint, period);
     if (!dataResult.success) {
       return dataResult;
     }
@@ -681,7 +671,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
           
           // Get detailed items for this price list using correct ID
           Logger.log(`🔍 Fetching items for price list ID: ${priceListId}`);
-          const itemsResult = ZotoksAPI.getPriceListItems(priceListId);
+          const itemsResult = PriceListAPI.getPriceListItems(priceListId);
           
           if (!itemsResult.success) {
             Logger.log(`❌ Failed to fetch items for price list ${priceListId}: ${itemsResult.message}`);
@@ -1152,7 +1142,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       Logger.log(`Constructed payload for ${products.length} products`);
       
       // Call the fixed update API
-      const updateResult = ZotoksAPI.updatePriceList(payload);
+      const updateResult = PriceListAPI.updatePriceList(payload);
       
       if (updateResult.success) {
         return {
@@ -1444,7 +1434,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       Logger.log('📦 Creating/updating Global Products List sheet...');
       
       // Fetch products data
-      const productsResult = ZotoksAPI.getProducts();
+      const productsResult = ImportAPI.fetchData('products');
       if (!productsResult.success) {
         return {
           success: false,
