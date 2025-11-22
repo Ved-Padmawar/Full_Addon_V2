@@ -315,92 +315,40 @@
           }, 1500);
         }
 
+        // Use server-side FieldMapper for consistent auto-mapping logic
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.success && result.mappings) {
+              applyAutoMappings(result.mappings);
+            } else {
+              showToast('Auto-mapping failed', 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('Auto-mapping error:', error);
+            showToast('Auto-mapping error: ' + error.message, 'error');
+          })
+          .autoMapZotoksColumns(sourceColumns, targetColumns);
+      }
+
+      function applyAutoMappings(mappings) {
         const dropdowns = document.querySelectorAll('[data-custom-dropdown]');
         let mappedCount = 0;
 
-        // OPTIMIZATION: Build target column lookup maps once (O(1) lookups instead of O(m) per source)
-        // Get all available target options from first dropdown (all dropdowns have same options)
-        const firstDropdown = dropdowns[0];
-        if (!firstDropdown) return;
+        // Apply each mapping
+        mappings.forEach(mapping => {
+          // Find the dropdown for this source column
+          dropdowns.forEach(dropdown => {
+            const hiddenInput = dropdown.querySelector('input[type="hidden"]');
+            const sourceCol = hiddenInput.getAttribute('data-source');
 
-        const allOptions = firstDropdown.querySelectorAll('li[role="option"]');
-
-        // Build hashmaps for fast lookup
-        const exactMatchMap = new Map(); // normalized -> {value, text}
-        const targetOptions = []; // [{value, text, normalized}] for partial/rule matching
-
-        allOptions.forEach(option => {
-          const value = option.getAttribute('data-value');
-          const text = option.textContent.trim();
-          const normalized = value.toLowerCase();
-
-          // Exact match map
-          exactMatchMap.set(normalized, { value, text });
-
-          // Store for partial/rule matching
-          targetOptions.push({ value, text, normalized });
-        });
-
-        // Special mapping rules for common Zotoks fields (defined once outside loop)
-        const mappingRules = {
-          'id': ['id', 'identifier', 'key'],
-          'customer_id': ['customer', 'customer_id', 'client'],
-          'trip_id': ['trip', 'trip_id', 'journey'],
-          'order_id': ['order', 'order_id', 'purchase'],
-          'created_at': ['created', 'date', 'timestamp'],
-          'updated_at': ['updated', 'modified', 'last_updated'],
-          'status': ['status', 'state', 'condition'],
-          'amount': ['amount', 'total', 'price', 'cost'],
-          'name': ['name', 'title', 'label']
-        };
-
-        // Single pass over source columns
-        dropdowns.forEach(dropdown => {
-          const hiddenInput = dropdown.querySelector('input[type="hidden"]');
-          const sourceCol = hiddenInput.getAttribute('data-source').toLowerCase();
-          const buttonText = dropdown.querySelector('button span');
-
-          let bestMatch = null;
-          let bestMatchText = null;
-
-          // 1. Exact match via hashmap (O(1))
-          const exactMatch = exactMatchMap.get(sourceCol);
-          if (exactMatch) {
-            bestMatch = exactMatch.value;
-            bestMatchText = exactMatch.text;
-          }
-
-          // 2. Partial match (only if no exact match)
-          if (!bestMatch) {
-            for (const target of targetOptions) {
-              if (target.normalized.includes(sourceCol) || sourceCol.includes(target.normalized)) {
-                bestMatch = target.value;
-                bestMatchText = target.text;
-                break;
-              }
+            if (sourceCol === mapping.source && mapping.target) {
+              const buttonText = dropdown.querySelector('button span');
+              hiddenInput.value = mapping.target;
+              buttonText.textContent = mapping.target;
+              mappedCount++;
             }
-          }
-
-          // 3. Rule-based match (only if no exact/partial match)
-          if (!bestMatch) {
-            const rule = mappingRules[sourceCol];
-            if (rule) {
-              for (const target of targetOptions) {
-                if (rule.some(r => target.normalized.includes(r))) {
-                  bestMatch = target.value;
-                  bestMatchText = target.text;
-                  break;
-                }
-              }
-            }
-          }
-
-          // Apply mapping if found
-          if (bestMatch) {
-            hiddenInput.value = bestMatch;
-            buttonText.textContent = bestMatchText;
-            mappedCount++;
-          }
+          });
         });
 
         updatePreview();

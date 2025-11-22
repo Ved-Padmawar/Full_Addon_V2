@@ -28,7 +28,7 @@ const ZOTOKS_CONFIG = {
       supportsPagination: false,
       supportsTimePeriod: true,
       allowedTimePeriods: ["7", "30", "90"],
-      updateEndpoint: '/hub/mdm-integration/v1/api/customers'
+      updateEndpoint: 'customers'
     },
     products: {
       label: "Products",
@@ -86,6 +86,18 @@ const ZOTOKS_CONFIG = {
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000, // Milliseconds between retries
     TIMEOUT: 30 // Request timeout in seconds
+  },
+
+  // UPLOAD FIELD MAPPINGS CONFIGURATION
+  // Maps sheet column headers (normalized) to API payload field names
+  UPLOAD_FIELD_MAPPINGS: {
+    customers: {
+      'customercode': 'customerCode',
+      'contactname': 'contactName',
+      'firmname': 'firmName',
+      'mobile': 'mobile',
+      'email': 'email'
+    }
   },
 
   // PRICE LIST CONFIGURATION
@@ -450,7 +462,7 @@ const Config = {
     if (!config || !config.updateEndpoint) {
       throw new Error(`No update endpoint configured for: ${endpoint}`);
     }
-    return `${ZOTOKS_CONFIG.BASE_URL}${config.updateEndpoint}`;
+    return `${ZOTOKS_CONFIG.BASE_URL}${ZOTOKS_CONFIG.DATA_ENDPOINT}/${config.updateEndpoint}`;
   },
 
   /**
@@ -485,5 +497,23 @@ const Config = {
     }
 
     return url;
+  },
+
+  /**
+   * Get upload field mapping configuration for an endpoint
+   */
+  getUploadFieldMapping(endpoint) {
+    const mapping = ZOTOKS_CONFIG.UPLOAD_FIELD_MAPPINGS[endpoint];
+    if (!mapping) {
+      throw new Error(`No upload field mapping configured for: ${endpoint}`);
+    }
+    return mapping;
+  },
+
+  /**
+   * Check if endpoint has upload field mapping configured
+   */
+  hasUploadFieldMapping(endpoint) {
+    return ZOTOKS_CONFIG.UPLOAD_FIELD_MAPPINGS.hasOwnProperty(endpoint);
   }
 };

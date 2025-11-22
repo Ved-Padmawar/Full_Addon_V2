@@ -207,6 +207,7 @@ function exportCustomers() {
 /**
  * NEW: Generic entity export function for all entities dialog
  * Works with customers, trips, orders, etc. (not price list)
+ * Now uses UploadAPI for smart, config-driven payload construction
  */
 function exportCurrentEntitySheet(expectedEntity) {
   try {
@@ -257,95 +258,31 @@ function exportCurrentEntitySheet(expectedEntity) {
       return;
     }
 
-    // Read sheet data
-    Logger.log('Reading sheet data...');
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    Logger.log(`Sheet dimensions: ${lastRow} rows x ${lastCol} columns`);
-
-    if (lastRow < 2) {
-      Logger.log('❌ No data rows found in sheet');
+    // Validate and read sheet data using UploadAPI
+    Logger.log('Validating sheet data...');
+    const validation = UploadAPI.validateSheetData(sheet);
+    if (!validation.valid) {
+      Logger.log(`❌ Sheet validation failed: ${validation.message}`);
       SpreadsheetApp.getUi().alert(
         'Error',
-        'No data found in sheet (only headers or empty sheet)',
+        validation.message,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
       return;
     }
 
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
+    Logger.log(`Processing ${validation.rowCount} rows with ${validation.columnCount} columns`);
 
-    // Build payload based on entity type
-    let payload;
+    // Use UploadAPI to build and upload the payload
+    const result = UploadAPI.uploadEntity(endpoint, validation.headers, validation.dataRows);
 
-    if (endpoint === 'customers') {
-      Logger.log('Building customers payload...');
-      // Build customers payload
-      const customers = dataRows.map(row => {
-        const customer = {};
-
-        headers.forEach((header, index) => {
-          const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-          let value = row[index];
-
-          // Convert value to string, use empty string if empty
-          const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
-
-          // Map to customer fields
-          if (cleanHeader === 'customercode') {
-            customer.customerCode = stringValue;
-          } else if (cleanHeader === 'contactname') {
-            customer.contactName = stringValue;
-          } else if (cleanHeader === 'firmname') {
-            customer.firmName = stringValue;
-          } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
-            customer.mobile = stringValue;
-          } else if (cleanHeader === 'email') {
-            customer.email = stringValue;
-          }
-        });
-        return customer;
-      }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
-
-      if (customers.length === 0) {
-        Logger.log('❌ No valid customer records found with customerCode');
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'No valid customer records with customerCode found in the sheet.',
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-
-      Logger.log(`✅ Built payload with ${customers.length} customer records`);
-      payload = { customers: customers };
-      Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
-
-    } else {
-      Logger.log(`❌ Export logic not implemented for ${endpoint}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Export logic not yet implemented for ${endpoint}.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    Logger.log(`Calling API to update ${endpoint}...`);
-    Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
-
-    // Make API call
-    const result = ImportAPI.updateEntity(endpoint, payload);
     if (result.success) {
-      const recordCount = endpoint === 'customers' ? payload.customers.length : 0;
       SpreadsheetApp.getUi().alert(
         'Success',
-        `${Config.getEndpointLabel(endpoint)} data has been synced to Zotok platform. (${recordCount} records)`,
+        `${Config.getEndpointLabel(endpoint)} data has been synced to Zotok platform. (${result.recordCount} records)`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
-      Logger.log(`✅ Export completed successfully for ${recordCount} records`);
+      Logger.log(`✅ Export completed successfully for ${result.recordCount} records`);
     } else {
       SpreadsheetApp.getUi().alert(
         'Error',
@@ -710,6 +647,22 @@ function clearAllZotoksMappings() {
     return MappingManager.clearAllMappings();
   } catch (error) {
     Logger.log(`Error clearing mappings: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
+/**
+ * Auto-map columns using FieldMapper
+ * Exposed for column mapping dialog
+ */
+function autoMapZotoksColumns(sourceColumns, targetColumns) {
+  try {
+    return {
+      success: true,
+      mappings: FieldMapper.autoMapColumns(sourceColumns, targetColumns)
+    };
+  } catch (error) {
+    Logger.log(`Error auto-mapping columns: ${error.message}`);
     return { success: false, message: error.message };
   }
 }
