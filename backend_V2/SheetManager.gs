@@ -62,6 +62,89 @@ const SheetManager = {
   },
 
   /**
+   * Get the active sheet object
+   * Returns the sheet for use in other operations
+   */
+  getActiveSheet() {
+    try {
+      return {
+        success: true,
+        sheet: SpreadsheetApp.getActiveSheet()
+      };
+    } catch (error) {
+      Logger.log(`Error getting active sheet: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error getting active sheet: ' + error.message
+      };
+    }
+  },
+
+  /**
+   * Get a sheet by name
+   * @param {string} sheetName - Name of the sheet to retrieve
+   */
+  getSheetByName(sheetName) {
+    try {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+      if (!sheet) {
+        return {
+          success: false,
+          message: `Sheet "${sheetName}" not found`
+        };
+      }
+      return {
+        success: true,
+        sheet: sheet
+      };
+    } catch (error) {
+      Logger.log(`Error getting sheet by name: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error getting sheet: ' + error.message
+      };
+    }
+  },
+
+  /**
+   * Get headers from a specific sheet
+   * @param {string} sheetName - Name of the sheet
+   */
+  getSheetHeaders(sheetName) {
+    try {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+      if (!sheet) {
+        return {
+          success: false,
+          message: `Sheet "${sheetName}" not found`
+        };
+      }
+
+      if (sheet.getLastRow() === 0) {
+        return {
+          success: true,
+          headers: []
+        };
+      }
+
+      const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+      // Convert to strings and trim for consistency
+      const cleanHeaders = headers.map(header => String(header).trim());
+
+      return {
+        success: true,
+        headers: cleanHeaders
+      };
+    } catch (error) {
+      Logger.log(`Error getting sheet headers: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error getting headers: ' + error.message
+      };
+    }
+  },
+
+  /**
    * Import to new sheet with error handling
    */
   importToNewSheet(sheetName, endpoint, period = 30) {

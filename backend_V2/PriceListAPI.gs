@@ -344,5 +344,105 @@ const PriceListAPI = {
         message: 'Error updating price list: ' + error.message
       };
     }
+  },
+
+  /**
+   * Upload price list from a sheet
+   * @param {Sheet} sheet - The sheet object containing price list data
+   * @param {Object} metadata - Price list metadata (name, code, dates, etc.)
+   */
+  uploadPriceList(sheet, metadata) {
+    try {
+      // Parse ISO format dates from API (2025-11-05T18:30:00.000Z)
+      const parseCustomDate = (dateString) => {
+        if (!dateString || typeof dateString !== 'string') return null;
+        const isoDate = new Date(dateString);
+        return !isNaN(isoDate.getTime()) ? isoDate : null;
+      };
+
+      Logger.log('🔄 Processing price list sheet data...');
+
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+
+      if (lastRow < 2) {
+        return {
+          success: false,
+          message: 'No data found in sheet (only headers or empty sheet)'
+        };
+      }
+
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+      Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
+
+      const products = dataRows.map(row => {
+        const product = {};
+        headers.forEach((header, index) => {
+          const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
+          let value = row[index];
+
+          if (value === '' || value === null || value === undefined) {
+            return;
+          }
+
+          if (cleanHeader === 'sku' || cleanHeader === 'productsku') {
+            product.sku = String(value);
+          } else if (cleanHeader === 'price' || cleanHeader === 'unitprice') {
+            product.price = parseFloat(value) || 0;
+          } else if (cleanHeader === 'pricewithmargin' || cleanHeader === 'marginprice') {
+            product.priceWithMargin = parseFloat(value) || 0;
+          }
+        });
+        return product;
+      }).filter(product => product.sku && String(product.sku).trim() !== '');
+
+      if (products.length === 0) {
+        return {
+          success: false,
+          message: 'No valid products with a SKU found in the sheet. Please check your data.'
+        };
+      }
+
+      // Parse dates reliably before formatting
+      const startDate = parseCustomDate(metadata.startDate);
+      const endDate = parseCustomDate(metadata.endDate);
+
+      const payload = {
+        priceList: [
+          {
+            name: metadata.priceListName,
+            code: metadata.priceListCode,
+            products: products,
+            startDate: startDate ? Utilities.formatDate(startDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
+            endDate: endDate ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
+            targetType: metadata.targetType || "customer-price"
+          }
+        ]
+      };
+
+      Logger.log(`Constructed payload with ${products.length} products`);
+      Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
+
+      const result = this.updatePriceList(payload);
+
+      if (result.success) {
+        return {
+          success: true,
+          message: `Successfully synced ${products.length} products`,
+          productCount: products.length
+        };
+      } else {
+        return result;
+      }
+
+    } catch (error) {
+      Logger.log(`❌ Error uploading price list: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error uploading price list: ' + error.message
+      };
+    }
   }
 };

@@ -203,10 +203,20 @@ function showZotoksCredentialsDialog() {
 function exportCustomers() {
   try {
     Logger.log(`🔄 Starting customer export...`);
-    const sheet = SpreadsheetApp.getActiveSheet();
+    const sheetResult = SheetManager.getActiveSheet();
+
+    if (!sheetResult.success) {
+      SpreadsheetApp.getUi().alert(
+        'Error',
+        `Failed to get active sheet: ${sheetResult.message}`,
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      Logger.log(`❌ Export failed: ${sheetResult.message}`);
+      return;
+    }
 
     // Call customer upload
-    const result = UploadAPI.uploadCustomers(sheet);
+    const result = UploadAPI.uploadCustomers(sheetResult.sheet);
 
     if (result.success) {
       SpreadsheetApp.getUi().alert(
@@ -397,116 +407,54 @@ function createZotoksPriceListSheets(priceListsData) {
 }
 
 /**
- * FIXED: Sync Current Price List Sheet Function
- * Now properly handles data processing and API calls with complete headers
+ * Sync Current Price List Sheet Function
+ * Uses PriceListAPI for upload logic
  */
 function syncCurrentPriceListSheet() {
   try {
-    // Parse ISO format dates from API (2025-11-05T18:30:00.000Z)
-    const parseCustomDate = (dateString) => {
-      if (!dateString || typeof dateString !== 'string') return null;
-      const isoDate = new Date(dateString);
-      return !isNaN(isoDate.getTime()) ? isoDate : null;
-    };
-
     Logger.log('🔄 Starting sync of current price list sheet...');
-    const sheet = SpreadsheetApp.getActiveSheet();
+
+    // Get active sheet through SheetManager
+    const sheetResult = SheetManager.getActiveSheet();
+    if (!sheetResult.success) {
+      SpreadsheetApp.getUi().alert(
+        'Error',
+        `Failed to get active sheet: ${sheetResult.message}`,
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+      return;
+    }
+
+    const sheet = sheetResult.sheet;
     const sheetName = sheet.getName();
-    
+
     // Get price list metadata
     const metadataResult = SheetManager.getPriceListMetadata(sheetName);
     if (!metadataResult.success) {
       SpreadsheetApp.getUi().alert(
-        'Error', 
-        'Could not get price list metadata for the current sheet. This sheet might not be a price list.', 
+        'Error',
+        'Could not get price list metadata for the current sheet. This sheet might not be a price list.',
         SpreadsheetApp.getUi().ButtonSet.OK
       );
       return;
     }
 
     const metadata = metadataResult.metadata;
-    
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    
-    if (lastRow < 2) {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        'No data found in sheet (only headers or empty sheet)', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    
-    Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
 
-    const products = dataRows.map(row => {
-      const product = {};
-      headers.forEach((header, index) => {
-        const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-        let value = row[index];
-        
-        if (value === '' || value === null || value === undefined) {
-          return;
-        }
-        
-        if (cleanHeader === 'sku' || cleanHeader === 'productsku') {
-          product.sku = String(value);
-        } else if (cleanHeader === 'price' || cleanHeader === 'unitprice') {
-          // Price is already in correct format, no conversion needed
-          product.price = parseFloat(value) || 0;
-        } else if (cleanHeader === 'pricewithmargin' || cleanHeader === 'marginprice') {
-          // Price is already in correct format, no conversion needed
-          product.priceWithMargin = parseFloat(value) || 0;
-        }
-      });
-      return product;
-    }).filter(product => product.sku && String(product.sku).trim() !== '');
-    
-    if (products.length === 0) {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        'No valid products with a SKU found in the sheet. Please check your data.', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
+    // Upload price list using PriceListAPI
+    const result = PriceListAPI.uploadPriceList(sheet, metadata);
 
-    // Parse dates reliably before formatting
-    const startDate = parseCustomDate(metadata.startDate);
-    const endDate = parseCustomDate(metadata.endDate);
-
-    const payload = {
-      priceList: [
-        {
-          name: metadata.priceListName,
-          code: metadata.priceListCode,
-          products: products,
-          startDate: startDate ? Utilities.formatDate(startDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
-          endDate: endDate ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
-          targetType: metadata.targetType || "customer-price"
-        }
-      ]
-    };
-    Logger.log(`Constructed payload with ${products.length} products`);
-    Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
-    Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
-    
-    const result = PriceListAPI.updatePriceList(payload);
     if (result.success) {
       SpreadsheetApp.getUi().alert(
         'Success',
-        `Successfully synced ${products.length} products from "${sheetName}" to Zotoks.`,
+        `Successfully synced ${result.productCount} products from "${sheetName}" to Zotoks.`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
-      Logger.log(`✅ Sync completed successfully for ${products.length} products`);
+      Logger.log(`✅ Sync completed successfully for ${result.productCount} products`);
     } else {
       SpreadsheetApp.getUi().alert(
-        'Error', 
-        `Failed to sync sheet to Zotoks: ${result.message}`, 
+        'Error',
+        `Failed to sync sheet to Zotoks: ${result.message}`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
       Logger.log(`❌ Sync failed: ${result.message}`);
@@ -514,8 +462,8 @@ function syncCurrentPriceListSheet() {
   } catch (error) {
     Logger.log(`❌ Error during sync: ${error.message}`);
     SpreadsheetApp.getUi().alert(
-      'Error', 
-      `An error occurred during sync: ${error.message}`, 
+      'Error',
+      `An error occurred during sync: ${error.message}`,
       SpreadsheetApp.getUi().ButtonSet.OK
     );
   }
