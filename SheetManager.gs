@@ -69,7 +69,7 @@ const SheetManager = {
       Logger.log(`Creating new sheet: ${sheetName} for ${endpoint} data`);
 
       // Fetch data from Zotoks with optimized caching
-      const dataResult = ZotoksAPI.fetchData(endpoint, period);
+      const dataResult = ImportDialog.fetchData(endpoint, period);
 
       if (!dataResult.success) {
         return dataResult;
@@ -233,7 +233,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
     }
 
     // Fetch sample data for mapping with enhanced error handling
-    const dataResult = ZotoksAPI.fetchData(endpoint, period);
+    const dataResult = ImportDialog.fetchData(endpoint, period);
 
     if (!dataResult.success) {
       return dataResult;
@@ -381,7 +381,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
   try {
     Logger.log(`Importing ${endpoint} data with mappings to sheet: ${targetSheetName}`);
     // Fetch full data with caching
-    const dataResult = ZotoksAPI.fetchData(endpoint, period);
+    const dataResult = ImportDialog.fetchData(endpoint, period);
     if (!dataResult.success) {
       return dataResult;
     }
@@ -670,7 +670,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
           
           // Get detailed items for this price list using correct ID
           Logger.log(`🔍 Fetching items for price list ID: ${priceListId}`);
-          const itemsResult = ZotoksAPI.getPriceListItems(priceListId);
+          const itemsResult = PricelistDialog.getPriceListItems(priceListId);
           
           if (!itemsResult.success) {
             Logger.log(`❌ Failed to fetch items for price list ${priceListId}: ${itemsResult.message}`);
@@ -1139,9 +1139,9 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       };
       
       Logger.log(`Constructed payload for ${products.length} products`);
-      
+
       // Call the fixed update API
-      const updateResult = ZotoksAPI.updatePriceList(payload);
+      const updateResult = PricelistDialog.updatePriceList(payload);
       
       if (updateResult.success) {
         return {
