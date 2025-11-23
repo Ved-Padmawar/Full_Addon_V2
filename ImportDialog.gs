@@ -519,11 +519,11 @@ const ImportDialog = {
   },
 
   /**
-   * Generic entity export function - uses SheetManager for all sheet operations
+   * Export customers from current sheet to API
    */
-  exportCurrentEntitySheet(expectedEntity) {
+  exportCustomers() {
     try {
-      Logger.log(`🔄 Starting export of current entity sheet (expected: ${expectedEntity})...`);
+      Logger.log('🔄 Starting customers export from current sheet...');
 
       // Get current sheet info using SheetManager
       const sheetInfo = SheetManager.getActiveSheetName();
@@ -539,47 +539,33 @@ const ImportDialog = {
       const sheetName = sheetInfo.sheetName;
       Logger.log(`Active sheet: "${sheetName}"`);
 
-      // Get mapping metadata to identify entity type
-      Logger.log('Retrieving mapping metadata to identify entity type...');
+      // Verify this sheet contains customer data
+      Logger.log('Verifying sheet contains customer data...');
       const mappingResult = MappingManager.getMappings(sheetName);
       if (!mappingResult.success || !mappingResult.endpoint) {
         Logger.log(`❌ No mapping metadata found for sheet "${sheetName}"`);
         SpreadsheetApp.getUi().alert(
           'Error',
-          'This sheet does not contain entity data. Please switch to a sheet that was imported from the "All Entities" dialog and try again.',
+          'This sheet does not contain imported entity data. Please use a sheet that was imported from the "All Entities" dialog.',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
 
       const endpoint = mappingResult.endpoint;
-      Logger.log(`✅ Identified entity type: ${endpoint}`);
+      Logger.log(`✅ Sheet entity type: ${endpoint}`);
 
-      // Validate that the sheet's entity matches the expected entity from menu
-      if (expectedEntity && endpoint !== expectedEntity) {
-        Logger.log(`❌ Entity mismatch: Expected '${expectedEntity}' but sheet contains '${endpoint}' data`);
+      // Validate this is actually a customers sheet
+      if (endpoint !== 'customers') {
+        Logger.log(`❌ Sheet contains '${endpoint}' data, not customers`);
         SpreadsheetApp.getUi().alert(
           'Error',
-          `Wrong sheet selected! You clicked ${Config.getEndpointLabel(expectedEntity)} Upload but this sheet contains ${Config.getEndpointLabel(endpoint)} data.\n\nPlease switch to a ${Config.getEndpointLabel(expectedEntity)} sheet and try again.`,
+          `Wrong sheet type! This sheet contains ${Config.getEndpointLabel(endpoint)} data, not Customers.\n\nPlease switch to a Customers sheet and try again.`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
-      Logger.log(`✅ Entity validation passed: ${expectedEntity} matches sheet data`);
-
-      // Check if this endpoint has an update URL configured
-      try {
-        const updateUrl = Config.getUpdateUrl(endpoint);
-        Logger.log(`Update URL configured: ${updateUrl}`);
-      } catch (error) {
-        Logger.log(`❌ Export not supported for ${endpoint}: ${error.message}`);
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          `Export is not supported for ${endpoint} data.`,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
+      Logger.log(`✅ Validation passed: This is a customers sheet`);
 
       // Read sheet data using SheetManager
       const sheetDataResult = SheetManager.readSheetData(sheetName);
@@ -607,84 +593,67 @@ const ImportDialog = {
       const dataRows = sheetDataResult.data;
       Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
 
-      // Build payload based on entity type
-      let payload;
+      // Build customers payload
+      const customers = dataRows.map(row => {
+        const customer = {};
 
-      if (endpoint === 'customers') {
-        Logger.log('Building customers payload...');
-        // Build customers payload
-        const customers = dataRows.map(row => {
-          const customer = {};
+        headers.forEach((header, index) => {
+          const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
+          let value = row[index];
 
-          headers.forEach((header, index) => {
-            const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-            let value = row[index];
+          // Convert value to string, use empty string if empty
+          const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
 
-            // Convert value to string, use empty string if empty
-            const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
+          // Map to customer fields
+          if (cleanHeader === 'customercode') {
+            customer.customerCode = stringValue;
+          } else if (cleanHeader === 'contactname') {
+            customer.contactName = stringValue;
+          } else if (cleanHeader === 'firmname') {
+            customer.firmName = stringValue;
+          } else if (cleanHeader === 'mobile') {
+            customer.mobile = stringValue;
+          } else if (cleanHeader === 'email') {
+            customer.email = stringValue;
+          }
+        });
+        return customer;
+      }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
 
-            // Map to customer fields
-            if (cleanHeader === 'customercode') {
-              customer.customerCode = stringValue;
-            } else if (cleanHeader === 'contactname') {
-              customer.contactName = stringValue;
-            } else if (cleanHeader === 'firmname') {
-              customer.firmName = stringValue;
-            } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
-              customer.mobile = stringValue;
-            } else if (cleanHeader === 'email') {
-              customer.email = stringValue;
-            }
-          });
-          return customer;
-        }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
-
-        if (customers.length === 0) {
-          Logger.log('❌ No valid customer records found with customerCode');
-          SpreadsheetApp.getUi().alert(
-            'Error',
-            'No valid customer records with customerCode found in the sheet.',
-            SpreadsheetApp.getUi().ButtonSet.OK
-          );
-          return;
-        }
-
-        Logger.log(`✅ Built payload with ${customers.length} customer records`);
-        payload = { customers: customers };
-
-      } else {
-        Logger.log(`❌ Export logic not implemented for ${endpoint}`);
+      if (customers.length === 0) {
+        Logger.log('❌ No valid customer records found with customerCode');
         SpreadsheetApp.getUi().alert(
           'Error',
-          `Export logic not yet implemented for ${endpoint}.`,
+          'No valid customer records with customerCode found in the sheet.',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
 
-      Logger.log(`Calling API to update ${endpoint}...`);
-      Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
+      Logger.log(`✅ Built payload with ${customers.length} customer records`);
+      const payload = { customers: customers };
+      const payloadPreview = JSON.stringify(payload);
+      Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
 
       // Make API call
-      const result = this.updateEntity(endpoint, payload);
+      const result = this.updateEntity('customers', payload);
       if (result.success) {
-        const recordCount = endpoint === 'customers' ? payload.customers.length : 0;
         SpreadsheetApp.getUi().alert(
           'Success',
-          `${Config.getEndpointLabel(endpoint)} data has been synced to Zotok platform. (${recordCount} records)`,
+          `Successfully synced ${customers.length} customers to Zotok platform.`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        Logger.log(`✅ Export completed successfully for ${recordCount} records`);
+        Logger.log(`✅ Export completed successfully for ${customers.length} customers`);
       } else {
         SpreadsheetApp.getUi().alert(
           'Error',
-          `Failed to sync ${endpoint} data to Zotok: ${result.message}`,
+          `Failed to sync customers to Zotok: ${result.message}`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         Logger.log(`❌ Export failed: ${result.message}`);
       }
     } catch (error) {
-      Logger.log(`❌ Error during export: ${error.message}`);
+      Logger.log(`❌ Error during customers export: ${error.message}`);
       SpreadsheetApp.getUi().alert(
         'Error',
         `An error occurred during export: ${error.message}`,
@@ -748,77 +717,4 @@ const ImportDialog = {
     }
   },
 
-  /**
-   * Get integration status with caching
-   */
-  getIntegrationStatus() {
-    try {
-      // Check validation cache first
-      const validationKey = 'integration_status';
-      const cachedResult = PerformanceCache.getCachedValidationResult(validationKey);
-      if (cachedResult) {
-        return {
-          ...cachedResult,
-          cached: true
-        };
-      }
-
-      const hasCredentials = AuthManager.hasCredentials();
-
-      if (!hasCredentials) {
-        const result = {
-          success: true,
-          status: 'not_configured',
-          message: 'Credentials not configured',
-          hasCredentials: false,
-          connectionActive: false
-        };
-
-        PerformanceCache.setCachedValidationResult(validationKey, result);
-        return result;
-      }
-
-      const connectionTest = this.testConnection();
-
-      const result = {
-        success: true,
-        status: connectionTest.success ? 'active' : 'error',
-        message: connectionTest.message,
-        hasCredentials: true,
-        connectionActive: connectionTest.success,
-        tokenCached: connectionTest.tokenCached,
-        daysUntilExpiry: connectionTest.daysUntilExpiry,
-        availableEndpoints: Config.getAvailableEndpoints(),
-        paginationEnabled: true,
-        pageSize: Config.getPageSize(),
-        endpoints: Config.getEndpointsConfig(),
-        priceListSupported: true
-      };
-
-      PerformanceCache.setCachedValidationResult(validationKey, result);
-      return result;
-
-    } catch (error) {
-      const result = {
-        success: false,
-        status: 'error',
-        message: 'Error checking integration status: ' + error.message
-      };
-
-      PerformanceCache.setCachedValidationResult(validationKey, result);
-      return result;
-    }
-  },
-
-  /**
-   * Get available Zotoks data sources
-   */
-  getDataSources() {
-    return Config.getAvailableEndpoints().map(endpoint => ({
-      value: endpoint,
-      label: endpoint.split('-').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ')
-    }));
-  }
 };

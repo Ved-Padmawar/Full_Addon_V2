@@ -590,9 +590,9 @@ const AuthManager = {
       const daysUntilExpiry = Math.ceil((expiryTime - now) / (1000 * 60 * 60 * 24));
 
       let status = 'healthy';
-      if (daysUntilExpiry <= 3) {
+      if (daysUntilExpiry <= Config.getTokenExpiryCriticalDays()) {
         status = 'refresh_needed';
-      } else if (daysUntilExpiry <= 7) {
+      } else if (daysUntilExpiry <= Config.getTokenExpiryWarningDays()) {
         status = 'refresh_recommended';
       }
 

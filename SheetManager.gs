@@ -172,11 +172,11 @@ checkExactColumnMatch(sourceColumns, targetColumns) {
     });
     
     // Consider it an exact match if:
-    // 1. At least 80% of source columns have exact matches, AND
-    // 2. At least 5 columns match (to avoid false positives with small datasets)
+    // 1. At least the configured percentage of source columns have exact matches, AND
+    // 2. At least minimum number of columns match (to avoid false positives with small datasets)
     const matchPercentage = matchedColumns.length / sourceColumns.length;
-    const hasMinimumMatches = matchedColumns.length >= Math.min(5, sourceColumns.length);
-    const hasHighMatchPercentage = matchPercentage >= 0.8;
+    const hasMinimumMatches = matchedColumns.length >= Math.min(Config.getMinColumnMatches(), sourceColumns.length);
+    const hasHighMatchPercentage = matchPercentage >= Config.getColumnMatchPercentage();
     
     const isExactMatch = hasMinimumMatches && hasHighMatchPercentage;
     
@@ -1079,8 +1079,8 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       // Read all data from sheet
       const lastRow = sheet.getLastRow();
       const lastCol = sheet.getLastColumn();
-      
-      if (lastRow < 2) {
+
+      if (lastRow < Config.getMinDataRows()) {
         return {
           success: false,
           message: 'No data found in sheet (only headers or empty sheet)'
@@ -1451,7 +1451,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
         };
       }
 
-      if (lastRow < 2) {
+      if (lastRow < Config.getMinDataRows()) {
         return {
           success: true,
           headers: sheet.getRange(1, 1, 1, lastCol).getValues()[0],

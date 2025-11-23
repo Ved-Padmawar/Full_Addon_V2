@@ -213,10 +213,10 @@ function showZotoksCredentialsDialog() {
 }
 
 /**
- * Wrapper function for customer export - routes to ImportDialog
+ * Export customers from current sheet
  */
 function exportCustomers() {
-  ImportDialog.exportCurrentEntitySheet('customers');
+  ImportDialog.exportCustomers();
 }
 
 // ==========================================

@@ -122,6 +122,15 @@ const ZOTOKS_CONFIG = {
     STATUS_DURATION: 2 * 60 * 1000, // 2 minutes cache for status checks
     VERSION_DURATION: 10 * 60 * 1000, // 10 minutes cache for version checks
     MIN_EXPIRY_BUFFER: 2 * 60 * 1000 // 2 minutes minimum buffer before using cached tokens
+  },
+
+  // VALIDATION THRESHOLDS
+  VALIDATION: {
+    MIN_DATA_ROWS: 2, // Minimum rows required in sheet (excluding header)
+    TOKEN_EXPIRY_CRITICAL_DAYS: 3, // Days until expiry for critical status
+    TOKEN_EXPIRY_WARNING_DAYS: 7, // Days until expiry for warning status
+    MIN_COLUMN_MATCHES: 5, // Minimum number of columns that must match for auto-detection
+    COLUMN_MATCH_PERCENTAGE: 0.8 // 80% of columns must match for exact match detection
   }
 };
 
@@ -485,5 +494,28 @@ const Config = {
     }
 
     return url;
+  },
+
+  /**
+   * Get validation thresholds
+   */
+  getMinDataRows() {
+    return ZOTOKS_CONFIG.VALIDATION.MIN_DATA_ROWS;
+  },
+
+  getTokenExpiryCriticalDays() {
+    return ZOTOKS_CONFIG.VALIDATION.TOKEN_EXPIRY_CRITICAL_DAYS;
+  },
+
+  getTokenExpiryWarningDays() {
+    return ZOTOKS_CONFIG.VALIDATION.TOKEN_EXPIRY_WARNING_DAYS;
+  },
+
+  getMinColumnMatches() {
+    return ZOTOKS_CONFIG.VALIDATION.MIN_COLUMN_MATCHES;
+  },
+
+  getColumnMatchPercentage() {
+    return ZOTOKS_CONFIG.VALIDATION.COLUMN_MATCH_PERCENTAGE;
   }
 };
