@@ -88,18 +88,6 @@ const ZOTOKS_CONFIG = {
     TIMEOUT: 30 // Request timeout in seconds
   },
 
-  // UPLOAD FIELD MAPPINGS CONFIGURATION
-  // Maps sheet column headers (normalized) to API payload field names
-  UPLOAD_FIELD_MAPPINGS: {
-    customers: {
-      'customercode': 'customerCode',
-      'contactname': 'contactName',
-      'firmname': 'firmName',
-      'mobile': 'mobile',
-      'email': 'email'
-    }
-  },
-
   // PRICE LIST CONFIGURATION
   PRICE_LIST_ENDPOINTS: {
     'pricelist': {
@@ -497,23 +485,5 @@ const Config = {
     }
 
     return url;
-  },
-
-  /**
-   * Get upload field mapping configuration for an endpoint
-   */
-  getUploadFieldMapping(endpoint) {
-    const mapping = ZOTOKS_CONFIG.UPLOAD_FIELD_MAPPINGS[endpoint];
-    if (!mapping) {
-      throw new Error(`No upload field mapping configured for: ${endpoint}`);
-    }
-    return mapping;
-  },
-
-  /**
-   * Check if endpoint has upload field mapping configured
-   */
-  hasUploadFieldMapping(endpoint) {
-    return ZOTOKS_CONFIG.UPLOAD_FIELD_MAPPINGS.hasOwnProperty(endpoint);
   }
 };

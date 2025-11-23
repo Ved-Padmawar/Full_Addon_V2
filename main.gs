@@ -198,95 +198,27 @@ function showZotoksCredentialsDialog() {
 }
 
 /**
- * NEW: Wrapper function for customer export
+ * Export customers from current sheet
  */
 function exportCustomers() {
-  exportCurrentEntitySheet('customers');
-}
-
-/**
- * NEW: Generic entity export function for all entities dialog
- * Works with customers, trips, orders, etc. (not price list)
- * Now uses UploadAPI for smart, config-driven payload construction
- */
-function exportCurrentEntitySheet(expectedEntity) {
   try {
-    Logger.log(`🔄 Starting export of current entity sheet (expected: ${expectedEntity})...`);
+    Logger.log(`🔄 Starting customer export...`);
     const sheet = SpreadsheetApp.getActiveSheet();
-    const sheetName = sheet.getName();
-    Logger.log(`Active sheet: "${sheetName}"`);
 
-    // Get mapping metadata to identify entity type
-    Logger.log('Retrieving mapping metadata to identify entity type...');
-    const mappingResult = MappingManager.getMappings(sheetName);
-    if (!mappingResult.success || !mappingResult.endpoint) {
-      Logger.log(`❌ No mapping metadata found for sheet "${sheetName}"`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        'This sheet does not contain entity data. Please switch to a sheet that was imported from the "All Entities" dialog and try again.',
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    const endpoint = mappingResult.endpoint;
-    Logger.log(`✅ Identified entity type: ${endpoint}`);
-
-    // Validate that the sheet's entity matches the expected entity from menu
-    if (expectedEntity && endpoint !== expectedEntity) {
-      Logger.log(`❌ Entity mismatch: Expected '${expectedEntity}' but sheet contains '${endpoint}' data`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Wrong sheet selected! You clicked ${Config.getEndpointLabel(expectedEntity)} Upload but this sheet contains ${Config.getEndpointLabel(endpoint)} data.\n\nPlease switch to a ${Config.getEndpointLabel(expectedEntity)} sheet and try again.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    Logger.log(`✅ Entity validation passed: ${expectedEntity} matches sheet data`);
-
-    // Check if this endpoint has an update URL configured
-    try {
-      const updateUrl = Config.getUpdateUrl(endpoint);
-      Logger.log(`Update URL configured: ${updateUrl}`);
-    } catch (error) {
-      Logger.log(`❌ Export not supported for ${endpoint}: ${error.message}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Export is not supported for ${endpoint} data.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    // Validate and read sheet data using UploadAPI
-    Logger.log('Validating sheet data...');
-    const validation = UploadAPI.validateSheetData(sheet);
-    if (!validation.valid) {
-      Logger.log(`❌ Sheet validation failed: ${validation.message}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        validation.message,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    Logger.log(`Processing ${validation.rowCount} rows with ${validation.columnCount} columns`);
-
-    // Use UploadAPI to build and upload the payload
-    const result = UploadAPI.uploadEntity(endpoint, validation.headers, validation.dataRows);
+    // Call customer upload
+    const result = UploadAPI.uploadCustomers(sheet);
 
     if (result.success) {
       SpreadsheetApp.getUi().alert(
         'Success',
-        `${Config.getEndpointLabel(endpoint)} data has been synced to Zotok platform. (${result.recordCount} records)`,
+        `Customer data has been synced to Zotok platform. (${result.recordCount} records)`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
       Logger.log(`✅ Export completed successfully for ${result.recordCount} records`);
     } else {
       SpreadsheetApp.getUi().alert(
         'Error',
-        `Failed to sync ${endpoint} data to Zotok: ${result.message}`,
+        `Failed to sync customer data to Zotok: ${result.message}`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
       Logger.log(`❌ Export failed: ${result.message}`);
