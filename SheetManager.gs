@@ -1425,6 +1425,61 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
     return priceKeywords.some(keyword => cleanName.includes(keyword));
   },
 
+  /**
+   * Read sheet data - centralized sheet reading function
+   * Returns headers and data rows
+   */
+  readSheetData(sheetName) {
+    try {
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(sheetName);
+
+      if (!sheet) {
+        return {
+          success: false,
+          message: `Sheet "${sheetName}" not found`
+        };
+      }
+
+      const lastRow = sheet.getLastRow();
+      const lastCol = sheet.getLastColumn();
+
+      if (lastRow === 0 || lastCol === 0) {
+        return {
+          success: false,
+          message: 'Sheet is empty'
+        };
+      }
+
+      if (lastRow < 2) {
+        return {
+          success: true,
+          headers: sheet.getRange(1, 1, 1, lastCol).getValues()[0],
+          data: [],
+          rowCount: 0,
+          columnCount: lastCol
+        };
+      }
+
+      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+      return {
+        success: true,
+        headers: headers,
+        data: dataRows,
+        rowCount: dataRows.length,
+        columnCount: lastCol
+      };
+
+    } catch (error) {
+      Logger.log(`Error reading sheet data: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error reading sheet data: ' + error.message
+      };
+    }
+  },
 
   /**
    * Sanitize sheet names for price lists

@@ -115,7 +115,7 @@ function showZotoksImportDialog() {
     }
     
     // Test basic authentication before showing main dialog (lazy loading)
-    const connectionTest = ZotoksAPI.testConnection();
+    const connectionTest = ImportDialog.testConnection();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -172,7 +172,7 @@ function showZotoksPriceListDialog() {
     }
     
     // Test basic authentication before showing dialog
-    const connectionTest = ZotoksAPI.testConnection();
+    const connectionTest = ImportDialog.testConnection();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -213,170 +213,10 @@ function showZotoksCredentialsDialog() {
 }
 
 /**
- * NEW: Wrapper function for customer export
+ * Wrapper function for customer export - routes to ImportDialog
  */
 function exportCustomers() {
-  exportCurrentEntitySheet('customers');
-}
-
-/**
- * NEW: Generic entity export function for all entities dialog
- * Works with customers, trips, orders, etc. (not price list)
- */
-function exportCurrentEntitySheet(expectedEntity) {
-  try {
-    Logger.log(`🔄 Starting export of current entity sheet (expected: ${expectedEntity})...`);
-    const sheet = SpreadsheetApp.getActiveSheet();
-    const sheetName = sheet.getName();
-    Logger.log(`Active sheet: "${sheetName}"`);
-
-    // Get mapping metadata to identify entity type
-    Logger.log('Retrieving mapping metadata to identify entity type...');
-    const mappingResult = MappingManager.getMappings(sheetName);
-    if (!mappingResult.success || !mappingResult.endpoint) {
-      Logger.log(`❌ No mapping metadata found for sheet "${sheetName}"`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        'This sheet does not contain entity data. Please switch to a sheet that was imported from the "All Entities" dialog and try again.',
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    const endpoint = mappingResult.endpoint;
-    Logger.log(`✅ Identified entity type: ${endpoint}`);
-
-    // Validate that the sheet's entity matches the expected entity from menu
-    if (expectedEntity && endpoint !== expectedEntity) {
-      Logger.log(`❌ Entity mismatch: Expected '${expectedEntity}' but sheet contains '${endpoint}' data`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Wrong sheet selected! You clicked ${Config.getEndpointLabel(expectedEntity)} Upload but this sheet contains ${Config.getEndpointLabel(endpoint)} data.\n\nPlease switch to a ${Config.getEndpointLabel(expectedEntity)} sheet and try again.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    Logger.log(`✅ Entity validation passed: ${expectedEntity} matches sheet data`);
-
-    // Check if this endpoint has an update URL configured
-    try {
-      const updateUrl = Config.getUpdateUrl(endpoint);
-      Logger.log(`Update URL configured: ${updateUrl}`);
-    } catch (error) {
-      Logger.log(`❌ Export not supported for ${endpoint}: ${error.message}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Export is not supported for ${endpoint} data.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    // Read sheet data
-    Logger.log('Reading sheet data...');
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    Logger.log(`Sheet dimensions: ${lastRow} rows x ${lastCol} columns`);
-
-    if (lastRow < 2) {
-      Logger.log('❌ No data rows found in sheet');
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        'No data found in sheet (only headers or empty sheet)',
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
-
-    // Build payload based on entity type
-    let payload;
-
-    if (endpoint === 'customers') {
-      Logger.log('Building customers payload...');
-      // Build customers payload
-      const customers = dataRows.map(row => {
-        const customer = {};
-
-        headers.forEach((header, index) => {
-          const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-          let value = row[index];
-
-          // Convert value to string, use empty string if empty
-          const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
-
-          // Map to customer fields
-          if (cleanHeader === 'customercode') {
-            customer.customerCode = stringValue;
-          } else if (cleanHeader === 'contactname') {
-            customer.contactName = stringValue;
-          } else if (cleanHeader === 'firmname') {
-            customer.firmName = stringValue;
-          } else if (cleanHeader === 'mobilenumber' || cleanHeader === 'mobile') {
-            customer.mobile = stringValue;
-          } else if (cleanHeader === 'email') {
-            customer.email = stringValue;
-          }
-        });
-        return customer;
-      }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
-
-      if (customers.length === 0) {
-        Logger.log('❌ No valid customer records found with customerCode');
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'No valid customer records with customerCode found in the sheet.',
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-
-      Logger.log(`✅ Built payload with ${customers.length} customer records`);
-      payload = { customers: customers };
-      Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
-
-    } else {
-      Logger.log(`❌ Export logic not implemented for ${endpoint}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Export logic not yet implemented for ${endpoint}.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    Logger.log(`Calling API to update ${endpoint}...`);
-    Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
-
-    // Make API call
-    const result = ZotoksAPI.updateEntity(endpoint, payload);
-    if (result.success) {
-      const recordCount = endpoint === 'customers' ? payload.customers.length : 0;
-      SpreadsheetApp.getUi().alert(
-        'Success',
-        `${Config.getEndpointLabel(endpoint)} data has been synced to Zotok platform. (${recordCount} records)`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      Logger.log(`✅ Export completed successfully for ${recordCount} records`);
-    } else {
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `Failed to sync ${endpoint} data to Zotok: ${result.message}`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      Logger.log(`❌ Export failed: ${result.message}`);
-    }
-  } catch (error) {
-    Logger.log(`❌ Error during export: ${error.message}`);
-    SpreadsheetApp.getUi().alert(
-      'Error',
-      `An error occurred during export: ${error.message}`,
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-  }
+  ImportDialog.exportCurrentEntitySheet('customers');
 }
 
 // ==========================================
@@ -477,7 +317,7 @@ function getPreSelectedEndpoint() {
 
 function fetchZotoksData(endpoint, period = 30) {
   try {
-    return ZotoksAPI.fetchData(endpoint, period);
+    return ImportDialog.fetchData(endpoint, period);
   } catch (error) {
     Logger.log(`Error fetching data: ${error.message}`);
     return { success: false, message: error.message };
@@ -486,7 +326,7 @@ function fetchZotoksData(endpoint, period = 30) {
 
 function fetchZotoksPreview(endpoint, period = 30) {
   try {
-    return ZotoksAPI.fetchPreview(endpoint, period);
+    return ImportDialog.fetchPreview(endpoint, period);
   } catch (error) {
     Logger.log(`Error fetching preview: ${error.message}`);
     return { success: false, message: error.message };
@@ -495,7 +335,7 @@ function fetchZotoksPreview(endpoint, period = 30) {
 
 function testZotoksConnection() {
   try {
-    return ZotoksAPI.testConnection();
+    return ImportDialog.testConnection();
   } catch (error) {
     Logger.log(`Error testing connection: ${error.message}`);
     return { success: false, message: error.message };
@@ -508,7 +348,7 @@ function testZotoksConnection() {
 
 function fetchZotoksPriceLists() {
   try {
-    return ZotoksAPI.getPriceLists();
+    return PricelistDialog.getPriceLists();
   } catch (error) {
     Logger.log(`Error fetching price lists: ${error.message}`);
     return { success: false, message: error.message };
@@ -517,7 +357,7 @@ function fetchZotoksPriceLists() {
 
 function fetchZotoksPriceListItems(priceListId) {
   try {
-    return ZotoksAPI.getPriceListItems(priceListId);
+    return PricelistDialog.getPriceListItems(priceListId);
   } catch (error) {
     Logger.log(`Error fetching price list items: ${error.message}`);
     return { success: false, message: error.message };
@@ -535,128 +375,10 @@ function createZotoksPriceListSheets(priceListsData) {
 }
 
 /**
- * FIXED: Sync Current Price List Sheet Function
- * Now properly handles data processing and API calls with complete headers
+ * Sync Current Price List Sheet - routes to PricelistDialog
  */
 function syncCurrentPriceListSheet() {
-  try {
-    // Parse ISO format dates from API (2025-11-05T18:30:00.000Z)
-    const parseCustomDate = (dateString) => {
-      if (!dateString || typeof dateString !== 'string') return null;
-      const isoDate = new Date(dateString);
-      return !isNaN(isoDate.getTime()) ? isoDate : null;
-    };
-
-    Logger.log('🔄 Starting sync of current price list sheet...');
-    const sheet = SpreadsheetApp.getActiveSheet();
-    const sheetName = sheet.getName();
-    
-    // Get price list metadata
-    const metadataResult = SheetManager.getPriceListMetadata(sheetName);
-    if (!metadataResult.success) {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        'Could not get price list metadata for the current sheet. This sheet might not be a price list.', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    const metadata = metadataResult.metadata;
-    
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    
-    if (lastRow < 2) {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        'No data found in sheet (only headers or empty sheet)', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-    
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-    const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-    
-    Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
-
-    const products = dataRows.map(row => {
-      const product = {};
-      headers.forEach((header, index) => {
-        const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-        let value = row[index];
-        
-        if (value === '' || value === null || value === undefined) {
-          return;
-        }
-        
-        if (cleanHeader === 'sku' || cleanHeader === 'productsku') {
-          product.sku = String(value);
-        } else if (cleanHeader === 'price' || cleanHeader === 'unitprice') {
-          // Price is already in correct format, no conversion needed
-          product.price = parseFloat(value) || 0;
-        } else if (cleanHeader === 'pricewithmargin' || cleanHeader === 'marginprice') {
-          // Price is already in correct format, no conversion needed
-          product.priceWithMargin = parseFloat(value) || 0;
-        }
-      });
-      return product;
-    }).filter(product => product.sku && String(product.sku).trim() !== '');
-    
-    if (products.length === 0) {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        'No valid products with a SKU found in the sheet. Please check your data.', 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      return;
-    }
-
-    // Parse dates reliably before formatting
-    const startDate = parseCustomDate(metadata.startDate);
-    const endDate = parseCustomDate(metadata.endDate);
-
-    const payload = {
-      priceList: [
-        {
-          name: metadata.priceListName,
-          code: metadata.priceListCode,
-          products: products,
-          startDate: startDate ? Utilities.formatDate(startDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
-          endDate: endDate ? Utilities.formatDate(endDate, Session.getScriptTimeZone(), "yyyy-MM-dd") : null,
-          targetType: metadata.targetType || "customer-price"
-        }
-      ]
-    };
-    Logger.log(`Constructed payload with ${products.length} products`);
-    Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
-    Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
-    
-    const result = ZotoksAPI.updatePriceList(payload);
-    if (result.success) {
-      SpreadsheetApp.getUi().alert(
-        'Success',
-        `Successfully synced ${products.length} products from "${sheetName}" to Zotoks.`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      Logger.log(`✅ Sync completed successfully for ${products.length} products`);
-    } else {
-      SpreadsheetApp.getUi().alert(
-        'Error', 
-        `Failed to sync sheet to Zotoks: ${result.message}`, 
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-      Logger.log(`❌ Sync failed: ${result.message}`);
-    }
-  } catch (error) {
-    Logger.log(`❌ Error during sync: ${error.message}`);
-    SpreadsheetApp.getUi().alert(
-      'Error', 
-      `An error occurred during sync: ${error.message}`, 
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-  }
+  PricelistDialog.syncCurrentPriceListSheet();
 }
 
 function getZotoksPriceListSheets() {
