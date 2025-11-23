@@ -440,7 +440,7 @@ const ImportDialog = {
       const updateUrl = Config.getUpdateUrl(endpoint);
 
       Logger.log(`Calling ${endpoint} update API: ${updateUrl}`);
-      Logger.log(`Payload: ${JSON.stringify(payload).substring(0, 500)}...`);
+      Logger.log(`Full Payload:\n${JSON.stringify(payload, null, 2)}`);
 
       for (let attempt = 1; attempt <= Config.getMaxRetries(); attempt++) {
         try {
@@ -651,7 +651,6 @@ const ImportDialog = {
 
         Logger.log(`✅ Built payload with ${customers.length} customer records`);
         payload = { customers: customers };
-        Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
 
       } else {
         Logger.log(`❌ Export logic not implemented for ${endpoint}`);

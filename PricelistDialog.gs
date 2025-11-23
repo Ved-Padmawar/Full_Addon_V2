@@ -302,7 +302,7 @@ const PricelistDialog = {
       const updateUrl = Config.buildPriceListUrl('pricelist-update');
 
       Logger.log(`Calling price list update API: ${updateUrl}`);
-      Logger.log(`Payload: ${JSON.stringify(payload).substring(0, 500)}...`);
+      Logger.log(`Full Payload:\n${JSON.stringify(payload, null, 2)}`);
 
       for (let attempt = 1; attempt <= Config.getMaxRetries(); attempt++) {
         try {
@@ -493,8 +493,7 @@ const PricelistDialog = {
         ]
       };
       Logger.log(`Constructed payload with ${products.length} products`);
-      Logger.log(`Payload preview: ${JSON.stringify(payload).substring(0, 500)}...`);
-      Logger.log(`FULL PAYLOAD: ${JSON.stringify(payload, null, 2)}`);
+      Logger.log(`Full Payload:\n${JSON.stringify(payload, null, 2)}`);
 
       const result = this.updatePriceList(payload);
       if (result.success) {
