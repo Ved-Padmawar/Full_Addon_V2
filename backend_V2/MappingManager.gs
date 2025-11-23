@@ -13,14 +13,12 @@ const MappingManager = {
   storeMappings(sheetName, endpoint, mappings, period = 30) {
     try {
       const mappingKey = `zotoks_mappings_${sheetName}`;
-      
-      // Get current sheet headers efficiently
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+
+      // Get current sheet headers via SheetManager
+      const headersResult = SheetManager.getSheetHeaders(sheetName);
       let targetHeaders = [];
-      if (sheet && sheet.getLastRow() > 0) {
-        targetHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-        // Convert to strings and trim to ensure consistency
-        targetHeaders = targetHeaders.map(header => String(header).trim());
+      if (headersResult.success) {
+        targetHeaders = headersResult.headers;
       }
       
       const mappingData = {
@@ -214,18 +212,13 @@ const MappingManager = {
    */
   checkIfMappingsOutdated(sheetName, mappingResult) {
     try {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-      if (!sheet) {
+      // Get current sheet headers via SheetManager
+      const headersResult = SheetManager.getSheetHeaders(sheetName);
+      if (!headersResult.success) {
         return { outdated: true, reason: 'Sheet not found' };
       }
-      
-      // Get current sheet headers efficiently
-      let currentHeaders = [];
-      if (sheet.getLastRow() > 0) {
-        currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-        // Convert to strings and trim
-        currentHeaders = currentHeaders.map(header => String(header).trim());
-      }
+
+      const currentHeaders = headersResult.headers;
       
       // Get stored target headers from mapping
       const storedHeaders = mappingResult.targetHeaders || [];
