@@ -24,7 +24,7 @@ const UIManager = {
       }
 
       // Test basic authentication before showing main dialog
-      const connectionTest = ImportAPI.testConnection();
+      const connectionTest = ZotoksAPI.testConnection();
       if (!connectionTest.success) {
         if (connectionTest.needsCredentials) {
           this.showCredentialsDialog();
@@ -88,7 +88,7 @@ const UIManager = {
       }
 
       // Test basic authentication before showing price list dialog
-      const connectionTest = ImportAPI.testConnection();
+      const connectionTest = ZotoksAPI.testConnection();
       if (!connectionTest.success) {
         if (connectionTest.needsCredentials) {
           this.showCredentialsDialog();

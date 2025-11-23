@@ -28,7 +28,7 @@ const ZOTOKS_CONFIG = {
       supportsPagination: false,
       supportsTimePeriod: true,
       allowedTimePeriods: ["7", "30", "90"],
-      updateEndpoint: 'customers'
+      updateEndpoint: '/hub/mdm-integration/v1/api/customers'
     },
     products: {
       label: "Products",
@@ -450,7 +450,7 @@ const Config = {
     if (!config || !config.updateEndpoint) {
       throw new Error(`No update endpoint configured for: ${endpoint}`);
     }
-    return `${ZOTOKS_CONFIG.BASE_URL}${ZOTOKS_CONFIG.DATA_ENDPOINT}/${config.updateEndpoint}`;
+    return `${ZOTOKS_CONFIG.BASE_URL}${config.updateEndpoint}`;
   },
 
   /**
