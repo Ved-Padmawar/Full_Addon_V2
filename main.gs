@@ -524,14 +524,6 @@ function fetchZotoksPriceListItems(priceListId) {
   }
 }
 
-function fetchZotoksProducts() {
-  try {
-    return ZotoksAPI.getProducts();
-  } catch (error) {
-    Logger.log(`Error fetching products: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
 
 function createZotoksPriceListSheets(priceListsData) {
   try {

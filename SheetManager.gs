@@ -68,14 +68,8 @@ const SheetManager = {
     try {
       Logger.log(`Creating new sheet: ${sheetName} for ${endpoint} data`);
 
-      // Check if this is the products endpoint
-      let dataResult;
-      if (endpoint === 'products') {
-        dataResult = ZotoksAPI.getProducts();
-      } else {
-        // Fetch data from Zotoks with optimized caching
-        dataResult = ZotoksAPI.fetchData(endpoint, period);
-      }
+      // Fetch data from Zotoks with optimized caching
+      const dataResult = ZotoksAPI.fetchData(endpoint, period);
 
       if (!dataResult.success) {
         return dataResult;
@@ -239,12 +233,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
     }
 
     // Fetch sample data for mapping with enhanced error handling
-    let dataResult;
-    if (endpoint === 'products') {
-      dataResult = ZotoksAPI.getProducts();
-    } else {
-      dataResult = ZotoksAPI.fetchData(endpoint, period);
-    }
+    const dataResult = ZotoksAPI.fetchData(endpoint, period);
 
     if (!dataResult.success) {
       return dataResult;
@@ -1436,79 +1425,6 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
     return priceKeywords.some(keyword => cleanName.includes(keyword));
   },
 
-  /**
-   * NEW: Create or update Global Products List sheet
-   */
-  createGlobalProductsListSheet() {
-    try {
-      Logger.log('📦 Creating/updating Global Products List sheet...');
-      
-      // Fetch products data
-      const productsResult = ZotoksAPI.getProducts();
-      if (!productsResult.success) {
-        return {
-          success: false,
-          message: 'Failed to fetch products: ' + productsResult.message
-        };
-      }
-      
-      if (!productsResult.data || productsResult.recordCount === 0) {
-        return {
-          success: false,
-          message: 'No products data available'
-        };
-      }
-      
-      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-      const sheetName = 'Global Products List';
-      
-      // Check if sheet already exists
-      let targetSheet = spreadsheet.getSheetByName(sheetName);
-      let isUpdating = false;
-      
-      if (targetSheet) {
-        Logger.log(`📊 Sheet "${sheetName}" already exists, will update with fresh data...`);
-        isUpdating = true;
-        targetSheet.clear(); // Clear existing data
-      } else {
-        Logger.log(`📄 Creating new sheet "${sheetName}"...`);
-        targetSheet = spreadsheet.insertSheet(sheetName);
-        isUpdating = false;
-      }
-      
-      // Import the products data
-      const importResult = this.importDataToSheet(targetSheet, productsResult.data, true);
-      if (!importResult.success) {
-        Logger.log(`❌ Failed to import products data: ${importResult.message}`);
-        
-        if (!isUpdating) {
-          // Delete the failed new sheet
-          spreadsheet.deleteSheet(targetSheet);
-        }
-        return {
-          success: false,
-          message: 'Failed to import products data: ' + importResult.message
-        };
-      }
-      
-      Logger.log(`✅ Successfully ${isUpdating ? 'updated' : 'created'} Global Products List sheet with ${importResult.rowCount} products`);
-      
-      return {
-        success: true,
-        message: `Successfully ${isUpdating ? 'updated' : 'created'} Global Products List with ${importResult.rowCount} products`,
-        sheetName: sheetName,
-        recordCount: importResult.rowCount,
-        action: isUpdating ? 'updated' : 'created'
-      };
-      
-    } catch (error) {
-      Logger.log(`❌ Error creating Global Products List sheet: ${error.message}`);
-      return {
-        success: false,
-        message: 'Error creating Global Products List sheet: ' + error.message
-      };
-    }
-  },
 
   /**
    * Sanitize sheet names for price lists

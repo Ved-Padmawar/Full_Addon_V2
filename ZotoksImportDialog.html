@@ -1275,6 +1275,10 @@
         return;
       }
 
+      // Check if endpoint supports time period
+      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
+      const supportsTimePeriod = endpointConfig ? endpointConfig.supportsTimePeriod : true;
+
       // Immediate UI feedback
       button.disabled = true;
       const originalContent = button.innerHTML;
@@ -1292,32 +1296,30 @@
         button.innerHTML = originalContent;
       };
 
-      // Check if products endpoint is selected
-      if (dataSource === 'products') {
-        showLoading(true, 'Loading products data preview...');
+      // Limit preview to max 30 days for better performance and API compatibility
+      const previewPeriod = Math.min(parseInt(period), 30);
+      const isLimited = parseInt(period) > 30;
 
-        google.script.run
-          .withSuccessHandler(handlePreviewResult)
-          .withFailureHandler(handlePreviewError)
-          .fetchZotoksProducts();
+      // Create appropriate loading message based on endpoint configuration
+      let loadingMessage;
+      if (supportsTimePeriod) {
+        loadingMessage = `Fetching preview for ${endpointConfig.label} (${previewPeriod} days)${isLimited ? ' - limited for preview' : ''}...`;
       } else {
-        // Limit preview to max 30 days for better performance and API compatibility
-        const previewPeriod = Math.min(parseInt(period), 30);
-        const isLimited = parseInt(period) > 30;
-
-        showLoading(true, `Loading data preview for ${previewPeriod} days${isLimited ? ' (limited for preview)' : ''}...`);
-
-        // Show info if we're limiting the preview period
-        if (isLimited) {
-          showToast(`Preview limited to ${previewPeriod} days for performance. Full import will use ${period} days.`, 'info');
-        }
-
-        // Use optimized preview function (fetches only 3 rows for paginated endpoints)
-        google.script.run
-          .withSuccessHandler(handlePreviewResult)
-          .withFailureHandler(handlePreviewError)
-          .fetchZotoksPreview(dataSource, previewPeriod);
+        loadingMessage = `Fetching preview for ${endpointConfig.label}...`;
       }
+
+      showLoading(true, loadingMessage);
+
+      // Show info if we're limiting the preview period
+      if (isLimited) {
+        showToast(`Preview limited to ${previewPeriod} days for performance. Full import will use ${period} days.`, 'info');
+      }
+
+      // Use optimized preview function (fetches only 3 rows for paginated endpoints)
+      google.script.run
+        .withSuccessHandler(handlePreviewResult)
+        .withFailureHandler(handlePreviewError)
+        .fetchZotoksPreview(dataSource, previewPeriod);
     }
 
     function showCredentialsDialog() {
