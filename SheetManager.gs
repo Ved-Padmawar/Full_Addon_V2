@@ -232,8 +232,8 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
       };
     }
 
-    // Fetch sample data for mapping with enhanced error handling
-    const dataResult = ImportDialog.fetchData(endpoint, period);
+    // Fetch sample data for mapping with enhanced error handling (using preview for efficiency)
+    const dataResult = ImportDialog.fetchPreview(endpoint, period);
 
     if (!dataResult.success) {
       return dataResult;

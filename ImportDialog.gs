@@ -57,18 +57,16 @@ const ImportDialog = {
         throw new Error(`Unknown endpoint: ${endpoint}`);
       }
 
-      // Build base URL using centralized config
-      let dataUrl = Config.buildApiUrl(endpoint, period);
-
       // Define pageSize for use in hasNextPage logic
       const pageSize = Config.getPageSize();
 
-      // Add pagination parameters if endpoint supports pagination
+      // Build URL with pagination parameters if endpoint supports pagination
+      let dataUrl;
       if (endpointConfig.supportsPagination) {
-        const separator = dataUrl.includes('?') ? '&' : '?';
-        dataUrl += `${separator}pageNo=${page}&pageSize=${pageSize}`;
+        dataUrl = Config.buildApiUrl(endpoint, period, { pageSize: pageSize, pageNo: page });
         Logger.log(`Fetching page ${page} for ${endpoint} (${pageSize} records per page)`);
       } else {
+        dataUrl = Config.buildApiUrl(endpoint, period);
         Logger.log(`Fetching data for ${endpoint} (no pagination)`);
       }
 
@@ -191,9 +189,7 @@ const ImportDialog = {
         // OPTIMIZATION: Fetch only 1 page with 3 records for preview
         Logger.log(`📄 Paginated endpoint - fetching single page with 3 records`);
 
-        let dataUrl = Config.buildApiUrl(endpoint, period);
-        const separator = dataUrl.includes('?') ? '&' : '?';
-        dataUrl += `${separator}pageNo=1&pageSize=3`;
+        const dataUrl = Config.buildApiUrl(endpoint, period, { pageSize: 3, pageNo: 1 });
 
         const response = UrlFetchApp.fetch(dataUrl, {
           method: 'GET',

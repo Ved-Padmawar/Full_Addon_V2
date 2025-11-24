@@ -465,7 +465,7 @@ const Config = {
   /**
    * Build API URL dynamically based on endpoint configuration
    */
-  buildApiUrl(endpoint, period = null) {
+  buildApiUrl(endpoint, period = null, paginationParams = {}) {
     const config = this.getEndpointConfig(endpoint);
     if (!config) {
       throw new Error(`Unknown endpoint: ${endpoint}`);
@@ -476,7 +476,16 @@ const Config = {
 
     // Add pagination if supported
     if (config.supportsPagination) {
-      params.push(`pageSize=${ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_SIZE}`);
+      // Use provided pageSize or default
+      const pageSize = paginationParams.pageSize !== undefined
+        ? paginationParams.pageSize
+        : ZOTOKS_CONFIG.PAGINATION_AND_BATCH.PAGE_SIZE;
+      params.push(`pageSize=${pageSize}`);
+
+      // Add pageNo if provided
+      if (paginationParams.pageNo !== undefined) {
+        params.push(`pageNo=${paginationParams.pageNo}`);
+      }
     }
 
     // Add time period if supported and provided
