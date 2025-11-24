@@ -318,7 +318,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
     // Check for existing mappings with performance optimization
     const existingMappings = MappingManager.getMappings(targetSheetName, endpoint);
     
-    if (existingMappings.success && existingMappings.mappings) {
+    if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
       Logger.log(`Found existing mappings for ${targetSheetName}-${endpoint}`);
       
       // Validate existing mappings against current data structure

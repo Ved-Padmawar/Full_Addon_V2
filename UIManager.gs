@@ -148,51 +148,6 @@ const UIManager = {
   /**
    * Show detailed token status - only called by user action
    */
-  showTokenStatus() {
-    try {
-      const tokenStatus = AuthManager.getTokenStatus();
-      const refreshHistory = AuthManager.getTokenRefreshHistory();
-
-      let message = `🔑 Zotoks Token Status\n\n`;
-
-      if (tokenStatus.hasToken) {
-        message += `Status: ${tokenStatus.status}\n`;
-        message += `Days until expiry: ${tokenStatus.daysUntilExpiry}\n`;
-        message += `Expires: ${Utils.formatDate(tokenStatus.expiryDate)}\n`;
-        message += `Obtained: ${Utils.formatDate(tokenStatus.obtainedDate)}\n\n`;
-
-        // Add refresh recommendation
-        if (tokenStatus.status === 'refresh_recommended') {
-          message += `⚠️ Token refresh recommended\n`;
-        } else if (tokenStatus.status === 'refresh_needed') {
-          message += `🔄 Token refresh needed soon\n`;
-        } else if (tokenStatus.status === 'healthy') {
-          message += `✅ Token is healthy\n`;
-        }
-      } else {
-        message += `❌ No token found\n`;
-      }
-
-      message += `\n🔄 Auto-refresh: Every 28 days\n`;
-      message += `🔄 Proactive refresh: 7 days before expiry\n`;
-
-      // Add recent refresh history
-      if (refreshHistory.success && refreshHistory.history.length > 0) {
-        message += `\n📈 Recent refreshes:\n`;
-        refreshHistory.history.slice(-3).forEach(entry => {
-          message += `• ${Utils.formatDate(entry.timestamp)}: ${entry.success ? '✅' : '❌'}\n`;
-        });
-      }
-
-      // Service access only when user explicitly requests it
-      SpreadsheetApp.getUi().alert('Token Status', message, SpreadsheetApp.getUi().ButtonSet.OK);
-
-    } catch (error) {
-      Logger.log(`Error showing token status: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error checking token status: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
   /**
    * Manual token refresh - only called by user action
    */
@@ -362,23 +317,7 @@ const UIManager = {
     }
   },
 
-  /**
-   * Show token management submenu (legacy function)
-   */
-  showTokenManagementMenu() {
-    const ui = SpreadsheetApp.getUi();
-    const result = ui.alert(
-      'Zotoks Token Management',
-      'Choose a token management action:',
-      ui.ButtonSet.YES_NO_CANCEL
-    );
 
-    if (result === ui.Button.YES) {
-      this.showTokenStatus();
-    } else if (result === ui.Button.NO) {
-      this.manualTokenRefresh();
-    }
-  },
 
   /**
    * Get endpoints configuration for the dialog dropdown

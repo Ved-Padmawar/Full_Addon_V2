@@ -14,35 +14,32 @@ const MappingManager = {
     try {
       const mappingKey = `zotoks_mappings_${sheetName}`;
       
-      // Get current sheet headers efficiently
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
-      let targetHeaders = [];
-      if (sheet && sheet.getLastRow() > 0) {
-        targetHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-        // Convert to strings and trim to ensure consistency
-        targetHeaders = targetHeaders.map(header => String(header).trim());
-      }
+      // Check if mappings are 1:1 (direct import)
+      const isDirect = this.is1to1Mapping(mappings);
       
       const mappingData = {
-        mappings: mappings,
         endpoint: endpoint,
         period: period,
-        targetHeaders: targetHeaders,
         timestamp: new Date().toISOString(),
         sheetName: sheetName,
-        version: '3.1'
+        version: '3.4'
       };
+      
+      // Only store mappings if they're not 1:1
+      if (!isDirect) {
+        mappingData.mappings = mappings;
+      }
       
       // Use document properties only
       const documentProperties = PropertiesService.getDocumentProperties();
       documentProperties.setProperty(mappingKey, JSON.stringify(mappingData));
       
-      Logger.log(`Zotoks column mappings stored for sheet: ${sheetName}, endpoint: ${endpoint}, period: ${period}`);
+      Logger.log(`Zotoks metadata stored for sheet: ${sheetName}, endpoint: ${endpoint}, period: ${period}, type: ${isDirect ? 'direct' : 'mapped'}`);
       
       return {
         success: true,
         message: `Column mappings stored for ${endpoint} data (${period} days)`,
-        mappingCount: mappings.length
+        mappingCount: isDirect ? 0 : Object.keys(mappings).length
       };
       
     } catch (error) {
@@ -52,6 +49,17 @@ const MappingManager = {
         message: 'Error storing mappings: ' + error.message
       };
     }
+  },
+
+  /**
+   * Check if mappings are 1:1 (all keys equal their values)
+   */
+  is1to1Mapping(mappings) {
+    if (!mappings || typeof mappings !== 'object') {
+      return false;
+    }
+    
+    return Object.keys(mappings).every(key => mappings[key] === key);
   },
 
   /**
@@ -76,10 +84,9 @@ const MappingManager = {
       
       return {
         success: true,
-        mappings: mappingData.mappings,
+        mappings: mappingData.mappings || {},
         endpoint: mappingData.endpoint,
         period: mappingData.period || 30,
-        targetHeaders: mappingData.targetHeaders || [],
         timestamp: mappingData.timestamp,
         version: mappingData.version || '1.0'
       };
@@ -113,7 +120,7 @@ const MappingManager = {
               sheetName: sheetName,
               endpoint: data.endpoint,
               period: data.period || 30,
-              mappingCount: data.mappings ? data.mappings.length : 0,
+              mappingCount: data.mappings ? Object.keys(data.mappings).length : 0,
               lastUpdated: data.timestamp,
               version: data.version || '1.0'
             });
@@ -227,8 +234,18 @@ const MappingManager = {
         currentHeaders = currentHeaders.map(header => String(header).trim());
       }
       
-      // Get stored target headers from mapping
-      const storedHeaders = mappingResult.targetHeaders || [];
+      // Get stored target headers from mappings
+      // If no mappings stored (direct import), skip validation - always valid
+      if (!mappingResult.mappings || Object.keys(mappingResult.mappings).length === 0) {
+        return { 
+          outdated: false,
+          reason: 'No mappings stored (direct import)',
+          currentHeaders: currentHeaders,
+          storedHeaders: []
+        };
+      }
+      
+      const storedHeaders = Object.values(mappingResult.mappings);
       
       // Quick length check first
       if (currentHeaders.length !== storedHeaders.length) {

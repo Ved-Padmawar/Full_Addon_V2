@@ -66,13 +66,11 @@ const AuthManager = {
         clientId: clientId.trim(),
         clientSecret: clientSecret.trim(),
         storedAt: new Date().toISOString(),
-        version: newVersion,
-        credentialVersion: newVersion // For backwards compatibility
+        credentialVersion: newVersion
       };
 
-      // Store credentials and version
+      // Store credentials
       documentProperties.setProperty('zotoks_credentials', JSON.stringify(credentials));
-      documentProperties.setProperty('zotoks_credential_version', newVersion.toString());
 
       if (isCredentialChange) {
         // Clear ALL caches when credentials change
@@ -179,7 +177,6 @@ const AuthManager = {
 
       // Clear stored credentials
       documentProperties.deleteProperty('zotoks_credentials');
-      documentProperties.deleteProperty('zotoks_credential_version');
 
       // Clear all related caches
       this.clearTokenCache();
@@ -243,9 +240,11 @@ const AuthManager = {
    */
   getCurrentCredentialVersion() {
     try {
-      const documentProperties = PropertiesService.getDocumentProperties();
-      const version = documentProperties.getProperty('zotoks_credential_version');
-      return version ? parseInt(version) : 1;
+      const credResult = this.getCredentials();
+      if (credResult.success && credResult.credentials) {
+        return credResult.credentials.credentialVersion || 1;
+      }
+      return 1;
     } catch (error) {
       Logger.log(`Error getting credential version: ${error.message}`);
       return 1;
@@ -323,11 +322,6 @@ const AuthManager = {
 
       // Generate new token with version tracking
       const tokenResult = this.generateNewTokenWithVersion(credentials, currentVersion);
-
-      if (tokenResult.success) {
-        // Update refresh history
-        this.storeTokenRefreshHistory(tokenResult);
-      }
 
       return tokenResult;
 
@@ -505,70 +499,7 @@ const AuthManager = {
     }
   },
 
-  /**
-   * Store token refresh history for monitoring
-   */
-  storeTokenRefreshHistory(tokenResult) {
-    try {
-      const documentProperties = PropertiesService.getDocumentProperties();
-      const historyStr = documentProperties.getProperty('zotoks_token_refresh_history');
 
-      let history = [];
-      if (historyStr) {
-        history = JSON.parse(historyStr);
-      }
-
-      // Add new refresh entry
-      history.push({
-        timestamp: new Date().toISOString(),
-        success: tokenResult.success,
-        generated: tokenResult.generated || false,
-        cached: tokenResult.cached || false,
-        credentialVersion: tokenResult.credentialVersion
-      });
-
-      // Keep only last 10 entries
-      if (history.length > 10) {
-        history = history.slice(-10);
-      }
-
-      documentProperties.setProperty('zotoks_token_refresh_history', JSON.stringify(history));
-
-    } catch (error) {
-      Logger.log(`Error storing refresh history: ${error.message}`);
-    }
-  },
-
-  /**
-   * Get token refresh history
-   */
-  getTokenRefreshHistory() {
-    try {
-      const documentProperties = PropertiesService.getDocumentProperties();
-      const historyStr = documentProperties.getProperty('zotoks_token_refresh_history');
-
-      if (!historyStr) {
-        return {
-          success: true,
-          history: []
-        };
-      }
-
-      const history = JSON.parse(historyStr);
-      return {
-        success: true,
-        history: history
-      };
-
-    } catch (error) {
-      Logger.log(`Error getting refresh history: ${error.message}`);
-      return {
-        success: false,
-        message: 'Error retrieving refresh history: ' + error.message,
-        history: []
-      };
-    }
-  },
 
   /**
    * Get token status information
