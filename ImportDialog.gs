@@ -66,7 +66,7 @@ const ImportDialog = {
       // Add pagination parameters if endpoint supports pagination
       if (endpointConfig.supportsPagination) {
         const separator = dataUrl.includes('?') ? '&' : '?';
-        dataUrl += `${separator}page=${page}&page_size=${pageSize}`;
+        dataUrl += `${separator}pageNo=${page}&pageSize=${pageSize}`;
         Logger.log(`Fetching page ${page} for ${endpoint} (${pageSize} records per page)`);
       } else {
         Logger.log(`Fetching data for ${endpoint} (no pagination)`);
@@ -193,7 +193,7 @@ const ImportDialog = {
 
         let dataUrl = Config.buildApiUrl(endpoint, period);
         const separator = dataUrl.includes('?') ? '&' : '?';
-        dataUrl += `${separator}page=1&page_size=3`;
+        dataUrl += `${separator}pageNo=1&pageSize=3`;
 
         const response = UrlFetchApp.fetch(dataUrl, {
           method: 'GET',
