@@ -124,6 +124,7 @@ const UIManager = {
       htmlTemplate.targetSheetName = targetSheetName;
       htmlTemplate.endpoint = endpoint;
       htmlTemplate.period = period;
+      htmlTemplate.isExportMode = false;
       htmlTemplate.sourceColumns = JSON.stringify(sourceColumns);
       htmlTemplate.targetColumns = JSON.stringify(targetColumns);
       htmlTemplate.sampleData = JSON.stringify(sampleData);
@@ -138,6 +139,34 @@ const UIManager = {
     } catch (error) {
       Logger.log(`Error showing column mapping dialog: ${error.message}`);
       throw new Error('Error showing column mapping dialog: ' + error.message);
+    }
+  },
+
+  /**
+   * Show column mapping dialog for export operations
+   */
+  showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData) {
+    try {
+      const htmlTemplate = HtmlService.createTemplateFromFile('ZotoksColumnMappingDialog');
+
+      htmlTemplate.targetSheetName = sheetName;
+      htmlTemplate.endpoint = endpoint;
+      htmlTemplate.period = 30; // Default for exports
+      htmlTemplate.isExportMode = true;
+      htmlTemplate.sourceColumns = JSON.stringify(sourceColumns);
+      htmlTemplate.targetColumns = JSON.stringify(targetColumns);
+      htmlTemplate.sampleData = JSON.stringify(sampleData);
+
+      const html = htmlTemplate.evaluate()
+        .setWidth(1200)
+        .setHeight(800)
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      SpreadsheetApp.getUi().showModalDialog(html, ' ');
+
+    } catch (error) {
+      Logger.log(`Error showing column mapping dialog for export: ${error.message}`);
+      throw new Error('Error showing column mapping dialog for export: ' + error.message);
     }
   },
 

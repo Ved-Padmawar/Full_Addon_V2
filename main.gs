@@ -421,6 +421,18 @@ function importZotoksDataWithMappings(targetSheetName, endpoint, period, mapping
   }
 }
 
+/**
+ * Export customers with mappings - called from column mapping dialog
+ */
+function exportCustomersWithMappings(mappings) {
+  try {
+    return ImportDialog.exportCustomers(mappings);
+  } catch (error) {
+    Logger.log(`Error exporting customers with mappings: ${error.message}`);
+    return { success: false, message: error.message };
+  }
+}
+
 // ==========================================
 // COLUMN MAPPING EXPOSED FUNCTIONS
 // ==========================================

@@ -179,12 +179,13 @@
                     class="px-6 py-2 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-slate-50 transition-colors">
               Cancel
             </button>
-            <button onclick="proceedWithMapping()" 
+            <button onclick="proceedWithMapping()"
+                    id="proceedButton"
                     class="px-6 py-2 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors flex items-center gap-2">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
               </svg>
-              Import Data & Save Mappings
+              <span id="buttonText">Import Data & Save Mappings</span>
             </button>
           </div>
         </div>
@@ -224,6 +225,7 @@
       const targetSheetName = '<?= targetSheetName ?>';
       const endpoint = '<?= endpoint ?>';
       const period = '<?= period ?>';
+      const isExportMode = '<?= isExportMode ?>' === 'true';
       const sourceColumns = JSON.parse('<?= sourceColumns ?>');
       const targetColumns = JSON.parse('<?= targetColumns ?>');
       const sampleData = JSON.parse('<?= sampleData ?>');
@@ -232,6 +234,13 @@
       document.getElementById('sheetName').textContent = targetSheetName;
       document.getElementById('dataSource').textContent = endpoint.charAt(0).toUpperCase() + endpoint.slice(1);
       document.getElementById('dataPeriod').textContent = period;
+
+      // Set button text based on mode
+      if (isExportMode) {
+        document.getElementById('buttonText').textContent = 'Upload Data & Save Mappings';
+      } else {
+        document.getElementById('buttonText').textContent = 'Import Data & Save Mappings';
+      }
       
       // Create mapping interface
       function initializeMappings() {
@@ -629,28 +638,38 @@
       
       function proceedWithMapping() {
         const mappings = getMappings();
-        
+
         if (mappings.length === 0) {
           showToast('Please map at least one column before proceeding.', 'error');
           return;
         }
-        
+
         showLoading(true);
-        
-        // Use the Zotoks import function
-        google.script.run
-          .withSuccessHandler(handleImportResult)
-          .withFailureHandler(handleError)
-          .importZotoksDataWithMappings(targetSheetName, endpoint, parseInt(period), mappings);
+
+        if (isExportMode) {
+          // Export mode - call export function
+          google.script.run
+            .withSuccessHandler(handleExportResult)
+            .withFailureHandler(handleError)
+            .exportCustomersWithMappings(mappings);
+        } else {
+          // Import mode - call import function
+          google.script.run
+            .withSuccessHandler(handleImportResult)
+            .withFailureHandler(handleError)
+            .importZotoksDataWithMappings(targetSheetName, endpoint, parseInt(period), mappings);
+        }
       }
-      
+
       function handleImportResult(result) {
         showLoading(false);
-        
+
         if (result.success) {
-          const message = `Successfully imported ${result.rowCount} rows of ${result.endpoint} data`;
+          const message = result.recordCount !== undefined
+            ? `Successfully synced ${result.recordCount} records`
+            : `Successfully imported ${result.rowCount} rows of ${result.endpoint} data`;
           showSuccess(message, true);
-          
+
           // Auto-close after brief delay to show success
           setTimeout(() => {
             google.script.host.close();
@@ -658,6 +677,12 @@
         } else {
           showToast('Error: ' + result.message, 'error');
         }
+      }
+
+      function handleExportResult(result) {
+        showLoading(false);
+        // Export function handles its own UI alerts, just close dialog
+        google.script.host.close();
       }
       
       function handleError(error) {

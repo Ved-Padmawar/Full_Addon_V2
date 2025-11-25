@@ -25,7 +25,7 @@ const ZOTOKS_CONFIG = {
     customers: {
       label: "Customers",
       apiName: "customers",
-      supportsPagination: false,
+      supportsPagination: true,
       supportsTimePeriod: true,
       allowedTimePeriods: ["7", "30", "90"],
       updateEndpoint: 'customers'

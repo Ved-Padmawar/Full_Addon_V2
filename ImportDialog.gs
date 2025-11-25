@@ -515,13 +515,14 @@ const ImportDialog = {
   },
 
   /**
-   * Export customers from current sheet to API
+   * Export customers from current sheet to API with mappings
    */
-  exportCustomers() {
+  exportCustomers(mappings = null) {
     try {
-      Logger.log('🔄 Starting customers export from current sheet...');
+      const endpoint = 'customers';
+      Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
 
-      // Get current sheet info using SheetManager
+      // Get current sheet info
       const sheetInfo = SheetManager.getActiveSheetName();
       if (!sheetInfo.success) {
         SpreadsheetApp.getUi().alert(
@@ -535,38 +536,91 @@ const ImportDialog = {
       const sheetName = sheetInfo.sheetName;
       Logger.log(`Active sheet: "${sheetName}"`);
 
-      // Verify this sheet contains customer data
-      Logger.log('Verifying sheet contains customer data...');
-      const mappingResult = MappingManager.getMappings(sheetName);
-      if (!mappingResult.success || !mappingResult.endpoint) {
-        Logger.log(`❌ No mapping metadata found for sheet "${sheetName}"`);
+      // If mappings are provided (from dialog), use them to upload
+      if (mappings !== null) {
+        Logger.log('Mappings provided, proceeding with upload');
+        return this.uploadWithMappings(endpoint, sheetName, mappings);
+      }
+
+      // Get sheet headers
+      const sheet = SpreadsheetApp.getActiveSheet();
+      const targetColumns = SheetManager.getTargetSheetColumns(sheet);
+
+      if (!targetColumns || targetColumns.length === 0) {
         SpreadsheetApp.getUi().alert(
           'Error',
-          'This sheet does not contain imported entity data. Please use a sheet that was imported from the "All Entities" dialog.',
+          'Sheet has no headers. Please add column headers first.',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
 
-      const endpoint = mappingResult.endpoint;
-      Logger.log(`✅ Sheet entity type: ${endpoint}`);
-
-      // Validate this is actually a customers sheet
-      if (endpoint !== 'customers') {
-        Logger.log(`❌ Sheet contains '${endpoint}' data, not customers`);
+      // Fetch API preview to get source columns
+      const dataResult = this.fetchPreview(endpoint, 30);
+      if (!dataResult.success) {
         SpreadsheetApp.getUi().alert(
           'Error',
-          `Wrong sheet type! This sheet contains ${Config.getEndpointLabel(endpoint)} data, not Customers.\n\nPlease switch to a Customers sheet and try again.`,
+          `Failed to fetch API structure: ${dataResult.message}`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
-      Logger.log(`✅ Validation passed: This is a customers sheet`);
 
-      // Read sheet data using SheetManager
+      const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
+      if (!sourceColumns || sourceColumns.length === 0) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          'Unable to determine API columns from fetched data',
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      // Check for existing mappings
+      const existingMappings = MappingManager.getMappings(sheetName);
+
+      if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
+        Logger.log(`Found existing mappings for ${sheetName}`);
+
+        // Validate existing mappings
+        const validationResult = SheetManager.validateMappings(existingMappings.mappings, sourceColumns, targetColumns);
+
+        if (validationResult.valid) {
+          Logger.log(`Valid existing mappings found, proceeding with export`);
+
+          // Upload using existing mappings
+          return this.uploadWithMappings(endpoint, sheetName, existingMappings.mappings);
+        } else {
+          Logger.log(`Existing mappings invalid: ${validationResult.reason}`);
+          // Fall through to show mapping dialog
+        }
+      }
+
+      // No valid mappings - show mapping dialog
+      Logger.log('No valid mappings found, showing column mapping dialog');
+      const sampleData = dataResult.data.slice(0, 3);
+      UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
+
+    } catch (error) {
+      Logger.log(`❌ Error during customers export: ${error.message}`);
+      SpreadsheetApp.getUi().alert(
+        'Error',
+        `An error occurred during export: ${error.message}`,
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+    }
+  },
+
+  /**
+   * Upload data to API using mappings
+   */
+  uploadWithMappings(endpoint, sheetName, mappings) {
+    try {
+      Logger.log(`Uploading ${endpoint} data with mappings`);
+
+      // Read sheet data
       const sheetDataResult = SheetManager.readSheetData(sheetName);
       if (!sheetDataResult.success) {
-        Logger.log(`❌ ${sheetDataResult.message}`);
         SpreadsheetApp.getUi().alert(
           'Error',
           sheetDataResult.message,
@@ -576,7 +630,6 @@ const ImportDialog = {
       }
 
       if (sheetDataResult.rowCount < 1) {
-        Logger.log('❌ No data rows found in sheet');
         SpreadsheetApp.getUi().alert(
           'Error',
           'No data found in sheet (only headers or empty sheet)',
@@ -587,72 +640,90 @@ const ImportDialog = {
 
       const headers = sheetDataResult.headers;
       const dataRows = sheetDataResult.data;
-      Logger.log(`Processing ${dataRows.length} rows with headers: ${JSON.stringify(headers)}`);
+      Logger.log(`Processing ${dataRows.length} rows with ${headers.length} columns`);
 
-      // Build customers payload
-      const customers = dataRows.map(row => {
-        const customer = {};
+      // Convert mappings to object if it's an array
+      let mappingObj = {};
+      if (Array.isArray(mappings)) {
+        mappings.forEach(mapping => {
+          mappingObj[mapping.source_column] = mapping.target_column;
+        });
+      } else {
+        mappingObj = mappings;
+      }
 
-        headers.forEach((header, index) => {
-          const cleanHeader = String(header).trim().toLowerCase().replace(/[\s_]/g, '');
-          let value = row[index];
+      // Define writable fields for customers endpoint
+      const writableFields = ['customerCode', 'contactName', 'firmName', 'mobile', 'email'];
 
-          // Convert value to string, use empty string if empty
-          const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
+      // Build payload using mappings - only for writable fields
+      const records = dataRows.map(row => {
+        const record = {};
 
-          // Map to customer fields
-          if (cleanHeader === 'customercode') {
-            customer.customerCode = stringValue;
-          } else if (cleanHeader === 'contactname') {
-            customer.contactName = stringValue;
-          } else if (cleanHeader === 'firmname') {
-            customer.firmName = stringValue;
-          } else if (cleanHeader === 'mobile') {
-            customer.mobile = stringValue;
-          } else if (cleanHeader === 'email') {
-            customer.email = stringValue;
+        // Only process writable fields
+        writableFields.forEach(apiField => {
+          if (mappingObj.hasOwnProperty(apiField)) {
+            const sheetColumn = mappingObj[apiField];
+            const columnIndex = headers.indexOf(sheetColumn);
+
+            if (columnIndex !== -1) {
+              let value = row[columnIndex];
+              // Convert value to string, use empty string if empty
+              const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
+              record[apiField] = stringValue;
+            } else {
+              record[apiField] = '';
+            }
+          } else {
+            // Field not in mapping, set to empty string
+            record[apiField] = '';
           }
         });
-        return customer;
-      }).filter(customer => customer.customerCode && customer.customerCode.trim() !== '');
 
-      if (customers.length === 0) {
-        Logger.log('❌ No valid customer records found with customerCode');
+        return record;
+      });
+
+      if (records.length === 0) {
         SpreadsheetApp.getUi().alert(
           'Error',
-          'No valid customer records with customerCode found in the sheet.',
+          'No records to export',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
         return;
       }
 
-      Logger.log(`✅ Built payload with ${customers.length} customer records`);
-      const payload = { customers: customers };
+      Logger.log(`✅ Built payload with ${records.length} records`);
+      const payload = { [endpoint]: records };
       const payloadPreview = JSON.stringify(payload);
       Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
+      Logger.log(`Full Payload:\n${JSON.stringify(payload, null, 2)}`);
 
       // Make API call
-      const result = this.updateEntity('customers', payload);
+      const result = this.updateEntity(endpoint, payload);
+
       if (result.success) {
+        // Store mappings for future use
+        MappingManager.storeMappings(sheetName, endpoint, mappingObj, 30);
+
         SpreadsheetApp.getUi().alert(
           'Success',
-          `Successfully synced ${customers.length} customers to Zotok platform.`,
+          `Successfully synced ${records.length} ${endpoint} to Zotok platform.`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        Logger.log(`✅ Export completed successfully for ${customers.length} customers`);
+        Logger.log(`✅ Upload completed successfully for ${records.length} ${endpoint}`);
       } else {
         SpreadsheetApp.getUi().alert(
           'Error',
-          `Failed to sync customers to Zotok: ${result.message}`,
+          `Failed to sync ${endpoint}: ${result.message}`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        Logger.log(`❌ Export failed: ${result.message}`);
+        Logger.log(`❌ Upload failed: ${result.message}`);
       }
+
     } catch (error) {
-      Logger.log(`❌ Error during customers export: ${error.message}`);
+      Logger.log(`❌ Error uploading with mappings: ${error.message}`);
       SpreadsheetApp.getUi().alert(
         'Error',
-        `An error occurred during export: ${error.message}`,
+        `An error occurred during upload: ${error.message}`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
     }
