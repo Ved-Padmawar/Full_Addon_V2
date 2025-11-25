@@ -44,7 +44,7 @@ const UIManager = {
       }
 
       // Show main import dialog
-      const html = HtmlService.createHtmlOutputFromFile('ZotoksImportDialog')
+      const html = HtmlService.createHtmlOutputFromFile('Import_Dialog')
         .setWidth(1000)
         .setHeight(700)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -63,7 +63,7 @@ const UIManager = {
    */
   showCredentialsDialog() {
     try {
-      const html = HtmlService.createHtmlOutputFromFile('ZotoksCredentialsDialog')
+      const html = HtmlService.createHtmlOutputFromFile('CredentialsDialog')
         .setWidth(1000)
         .setHeight(700)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -119,7 +119,7 @@ const UIManager = {
    */
   showColumnMappingDialog(targetSheetName, endpoint, period, sourceColumns, targetColumns, sampleData) {
     try {
-      const htmlTemplate = HtmlService.createTemplateFromFile('ZotoksColumnMappingDialog');
+      const htmlTemplate = HtmlService.createTemplateFromFile('ColumnMappingDialog');
 
       htmlTemplate.targetSheetName = targetSheetName;
       htmlTemplate.endpoint = endpoint;
@@ -147,7 +147,7 @@ const UIManager = {
    */
   showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData) {
     try {
-      const htmlTemplate = HtmlService.createTemplateFromFile('ZotoksColumnMappingDialog');
+      const htmlTemplate = HtmlService.createTemplateFromFile('ColumnMappingDialog');
 
       htmlTemplate.targetSheetName = sheetName;
       htmlTemplate.endpoint = endpoint;
@@ -247,106 +247,6 @@ const UIManager = {
       SpreadsheetApp.getUi().alert('Error', 'Error checking connection status: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
     }
   },
-
-  /**
-   * Show mapping management information
-   */
-  showZotoksMappingManagement() {
-    try {
-      const mappingData = Utils.getMappingManagementData();
-
-      if (!mappingData.success) {
-        SpreadsheetApp.getUi().alert('Error', mappingData.message, SpreadsheetApp.getUi().ButtonSet.OK);
-        return;
-      }
-
-      let message = 'Sheets with stored Zotoks column mappings:\n\n';
-
-      if (mappingData.data.totalCount === 0) {
-        message += 'No sheets have stored Zotoks column mappings.';
-      } else {
-        mappingData.data.sheets.forEach(sheet => {
-          message += `📊 ${sheet.sheetName}:\n`;
-          message += `   • Data source: ${Utils.formatEndpointName(sheet.endpoint)}\n`;
-          message += `   • Time period: ${sheet.period} days\n`;
-          message += `   • Mappings: ${sheet.mappingCount}\n`;
-          message += `   • Last updated: ${Utils.formatDate(sheet.lastUpdated)}\n\n`;
-        });
-      }
-
-      SpreadsheetApp.getUi().alert('Zotoks Mapping Management', message, SpreadsheetApp.getUi().ButtonSet.OK);
-
-    } catch (error) {
-      Logger.log(`Error showing mapping management: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error retrieving mapping information: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
-  /**
-   * Clear all mappings with confirmation
-   */
-  clearAllZotoksMappingsWithConfirm() {
-    try {
-      const ui = SpreadsheetApp.getUi();
-      const response = ui.alert(
-        'Clear All Mappings',
-        'Are you sure you want to clear all stored Zotoks column mappings?\n\nThis action cannot be undone.',
-        ui.ButtonSet.YES_NO
-      );
-
-      if (response === ui.Button.YES) {
-        const result = MappingManager.clearAllMappings();
-
-        if (result.success) {
-          ui.alert(
-            'Mappings Cleared',
-            `✅ Successfully cleared ${result.clearedCount} stored mappings.`,
-            ui.ButtonSet.OK
-          );
-        } else {
-          ui.alert('Error', '❌ ' + result.message, ui.ButtonSet.OK);
-        }
-      }
-
-    } catch (error) {
-      Logger.log(`Error clearing mappings: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error clearing mappings: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
-  /**
-   * Clear credentials with confirmation
-   */
-  clearZotoksCredentialsWithConfirm() {
-    try {
-      const ui = SpreadsheetApp.getUi();
-      const response = ui.alert(
-        'Clear Credentials',
-        'Are you sure you want to clear your Zotoks credentials?\n\nYou will need to reconfigure them to use the import feature.',
-        ui.ButtonSet.YES_NO
-      );
-
-      if (response === ui.Button.YES) {
-        const result = AuthManager.clearCredentials();
-
-        if (result.success) {
-          ui.alert(
-            'Credentials Cleared',
-            '✅ Zotoks credentials have been cleared successfully.',
-            ui.ButtonSet.OK
-          );
-        } else {
-          ui.alert('Error', '❌ ' + result.message, ui.ButtonSet.OK);
-        }
-      }
-
-    } catch (error) {
-      Logger.log(`Error clearing credentials: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error clearing credentials: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
-
 
   /**
    * Get endpoints configuration for the dialog dropdown

@@ -199,7 +199,7 @@
       google.script.run
         .withSuccessHandler(handlePriceListsResult)
         .withFailureHandler(handleError)
-        .fetchZotoksPriceLists();
+        .dispatch('fetchPriceLists');
     }
     
     function handlePriceListsResult(result) {
@@ -361,7 +361,7 @@
       google.script.run
         .withSuccessHandler(handleSheetCreationResult)
         .withFailureHandler(handleError)
-        .createZotoksPriceListSheets(normalizedData);
+        .dispatch('createPriceListSheets', { priceListsData: normalizedData });
     }
     
     function handleSheetCreationResult(result) {

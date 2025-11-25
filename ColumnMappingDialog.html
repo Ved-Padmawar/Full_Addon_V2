@@ -651,13 +651,13 @@
           google.script.run
             .withSuccessHandler(handleExportResult)
             .withFailureHandler(handleError)
-            .exportCustomersWithMappings(mappings);
+            .dispatch('exportCustomersWithMappings', { mappings: mappings });
         } else {
           // Import mode - call import function
           google.script.run
             .withSuccessHandler(handleImportResult)
             .withFailureHandler(handleError)
-            .importZotoksDataWithMappings(targetSheetName, endpoint, parseInt(period), mappings);
+            .dispatch('importWithMappings', { targetSheetName, endpoint, period: parseInt(period), mappings });
         }
       }
 

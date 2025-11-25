@@ -687,7 +687,7 @@
       google.script.run
         .withSuccessHandler(populateMappingManagementModal)
         .withFailureHandler(handleMappingManagementError)
-        .getMappingManagementData();
+        .dispatch('getMappingManagementData');
 
       // Focus trap
       setTimeout(() => {
@@ -1023,7 +1023,7 @@
           endpointsLoaded = true;
           checkAndPopulate();
         })
-        .getEndpointsConfiguration();
+        .dispatch('getEndpointsConfiguration');
 
       // Load pre-selected endpoint
       google.script.run
@@ -1037,7 +1037,7 @@
           preSelectedLoaded = true;
           checkAndPopulate();
         })
-        .getPreSelectedEndpoint();
+        .dispatch('getPreSelectedEndpoint');
 
       // Populate dropdown only after both calls complete
       function checkAndPopulate() {
@@ -1230,12 +1230,12 @@
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
-          .importZotoksDataToNewSheet(name, dataSource);
+          .dispatch('importToNewSheet', { sheetName: name, endpoint: dataSource });
       } else {
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
-          .importZotoksDataToNewSheet(name, dataSource, parseInt(period));
+          .dispatch('importToNewSheet', { sheetName: name, endpoint: dataSource, period: parseInt(period) });
       }
     }
 
@@ -1256,12 +1256,12 @@
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
-          .prepareZotoksImportToExistingSheet(selectedSheet, dataSource);
+          .dispatch('prepareImportToExistingSheet', { targetSheetName: selectedSheet, endpoint: dataSource });
       } else {
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
-          .prepareZotoksImportToExistingSheet(selectedSheet, dataSource, parseInt(period));
+          .dispatch('prepareImportToExistingSheet', { targetSheetName: selectedSheet, endpoint: dataSource, period: parseInt(period) });
       }
     }
 
@@ -1319,7 +1319,7 @@
       google.script.run
         .withSuccessHandler(handlePreviewResult)
         .withFailureHandler(handlePreviewError)
-        .fetchZotoksPreview(dataSource, previewPeriod);
+        .dispatch('fetchPreview', { endpoint: dataSource, period: previewPeriod });
     }
 
     function showCredentialsDialog() {
@@ -1389,7 +1389,7 @@
                   }
                 })
                 .withFailureHandler(handleError)
-                .clearAllZotoksMappings();
+                .dispatch('clearAllMappings');
             },
             'Clear All',
             'red'
@@ -1502,7 +1502,7 @@
       google.script.run
         .withSuccessHandler(handleSheetDataLoaded)
         .withFailureHandler(handleSheetDataError)
-        .getSheetDataForDialog();
+        .dispatch('getSheetDataForDialog');
     }
 
     function handleSheetDataLoaded(result) {

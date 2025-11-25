@@ -1,11 +1,16 @@
 // ==========================================
-// MAIN.GS - ENTRY POINT WITH INCREMENTAL AUTHORIZATION SUPPORT (UPDATED WITH PRICE LIST)
+// MAIN.GS - REFACTORED WITH COMMAND/DISPATCHER PATTERN
 // ==========================================
 
 /**
  * Main entry point for Zotoks integration with OAuth compliance
- * This file coordinates all modules with deferred service access
+ * This file coordinates all modules using a centralized dispatcher
  */
+
+// ==========================================
+// ESSENTIAL TRIGGERS & MENU FUNCTIONS
+// ==========================================
+// These MUST remain as named global functions for Apps Script
 
 /**
  * Initialize the Zotoks integration system when spreadsheet opens
@@ -47,7 +52,6 @@ function onInstall(e) {
   onOpen(e);
 }
 
-
 /**
  * Called when file scope is granted for the add-on
  * This enables the add-on to access the current spreadsheet
@@ -55,7 +59,7 @@ function onInstall(e) {
 function onFileScopeGranted() {
   try {
     Logger.log('File scope granted for Zotoks Data Import add-on');
-    
+
     // Show the import dialog after permissions are granted
     return showZotoksImportDialog();
   } catch (error) {
@@ -69,7 +73,6 @@ function onFileScopeGranted() {
 
 /**
  * Safe menu creation - only called after user interaction
- * UPDATED: Added Price Lists menu item
  */
 function createZotoksMenuSafely() {
   try {
@@ -102,6 +105,11 @@ function createZotoksMenuSafely() {
   }
 }
 
+// ==========================================
+// MENU-BOUND DIALOG FUNCTIONS
+// ==========================================
+// These MUST remain as named global functions as they're referenced by menu items
+
 /**
  * Main function to show the Zotoks import dialog
  * This is the primary entry point for users - services accessed here
@@ -113,7 +121,7 @@ function showZotoksImportDialog() {
       UIManager.showCredentialsDialog();
       return;
     }
-    
+
     // Test basic authentication before showing main dialog (lazy loading)
     const connectionTest = ImportDialog.testConnection();
     if (!connectionTest.success) {
@@ -126,17 +134,17 @@ function showZotoksImportDialog() {
         return;
       }
     }
-    
+
     // Show main import dialog
     UIManager.showImportDialog();
-    
+
   } catch (error) {
     Logger.log(`Error showing import dialog: ${error.message}`);
     // Provide user feedback for actual errors
     try {
       SpreadsheetApp.getUi().alert(
-        'Zotoks Import Error', 
-        'Error initializing Zotoks import: ' + error.message, 
+        'Zotoks Import Error',
+        'Error initializing Zotoks import: ' + error.message,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
     } catch (uiError) {
@@ -161,7 +169,7 @@ function showOrderImportDialog() {
 }
 
 /**
- * NEW: Show Price List management dialog
+ * Show Price List management dialog
  */
 function showZotoksPriceListDialog() {
   try {
@@ -170,7 +178,7 @@ function showZotoksPriceListDialog() {
       UIManager.showCredentialsDialog();
       return;
     }
-    
+
     // Test basic authentication before showing dialog
     const connectionTest = ImportDialog.testConnection();
     if (!connectionTest.success) {
@@ -182,16 +190,16 @@ function showZotoksPriceListDialog() {
         return;
       }
     }
-    
+
     // Show price list dialog
     UIManager.showPriceListDialog();
-    
+
   } catch (error) {
     Logger.log(`Error showing price list dialog: ${error.message}`);
     try {
       SpreadsheetApp.getUi().alert(
-        'Zotoks Price List Error', 
-        'Error initializing Price List management: ' + error.message, 
+        'Zotoks Price List Error',
+        'Error initializing Price List management: ' + error.message,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
     } catch (uiError) {
@@ -219,161 +227,6 @@ function exportCustomers() {
   ImportDialog.exportCustomers();
 }
 
-// ==========================================
-// DEFERRED SERVICE ACCESS FUNCTIONS
-// ==========================================
-
-/**
- * Get sheet names (only called when needed)
- */
-function getSheetNames() {
-  try {
-    return SheetManager.getSheetNames();
-  } catch (error) {
-    Logger.log(`Error getting sheet names: ${error.message}`);
-    return [];
-  }
-}
-
-/**
- * Get the currently active sheet name (only called when needed)
- */
-function getActiveSheetName() {
-  try {
-    return SheetManager.getActiveSheetName();
-  } catch (error) {
-    Logger.log(`Error getting active sheet name: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-/**
- * Get sheet data for dialog - optimized single call
- */
-function getSheetDataForDialog() {
-  try {
-    return SheetManager.getSheetDataForDialog();
-  } catch (error) {
-    Logger.log(`Error getting sheet data for dialog: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// CREDENTIAL MANAGEMENT EXPOSED FUNCTIONS
-// ==========================================
-
-function storeZotoksCredentials(workspaceId, clientId, clientSecret) {
-  try {
-    return AuthManager.storeCredentials(workspaceId, clientId, clientSecret);
-  } catch (error) {
-    Logger.log(`Error storing credentials: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function getZotoksCredentials() {
-  try {
-    return AuthManager.getCredentials();
-  } catch (error) {
-    Logger.log(`Error getting credentials: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function clearZotoksCredentials() {
-  try {
-    return AuthManager.clearCredentials();
-  } catch (error) {
-    Logger.log(`Error clearing credentials: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-/**
- * Get endpoints configuration for dynamic dropdown population
- */
-function getEndpointsConfiguration() {
-  return Utils.getEndpointsConfiguration();
-}
-
-/**
- * Get pre-selected endpoint from temporary storage (if any)
- */
-function getPreSelectedEndpoint() {
-  const preSelected = PropertiesService.getUserProperties().getProperty('TEMP_PRESELECT_ENDPOINT');
-
-  // Clear it after reading (one-time use)
-  if (preSelected) {
-    PropertiesService.getUserProperties().deleteProperty('TEMP_PRESELECT_ENDPOINT');
-  }
-
-  return preSelected || '';
-}
-
-// ==========================================
-// DATA FETCHING EXPOSED FUNCTIONS
-// ==========================================
-
-function fetchZotoksData(endpoint, period = 30) {
-  try {
-    return ImportDialog.fetchData(endpoint, period);
-  } catch (error) {
-    Logger.log(`Error fetching data: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function fetchZotoksPreview(endpoint, period = 30) {
-  try {
-    return ImportDialog.fetchPreview(endpoint, period);
-  } catch (error) {
-    Logger.log(`Error fetching preview: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function testZotoksConnection() {
-  try {
-    return ImportDialog.testConnection();
-  } catch (error) {
-    Logger.log(`Error testing connection: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// PRICE LIST EXPOSED FUNCTIONS
-// ==========================================
-
-function fetchZotoksPriceLists() {
-  try {
-    return PricelistDialog.getPriceLists();
-  } catch (error) {
-    Logger.log(`Error fetching price lists: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function fetchZotoksPriceListItems(priceListId) {
-  try {
-    return PricelistDialog.getPriceListItems(priceListId);
-  } catch (error) {
-    Logger.log(`Error fetching price list items: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-
-function createZotoksPriceListSheets(priceListsData) {
-  try {
-    return SheetManager.createPriceListSheets(priceListsData);
-  } catch (error) {
-    Logger.log(`Error creating price list sheets: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
 /**
  * Sync Current Price List Sheet - routes to PricelistDialog
  */
@@ -381,151 +234,195 @@ function syncCurrentPriceListSheet() {
   PricelistDialog.syncCurrentPriceListSheet();
 }
 
-function getZotoksPriceListSheets() {
-  try {
-    return SheetManager.getPriceListSheets();
-  } catch (error) {
-    Logger.log(`Error getting price list sheets: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
 // ==========================================
-// SHEET MANAGEMENT EXPOSED FUNCTIONS
+// CENTRALIZED DISPATCHER
 // ==========================================
-
-function importZotoksDataToNewSheet(sheetName, endpoint, period = 30) {
-  try {
-    return SheetManager.importToNewSheet(sheetName, endpoint, period);
-  } catch (error) {
-    Logger.log(`Error importing to new sheet: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function prepareZotoksImportToExistingSheet(targetSheetName, endpoint, period = 30) {
-  try {
-    return SheetManager.prepareImportToExistingSheet(targetSheetName, endpoint, period);
-  } catch (error) {
-    Logger.log(`Error preparing import: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function importZotoksDataWithMappings(targetSheetName, endpoint, period, mappings) {
-  try {
-    return SheetManager.importWithMappings(targetSheetName, endpoint, period, mappings);
-  } catch (error) {
-    Logger.log(`Error importing with mappings: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
 
 /**
- * Export customers with mappings - called from column mapping dialog
+ * Central dispatch function - single entry point for all client-side calls
+ * This replaces all individual wrapper functions
+ *
+ * @param {string} action - The action to perform (e.g., 'fetchZotoksData', 'storeCredentials')
+ * @param {*} payload - The data payload for the action (can be object, array, or primitive)
+ * @returns {*} Result from the backend service
  */
-function exportCustomersWithMappings(mappings) {
+function dispatch(action, payload) {
   try {
-    return ImportDialog.exportCustomers(mappings);
+    Logger.log(`Dispatcher: ${action} called with payload:`, JSON.stringify(payload));
+
+    // Normalize payload - handle cases where it might be wrapped
+    const params = payload || {};
+
+    switch (action) {
+      // ==========================================
+      // SHEET MANAGEMENT ACTIONS
+      // ==========================================
+      case 'getSheetNames':
+        return SheetManager.getSheetNames();
+
+      case 'getActiveSheetName':
+        return SheetManager.getActiveSheetName();
+
+      case 'getSheetDataForDialog':
+        return SheetManager.getSheetDataForDialog();
+
+      case 'getPriceListSheets':
+        return SheetManager.getPriceListSheets();
+
+      case 'importToNewSheet':
+        return SheetManager.importToNewSheet(
+          params.sheetName,
+          params.endpoint,
+          params.period || 30
+        );
+
+      case 'prepareImportToExistingSheet':
+        return SheetManager.prepareImportToExistingSheet(
+          params.targetSheetName,
+          params.endpoint,
+          params.period || 30
+        );
+
+      case 'importWithMappings':
+        return SheetManager.importWithMappings(
+          params.targetSheetName,
+          params.endpoint,
+          params.period,
+          params.mappings
+        );
+
+      case 'createPriceListSheets':
+        return SheetManager.createPriceListSheets(params.priceListsData || params);
+
+      // ==========================================
+      // CREDENTIAL MANAGEMENT ACTIONS
+      // ==========================================
+      case 'storeCredentials':
+        return AuthManager.storeCredentials(
+          params.workspaceId,
+          params.clientId,
+          params.clientSecret
+        );
+
+      case 'getCredentials':
+        return AuthManager.getCredentials();
+
+      case 'clearCredentials':
+        return AuthManager.clearCredentials();
+
+      // ==========================================
+      // DATA FETCHING ACTIONS
+      // ==========================================
+      case 'fetchData':
+        return ImportDialog.fetchData(
+          params.endpoint,
+          params.period || 30
+        );
+
+      case 'fetchPreview':
+        return ImportDialog.fetchPreview(
+          params.endpoint,
+          params.period || 30
+        );
+
+      case 'testConnection':
+        return ImportDialog.testConnection();
+
+      // ==========================================
+      // PRICE LIST ACTIONS
+      // ==========================================
+      case 'fetchPriceLists':
+        return PricelistDialog.getPriceLists();
+
+      case 'fetchPriceListItems':
+        return PricelistDialog.getPriceListItems(params.priceListId || params);
+
+      // ==========================================
+      // COLUMN MAPPING ACTIONS
+      // ==========================================
+      case 'getColumnMappings':
+        return MappingManager.getMappings(params.sheetName || params);
+
+      case 'clearAllMappings':
+        return MappingManager.clearAllMappings();
+
+      case 'checkImportMappingCompatibility':
+        return checkImportMappingCompatibility(
+          params.sheetName,
+          params.endpoint
+        );
+
+      // ==========================================
+      // EXPORT ACTIONS
+      // ==========================================
+      case 'exportCustomersWithMappings':
+        return ImportDialog.exportCustomers(params.mappings || params);
+
+      // ==========================================
+      // DIALOG MANAGEMENT ACTIONS
+      // ==========================================
+      case 'showColumnMappingDialog':
+        return UIManager.showColumnMappingDialog(
+          params.targetSheetName,
+          params.endpoint,
+          params.period,
+          params.sourceColumns,
+          params.targetColumns,
+          params.sampleData
+        );
+
+      // ==========================================
+      // CONFIGURATION & UTILITY ACTIONS
+      // ==========================================
+      case 'getEndpointsConfiguration':
+        return Utils.getEndpointsConfiguration();
+
+      case 'getPreSelectedEndpoint':
+        const preSelected = PropertiesService.getUserProperties().getProperty('TEMP_PRESELECT_ENDPOINT');
+        if (preSelected) {
+          PropertiesService.getUserProperties().deleteProperty('TEMP_PRESELECT_ENDPOINT');
+        }
+        return preSelected || '';
+
+      case 'getMappingManagementData':
+        return Utils.getMappingManagementData();
+
+      // ==========================================
+      // DEBUG & MAINTENANCE ACTIONS
+      // ==========================================
+      case 'manuallyRefreshToken':
+        return Debug.manuallyRefreshToken();
+
+      case 'clearTokenCache':
+        return Debug.clearTokenCache();
+
+      case 'runPerformanceDiagnostics':
+        return Debug.runPerformanceDiagnostics();
+
+      // ==========================================
+      // UNKNOWN ACTION
+      // ==========================================
+      default:
+        throw new Error(`Unknown action: "${action}". Please check the action name and try again.`);
+    }
+
   } catch (error) {
-    Logger.log(`Error exporting customers with mappings: ${error.message}`);
-    return { success: false, message: error.message };
+    Logger.log(`Dispatcher error for action "${action}": ${error.message}`);
+    return {
+      success: false,
+      message: error.message,
+      action: action
+    };
   }
 }
 
 // ==========================================
-// COLUMN MAPPING EXPOSED FUNCTIONS
-// ==========================================
-
-function getZotoksColumnMappings(sheetName) {
-  try {
-    return MappingManager.getMappings(sheetName);
-  } catch (error) {
-    Logger.log(`Error getting mappings: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function clearAllZotoksMappings() {
-  try {
-    return MappingManager.clearAllMappings();
-  } catch (error) {
-    Logger.log(`Error clearing mappings: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// SYNC FUNCTIONALITY EXPOSED FUNCTIONS
-// ==========================================
-
-// REMOVED: Deprecated sync functions - sync functionality has been removed from the addon
-
-// ==========================================
-// DIALOG MANAGEMENT EXPOSED FUNCTIONS
-// ==========================================
-
-function showZotoksColumnMappingDialog(targetSheetName, endpoint, period, sourceColumns, targetColumns, sampleData) {
-  try {
-    return UIManager.showColumnMappingDialog(targetSheetName, endpoint, period, sourceColumns, targetColumns, sampleData);
-  } catch (error) {
-    Logger.log(`Error showing mapping dialog: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// STATUS AND INFORMATION EXPOSED FUNCTIONS
-// ==========================================
-
-// REMOVED: Connection status functionality has been removed
-
-function getMappingManagementData() {
-  try {
-    return Utils.getMappingManagementData();
-  } catch (error) {
-    Logger.log(`Error getting mapping data: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// MAINTENANCE EXPOSED FUNCTIONS
-// ==========================================
-
-function manuallyRefreshZotoksToken() {
-  try {
-    return Debug.manuallyRefreshToken();
-  } catch (error) {
-    Logger.log(`Error refreshing token: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function clearZotoksTokenCache() {
-  try {
-    return Debug.clearTokenCache();
-  } catch (error) {
-    Logger.log(`Error clearing token cache: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-function runZotoksPerformanceDiagnostics() {
-  try {
-    return Debug.runPerformanceDiagnostics();
-  } catch (error) {
-    Logger.log(`Error running diagnostics: ${error.message}`);
-    return { success: false, message: error.message };
-  }
-}
-
-// ==========================================
-// OAUTH COMPLIANCE FUNCTIONS
+// HELPER FUNCTIONS
 // ==========================================
 
 /**
  * Check import mapping compatibility - deferred service access
+ * This function is kept separate as it has complex logic
  */
 function checkImportMappingCompatibility(sheetName, endpoint) {
   try {
