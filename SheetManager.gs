@@ -232,8 +232,8 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
       };
     }
 
-    // Fetch sample data for mapping with enhanced error handling (using preview for efficiency)
-    const dataResult = ImportDialog.fetchPreview(endpoint, period);
+    // Fetch full data for mapping and import
+    const dataResult = ImportDialog.fetchData(endpoint, period);
 
     if (!dataResult.success) {
       return dataResult;
@@ -302,6 +302,19 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
       Logger.log('Exact column match found, importing directly without mapping dialog');
       // Direct import since columns match exactly
       const importResult = this.importDataToSheet(targetSheet, dataResult.data, false);
+
+      if (importResult.success) {
+        // Store 1:1 mappings for future uploads
+        const mappingObj = {};
+        sourceColumns.forEach(col => {
+          mappingObj[col] = col;
+        });
+        const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
+        if (storeResult.success) {
+          Logger.log(`✅ Stored 1:1 mappings for exact match import`);
+        }
+      }
+
       return {
         success: importResult.success,
         message: importResult.success ?

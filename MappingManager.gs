@@ -14,32 +14,25 @@ const MappingManager = {
     try {
       const mappingKey = `zotoks_mappings_${sheetName}`;
       
-      // Check if mappings are 1:1 (direct import)
-      const isDirect = this.is1to1Mapping(mappings);
-      
       const mappingData = {
         endpoint: endpoint,
         period: period,
         timestamp: new Date().toISOString(),
         sheetName: sheetName,
-        version: '3.4'
+        version: '3.4',
+        mappings: mappings
       };
-      
-      // Only store mappings if they're not 1:1
-      if (!isDirect) {
-        mappingData.mappings = mappings;
-      }
       
       // Use document properties only
       const documentProperties = PropertiesService.getDocumentProperties();
       documentProperties.setProperty(mappingKey, JSON.stringify(mappingData));
       
-      Logger.log(`Zotoks metadata stored for sheet: ${sheetName}, endpoint: ${endpoint}, period: ${period}, type: ${isDirect ? 'direct' : 'mapped'}`);
-      
+      Logger.log(`Zotoks metadata stored for sheet: ${sheetName}, endpoint: ${endpoint}, period: ${period}`);
+
       return {
         success: true,
         message: `Column mappings stored for ${endpoint} data (${period} days)`,
-        mappingCount: isDirect ? 0 : Object.keys(mappings).length
+        mappingCount: Object.keys(mappings).length
       };
       
     } catch (error) {
