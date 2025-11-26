@@ -402,16 +402,12 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       const startRow = 2; // Always start from row 2 after clearing
 
       // Write data in batches
-      const batchSize = Math.min(Config.getBatchSize(), 100);
+      const batchSize = Config.getBatchSize();
       for (let i = 0; i < mappedRows.length; i += batchSize) {
         const batch = mappedRows.slice(i, i + batchSize);
         const currentRow = startRow + i;
 
         sheet.getRange(currentRow, 1, batch.length, sheetHeaders.length).setValues(batch);
-
-        if (i + batchSize < mappedRows.length) {
-          Utilities.sleep(5);
-        }
       }
     }
 
@@ -530,17 +526,13 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       // Write data in optimized batches
       if (rows.length > 0) {
         const startRow = 2;
-        const batchSize = Math.min(Config.getBatchSize(), 100);
+        const batchSize = Config.getBatchSize();
 
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
           const currentRow = startRow + i;
 
           sheet.getRange(currentRow, 1, batch.length, headers.length).setValues(batch);
-
-          if (i + batchSize < rows.length) {
-            Utilities.sleep(5);
-          }
         }
 
         // Auto-resize columns only once at the end
@@ -825,17 +817,13 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
         Logger.log(`📊 Sample row: ${JSON.stringify(rows[0])}`);
         
         // Write data in batches with formula preservation
-        const batchSize = Math.min(Config.getBatchSize(), 100);
+        const batchSize = Config.getBatchSize();
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
           const currentRow = 2 + i;
 
           // Use formula-safe import for price list data
           this.importBatchWithFormulaPreservation(sheet, batch, currentRow, headers.length);
-
-          if (i + batchSize < rows.length) {
-            Utilities.sleep(5);
-          }
         }
         
         // Auto-resize columns
@@ -1183,16 +1171,12 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
         const maxCols = Math.max(lastCol, priceStatusColIndex + 1);
 
         // Use formula-safe import for price comparison updates
-        const batchSize = Math.min(Config.getBatchSize(), 100);
+        const batchSize = Config.getBatchSize();
         for (let i = 0; i < updatedData.length; i += batchSize) {
           const batch = updatedData.slice(i, i + batchSize);
           const currentRow = 2 + i;
 
           this.importBatchWithFormulaPreservation(sheet, batch, currentRow, maxCols);
-
-          if (i + batchSize < updatedData.length) {
-            Utilities.sleep(5);
-          }
         }
       }
       

@@ -76,7 +76,7 @@ const ZOTOKS_CONFIG = {
     TIMEOUT_CHECK_FREQUENCY: 5, // Check timeout every N pages
 
     // Batch processing settings
-    BATCH_SIZE: 100, // Records per batch operation
+    BATCH_SIZE: 2000, // Records per batch operation
 
     // Execution limits
     MAX_EXECUTION_TIME: 5 * 60 * 1000, // 5 minutes (leave 1 minute buffer)
