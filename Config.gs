@@ -35,7 +35,8 @@ const ZOTOKS_CONFIG = {
       apiName: "products",
       supportsPagination: true,
       supportsTimePeriod: false,
-      allowedTimePeriods: []
+      allowedTimePeriods: [],
+      updateEndpoint: 'products'
     },
     orders: {
       label: "Orders",

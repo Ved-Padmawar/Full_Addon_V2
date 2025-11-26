@@ -515,6 +515,267 @@ const ImportDialog = {
   },
 
   /**
+   * Export products from current sheet to API with mappings
+   */
+  exportProducts(mappings = null) {
+    try {
+      const endpoint = 'products';
+      Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
+
+      // Get current sheet info
+      const sheetInfo = SheetManager.getActiveSheetName();
+      if (!sheetInfo.success) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          'Could not get active sheet information: ' + sheetInfo.message,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      const sheetName = sheetInfo.sheetName;
+      Logger.log(`Active sheet: "${sheetName}"`);
+
+      // Get sheet headers
+      const sheet = SpreadsheetApp.getActiveSheet();
+      const targetColumns = SheetManager.getTargetSheetColumns(sheet);
+
+      if (!targetColumns || targetColumns.length === 0) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          'Sheet has no headers. Please add column headers first.',
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      // If mappings NOT provided, check for existing or show dialog
+      if (mappings === null) {
+        // Fetch API preview to get source columns
+        const dataResult = this.fetchPreview(endpoint, 30);
+        if (!dataResult.success) {
+          SpreadsheetApp.getUi().alert(
+            'Error',
+            `Failed to fetch API structure: ${dataResult.message}`,
+            SpreadsheetApp.getUi().ButtonSet.OK
+          );
+          return;
+        }
+
+        const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
+        if (!sourceColumns || sourceColumns.length === 0) {
+          SpreadsheetApp.getUi().alert(
+            'Error',
+            'Unable to determine API columns from fetched data',
+            SpreadsheetApp.getUi().ButtonSet.OK
+          );
+          return;
+        }
+
+        // Check for existing mappings
+        const existingMappings = MappingManager.getMappings(sheetName);
+
+        if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
+          Logger.log(`Found existing mappings for ${sheetName}`);
+
+          // Validate existing mappings
+          const validationResult = SheetManager.validateMappings(existingMappings.mappings, sourceColumns, targetColumns);
+
+          if (validationResult.valid) {
+            Logger.log(`Valid existing mappings found, proceeding with export`);
+            mappings = existingMappings.mappings;
+          } else {
+            Logger.log(`Existing mappings invalid: ${validationResult.reason}`);
+            // Show mapping dialog
+            const sampleData = dataResult.data.slice(0, 3);
+            UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
+            return;
+          }
+        } else {
+          // No valid mappings - show mapping dialog
+          Logger.log('No valid mappings found, showing column mapping dialog');
+          const sampleData = dataResult.data.slice(0, 3);
+          UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
+          return;
+        }
+      }
+
+      // At this point, mappings are available - proceed with upload
+      Logger.log('Uploading products data with mappings');
+
+      // Read sheet data
+      const sheetDataResult = SheetManager.readSheetData(sheetName);
+      if (!sheetDataResult.success) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          sheetDataResult.message,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      if (sheetDataResult.rowCount < 1) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          'No data found in sheet (only headers or empty sheet)',
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      const headers = sheetDataResult.headers;
+      const dataRows = sheetDataResult.data;
+      Logger.log(`Processing ${dataRows.length} rows with ${headers.length} columns`);
+
+      // Convert mappings to object if it's an array
+      let mappingObj = {};
+      if (Array.isArray(mappings)) {
+        mappings.forEach(mapping => {
+          mappingObj[mapping.source_column] = mapping.target_column;
+        });
+      } else {
+        mappingObj = mappings;
+      }
+
+      // Define field types for products (string, number, boolean, array)
+      const fieldTypes = {
+        'productName': 'string',
+        'skuCode': 'string',
+        'description': 'string',
+        'displayOrder': 'number',
+        'taxCategory': 'string',
+        'shortDiscription': 'string',
+        'upcCode': 'string',
+        'baseUnit': 'string',
+        'packSize': 'number',
+        'maxOrderQuantity': 'number',
+        'quantityMultiplier': 'number',
+        'isEnabled': 'boolean',
+        'caseSize': 'number',
+        'category': 'string',
+        'mrp': 'number',
+        'price': 'number',
+        'productImages': 'array'
+      };
+
+      // Build payload using mappings
+      const records = dataRows.map(row => {
+        const record = {};
+
+        Object.keys(fieldTypes).forEach(apiField => {
+          if (mappingObj.hasOwnProperty(apiField)) {
+            const sheetColumn = mappingObj[apiField];
+            const columnIndex = headers.indexOf(sheetColumn);
+
+            if (columnIndex !== -1) {
+              let value = row[columnIndex];
+              const fieldType = fieldTypes[apiField];
+
+              // Type conversion based on field type
+              if (value === null || value === undefined || value === '') {
+                // Handle empty values based on type
+                if (fieldType === 'array') {
+                  record[apiField] = [];
+                } else if (fieldType === 'number') {
+                  record[apiField] = 0;
+                } else if (fieldType === 'boolean') {
+                  record[apiField] = false;
+                } else {
+                  record[apiField] = '';
+                }
+              } else {
+                // Convert to appropriate type
+                if (fieldType === 'string') {
+                  record[apiField] = String(value).trim();
+                } else if (fieldType === 'number') {
+                  const numValue = parseFloat(value);
+                  record[apiField] = isNaN(numValue) ? 0 : numValue;
+                } else if (fieldType === 'boolean') {
+                  // Convert to boolean (handles 'true', 'false', 1, 0, etc.)
+                  record[apiField] = value === true || value === 'true' || value === 1 || value === '1';
+                } else if (fieldType === 'array') {
+                  // Parse array - assume comma-separated or JSON array
+                  if (typeof value === 'string') {
+                    value = value.trim();
+                    if (value.startsWith('[')) {
+                      try {
+                        record[apiField] = JSON.parse(value);
+                      } catch(e) {
+                        record[apiField] = [value];
+                      }
+                    } else {
+                      record[apiField] = value.split(',').map(v => v.trim()).filter(v => v);
+                    }
+                  } else {
+                    record[apiField] = [String(value)];
+                  }
+                }
+              }
+            } else {
+              // Column not found
+              if (fieldTypes[apiField] === 'array') {
+                record[apiField] = [];
+              } else if (fieldTypes[apiField] === 'number') {
+                record[apiField] = 0;
+              } else if (fieldTypes[apiField] === 'boolean') {
+                record[apiField] = false;
+              } else {
+                record[apiField] = '';
+              }
+            }
+          }
+        });
+
+        return record;
+      });
+
+      if (records.length === 0) {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          'No records to export',
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+
+      Logger.log(`✅ Built payload with ${records.length} records`);
+      const payload = { [endpoint]: records };
+      const payloadPreview = JSON.stringify(payload);
+      Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
+
+      // Make API call
+      const result = this.updateEntity(endpoint, payload);
+
+      if (result.success) {
+        // Store mappings for future use
+        MappingManager.storeMappings(sheetName, endpoint, mappingObj, 30);
+
+        SpreadsheetApp.getUi().alert(
+          'Success',
+          `Successfully synced ${records.length} ${endpoint} to Zotok platform.`,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        Logger.log(`✅ Upload completed successfully for ${records.length} ${endpoint}`);
+      } else {
+        SpreadsheetApp.getUi().alert(
+          'Error',
+          `Failed to sync ${endpoint}: ${result.message}`,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        Logger.log(`❌ Upload failed: ${result.message}`);
+      }
+
+    } catch (error) {
+      Logger.log(`❌ Error during products export: ${error.message}`);
+      SpreadsheetApp.getUi().alert(
+        'Error',
+        `An error occurred during export: ${error.message}`,
+        SpreadsheetApp.getUi().ButtonSet.OK
+      );
+    }
+  },
+
+  /**
    * Export customers from current sheet to API with mappings
    */
   exportCustomers(mappings = null) {
@@ -536,12 +797,6 @@ const ImportDialog = {
       const sheetName = sheetInfo.sheetName;
       Logger.log(`Active sheet: "${sheetName}"`);
 
-      // If mappings are provided (from dialog), use them to upload
-      if (mappings !== null) {
-        Logger.log('Mappings provided, proceeding with upload');
-        return this.uploadWithMappings(endpoint, sheetName, mappings);
-      }
-
       // Get sheet headers
       const sheet = SpreadsheetApp.getActiveSheet();
       const targetColumns = SheetManager.getTargetSheetColumns(sheet);
@@ -555,68 +810,59 @@ const ImportDialog = {
         return;
       }
 
-      // Fetch API preview to get source columns
-      const dataResult = this.fetchPreview(endpoint, 30);
-      if (!dataResult.success) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          `Failed to fetch API structure: ${dataResult.message}`,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
+      // If mappings NOT provided, check for existing or show dialog
+      if (mappings === null) {
+        // Fetch API preview to get source columns
+        const dataResult = this.fetchPreview(endpoint, 30);
+        if (!dataResult.success) {
+          SpreadsheetApp.getUi().alert(
+            'Error',
+            `Failed to fetch API structure: ${dataResult.message}`,
+            SpreadsheetApp.getUi().ButtonSet.OK
+          );
+          return;
+        }
 
-      const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
-      if (!sourceColumns || sourceColumns.length === 0) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'Unable to determine API columns from fetched data',
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
+        const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
+        if (!sourceColumns || sourceColumns.length === 0) {
+          SpreadsheetApp.getUi().alert(
+            'Error',
+            'Unable to determine API columns from fetched data',
+            SpreadsheetApp.getUi().ButtonSet.OK
+          );
+          return;
+        }
 
-      // Check for existing mappings
-      const existingMappings = MappingManager.getMappings(sheetName);
+        // Check for existing mappings
+        const existingMappings = MappingManager.getMappings(sheetName);
 
-      if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
-        Logger.log(`Found existing mappings for ${sheetName}`);
+        if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
+          Logger.log(`Found existing mappings for ${sheetName}`);
 
-        // Validate existing mappings
-        const validationResult = SheetManager.validateMappings(existingMappings.mappings, sourceColumns, targetColumns);
+          // Validate existing mappings
+          const validationResult = SheetManager.validateMappings(existingMappings.mappings, sourceColumns, targetColumns);
 
-        if (validationResult.valid) {
-          Logger.log(`Valid existing mappings found, proceeding with export`);
-
-          // Upload using existing mappings
-          return this.uploadWithMappings(endpoint, sheetName, existingMappings.mappings);
+          if (validationResult.valid) {
+            Logger.log(`Valid existing mappings found, proceeding with export`);
+            mappings = existingMappings.mappings;
+          } else {
+            Logger.log(`Existing mappings invalid: ${validationResult.reason}`);
+            // Show mapping dialog
+            const sampleData = dataResult.data.slice(0, 3);
+            UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
+            return;
+          }
         } else {
-          Logger.log(`Existing mappings invalid: ${validationResult.reason}`);
-          // Fall through to show mapping dialog
+          // No valid mappings - show mapping dialog
+          Logger.log('No valid mappings found, showing column mapping dialog');
+          const sampleData = dataResult.data.slice(0, 3);
+          UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
+          return;
         }
       }
 
-      // No valid mappings - show mapping dialog
-      Logger.log('No valid mappings found, showing column mapping dialog');
-      const sampleData = dataResult.data.slice(0, 3);
-      UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
-
-    } catch (error) {
-      Logger.log(`❌ Error during customers export: ${error.message}`);
-      SpreadsheetApp.getUi().alert(
-        'Error',
-        `An error occurred during export: ${error.message}`,
-        SpreadsheetApp.getUi().ButtonSet.OK
-      );
-    }
-  },
-
-  /**
-   * Upload data to API using mappings
-   */
-  uploadWithMappings(endpoint, sheetName, mappings) {
-    try {
-      Logger.log(`Uploading ${endpoint} data with mappings`);
+      // At this point, mappings are available - proceed with upload
+      Logger.log('Uploading customers data with mappings');
 
       // Read sheet data
       const sheetDataResult = SheetManager.readSheetData(sheetName);
@@ -695,7 +941,6 @@ const ImportDialog = {
       const payload = { [endpoint]: records };
       const payloadPreview = JSON.stringify(payload);
       Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
-      Logger.log(`Full Payload:\n${JSON.stringify(payload, null, 2)}`);
 
       // Make API call
       const result = this.updateEntity(endpoint, payload);
@@ -720,10 +965,10 @@ const ImportDialog = {
       }
 
     } catch (error) {
-      Logger.log(`❌ Error uploading with mappings: ${error.message}`);
+      Logger.log(`❌ Error during customers export: ${error.message}`);
       SpreadsheetApp.getUi().alert(
         'Error',
-        `An error occurred during upload: ${error.message}`,
+        `An error occurred during export: ${error.message}`,
         SpreadsheetApp.getUi().ButtonSet.OK
       );
     }

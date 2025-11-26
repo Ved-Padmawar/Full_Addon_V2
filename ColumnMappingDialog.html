@@ -843,11 +843,12 @@
         showLoading(true);
 
         if (isExportMode) {
-          // Export mode - call export function
+          // Export mode - call export function based on endpoint
+          const exportAction = `export${endpoint.charAt(0).toUpperCase()}${endpoint.slice(1)}WithMappings`;
           google.script.run
             .withSuccessHandler(handleExportResult)
             .withFailureHandler(handleError)
-            .dispatch('exportCustomersWithMappings', { mappings: mappings });
+            .dispatch(exportAction, { mappings: mappings });
         } else {
           // Import mode - call import function
           google.script.run

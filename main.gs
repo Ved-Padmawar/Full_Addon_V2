@@ -29,12 +29,17 @@ function onOpen(e) {
       .addItem('📥 Import', 'showCustomerImportDialog')
       .addItem('⬆️ Upload', 'exportCustomers');
 
+    const productSubmenu = ui.createMenu('📦 Products')
+      .addItem('📥 Import', 'showProductImportDialog')
+      .addItem('⬆️ Upload', 'exportProducts');
+
     const orderSubmenu = ui.createMenu('📦 Orders')
       .addItem('📥 Import', 'showOrderImportDialog');
 
     const menu = ui.createAddonMenu()
       .addSubMenu(priceListSubmenu)
       .addSubMenu(customerSubmenu)
+      .addSubMenu(productSubmenu)
       .addSubMenu(orderSubmenu)
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
@@ -86,12 +91,17 @@ function createZotoksMenuSafely() {
       .addItem('📥 Import', 'showCustomerImportDialog')
       .addItem('⬆️ Upload', 'exportCustomers');
 
+    const productSubmenu = ui.createMenu('📦 Products')
+      .addItem('📥 Import', 'showProductImportDialog')
+      .addItem('⬆️ Upload', 'exportProducts');
+
     const orderSubmenu = ui.createMenu('📦 Orders')
       .addItem('📥 Import', 'showOrderImportDialog');
 
     ui.createMenu('Zötok')
       .addSubMenu(priceListSubmenu)
       .addSubMenu(customerSubmenu)
+      .addSubMenu(productSubmenu)
       .addSubMenu(orderSubmenu)
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
@@ -162,6 +172,13 @@ function showCustomerImportDialog() {
 }
 
 /**
+ * Show product import dialog with products API pre-selected
+ */
+function showProductImportDialog() {
+  UIManager.showImportDialog('products');
+}
+
+/**
  * Show order import dialog with orders API pre-selected
  */
 function showOrderImportDialog() {
@@ -225,6 +242,13 @@ function showZotoksCredentialsDialog() {
  */
 function exportCustomers() {
   ImportDialog.exportCustomers();
+}
+
+/**
+ * Export products from current sheet
+ */
+function exportProducts() {
+  ImportDialog.exportProducts();
 }
 
 /**
@@ -357,6 +381,9 @@ function dispatch(action, payload) {
       // ==========================================
       case 'exportCustomersWithMappings':
         return ImportDialog.exportCustomers(params.mappings || params);
+
+      case 'exportProductsWithMappings':
+        return ImportDialog.exportProducts(params.mappings || params);
 
       // ==========================================
       // DIALOG MANAGEMENT ACTIONS
