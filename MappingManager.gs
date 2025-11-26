@@ -45,17 +45,6 @@ const MappingManager = {
   },
 
   /**
-   * Check if mappings are 1:1 (all keys equal their values)
-   */
-  is1to1Mapping(mappings) {
-    if (!mappings || typeof mappings !== 'object') {
-      return false;
-    }
-    
-    return Object.keys(mappings).every(key => mappings[key] === key);
-  },
-
-  /**
    * Get column mappings from document properties
    */
   getMappings(sheetName) {

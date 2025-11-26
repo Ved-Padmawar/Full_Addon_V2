@@ -147,65 +147,6 @@ const SheetManager = {
     }
   },
 
-
-
-
-
-checkExactColumnMatch(sourceColumns, targetColumns) {
-  try {
-    if (!sourceColumns || !targetColumns) {
-      return { isExactMatch: false, matchedColumns: [] };
-    }
-    
-    Logger.log(`🔍 Checking exact match:`);
-    Logger.log(`Source columns (${sourceColumns.length}): ${sourceColumns.join(', ')}`);
-    Logger.log(`Target columns (${targetColumns.length}): ${targetColumns.join(', ')}`);
-    
-    // Find columns that exist in both source and target (case-insensitive)
-    const matchedColumns = [];
-    sourceColumns.forEach(sourceCol => {
-      const sourceLower = sourceCol.toLowerCase();
-      const targetMatch = targetColumns.find(targetCol => targetCol.toLowerCase() === sourceLower);
-      if (targetMatch) {
-        matchedColumns.push(sourceCol); // Use original source column name
-      }
-    });
-    
-    // Consider it an exact match if:
-    // 1. At least the configured percentage of source columns have exact matches, AND
-    // 2. At least minimum number of columns match (to avoid false positives with small datasets)
-    const matchPercentage = matchedColumns.length / sourceColumns.length;
-    const hasMinimumMatches = matchedColumns.length >= Math.min(Config.getMinColumnMatches(), sourceColumns.length);
-    const hasHighMatchPercentage = matchPercentage >= Config.getColumnMatchPercentage();
-    
-    const isExactMatch = hasMinimumMatches && hasHighMatchPercentage;
-    
-    Logger.log(`📊 Match analysis:
-      - Matched columns: ${matchedColumns.length}
-      - Match percentage: ${(matchPercentage * 100).toFixed(1)}%
-      - Has minimum matches: ${hasMinimumMatches}
-      - Has high percentage: ${hasHighMatchPercentage}
-      - Is exact match: ${isExactMatch}
-      - Matched: ${matchedColumns.join(', ')}`);
-    
-    return {
-      isExactMatch: isExactMatch,
-      matchedColumns: matchedColumns,
-      matchPercentage: matchPercentage,
-      totalMatches: matchedColumns.length
-    };
-    
-  } catch (error) {
-    Logger.log(`Error checking exact column match: ${error.message}`);
-    return { isExactMatch: false, matchedColumns: [] };
-  }
-},
-
-
-
-
-
-
   /**
    * Enhanced prepareImportToExistingSheet function with mapping validation
    */
@@ -666,7 +607,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
           Logger.log(`📝 Using priceListId: ${priceListId}`);
           
           // Sanitize sheet name
-          const sanitizedName = this.sanitizePriceListSheetName(priceListInfo.name);
+          const sanitizedName = Config.sanitizePriceListSheetName(priceListInfo.name);
           
           // Check if sheet already exists - COMPARE instead of overwrite
           let targetSheet = spreadsheet.getSheetByName(sanitizedName);
@@ -931,7 +872,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
    */
   storePriceListMetadata(sheetName, priceListInfo, itemsData) {
     try {
-      const metadataKey = `zotoks_pricelist_meta_${sheetName}`;
+      const metadataKey = Config.getPriceListMetadataKey(sheetName);
       
       // Check if metadata already exists to preserve creation date
       const documentProperties = PropertiesService.getDocumentProperties();
@@ -987,7 +928,7 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
    */
   getPriceListMetadata(sheetName) {
     try {
-      const metadataKey = `zotoks_pricelist_meta_${sheetName}`;
+      const metadataKey = Config.getPriceListMetadataKey(sheetName);
       
       const documentProperties = PropertiesService.getDocumentProperties();
       const storedData = documentProperties.getProperty(metadataKey);
@@ -1026,9 +967,10 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       const priceListSheets = [];
       
       // Filter properties for price list metadata
+      const metadataPrefix = Config.getPriceListMetadataKey('');
       Object.keys(allProperties).forEach(key => {
-        if (key.startsWith('zotoks_pricelist_meta_')) {
-          const sheetName = key.replace('zotoks_pricelist_meta_', '');
+        if (key.startsWith(metadataPrefix)) {
+          const sheetName = key.replace(metadataPrefix, '');
           try {
             const metadata = JSON.parse(allProperties[key]);
             priceListSheets.push({
@@ -1057,125 +999,6 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       return {
         success: false,
         message: 'Error getting price list sheets: ' + error.message
-      };
-    }
-  },
-
-  /**
-   * Sync price list data back to Zono
-   */
-  syncPriceListToZono(sheetName) {
-    try {
-      Logger.log(`💾 Syncing price list sheet "${sheetName}" back to Zono...`);
-      
-      // Get price list metadata
-      const metadataResult = this.getPriceListMetadata(sheetName);
-      if (!metadataResult.success) {
-        return {
-          success: false,
-          message: 'No price list metadata found for this sheet. This may not be a price list sheet.'
-        };
-      }
-      
-      const metadata = metadataResult.metadata;
-      
-      // Get sheet data
-      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-      const sheet = spreadsheet.getSheetByName(sheetName);
-      if (!sheet) {
-        return {
-          success: false,
-          message: 'Sheet not found: ' + sheetName
-        };
-      }
-      
-      // Read all data from sheet
-      const lastRow = sheet.getLastRow();
-      const lastCol = sheet.getLastColumn();
-
-      if (lastRow < Config.getMinDataRows()) {
-        return {
-          success: false,
-          message: 'No data found in sheet (only headers or empty sheet)'
-        };
-      }
-      
-      // Get headers and data
-      const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-      const dataRows = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-      
-      // FIXED: Convert sheet data to products array with consistent field mapping
-      const products = dataRows.map(row => {
-        const product = {};
-        headers.forEach((header, index) => {
-          const cleanHeader = String(header).trim().toLowerCase();
-          let value = row[index];
-          
-          // Skip empty values
-          if (value === '' || value === null || value === undefined) {
-            return;
-          }
-          
-          // Map to API expected field names
-          if (cleanHeader === 'sku' || cleanHeader === 'product_sku' || cleanHeader === 'productsku') {
-            product.sku = String(value);
-          } else if (cleanHeader === 'price' || cleanHeader === 'unit_price' || cleanHeader === 'unitprice') {
-            product.price = parseFloat(value) || 0;
-          } else if (cleanHeader === 'pricewithmargin' || cleanHeader === 'price_with_margin' || cleanHeader === 'margin_price') {
-            product.priceWithMargin = parseFloat(value) || 0;
-          } else {
-            // For other fields, handle price fields as numbers
-            if (cleanHeader.includes('price') && value !== '' && value !== null) {
-              product[header] = parseFloat(value) || 0;
-            } else {
-              product[header] = value;
-            }
-          }
-        });
-        
-        return product;
-      }).filter(product => product.sku); // Only include products with valid SKU
-      
-      // FIXED: Construct the payload matching the curl command structure
-      const payload = {
-        priceList: [
-          {
-            name: metadata.priceListName,
-            code: metadata.priceListCode,
-            products: products,
-            targets: metadata.targets || [],
-            startDate: metadata.startDate,
-            endDate: metadata.endDate,
-            targetType: metadata.targetType || "customer-price"
-          }
-        ]
-      };
-      
-      Logger.log(`Constructed payload for ${products.length} products`);
-
-      // Call the fixed update API
-      const updateResult = PricelistDialog.updatePriceList(payload);
-      
-      if (updateResult.success) {
-        return {
-          success: true,
-          message: `Successfully synced ${products.length} products from "${sheetName}" to Zono`,
-          productCount: products.length,
-          priceListName: metadata.priceListName,
-          syncedAt: new Date().toISOString()
-        };
-      } else {
-        return {
-          success: false,
-          message: `Failed to sync price list: ${updateResult.message}`
-        };
-      }
-      
-    } catch (error) {
-      Logger.log(`❌ Error syncing price list to Zono: ${error.message}`);
-      return {
-        success: false,
-        message: 'Error syncing price list: ' + error.message
       };
     }
   },
@@ -1494,47 +1317,9 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
     }
   },
 
-  /**
-   * Sanitize sheet names for price lists
-   */
-  sanitizePriceListSheetName(name) {
-    if (!name) return 'Unnamed Price List';
-    
-    // Remove invalid characters for sheet names
-    const invalidChars = /[\/\\\?*\[\]]/g;
-    let sanitized = String(name).replace(invalidChars, '_');
-    
-    // Limit length to 100 characters
-    if (sanitized.length > 100) {
-      sanitized = sanitized.substring(0, 97) + '...';
-    }
-    
-    // Ensure it's not empty after sanitization
-    if (sanitized.trim().length === 0) {
-      sanitized = 'Price List ' + Date.now();
-    }
-    
-    return sanitized.trim();
-  },
-
   // ==========================================
   // HELPER FUNCTIONS
   // ==========================================
-
-  /**
-   * Clear sheet data but preserve headers
-   */
-  clearSheetData(sheet) {
-    try {
-      const lastRow = sheet.getLastRow();
-      if (lastRow > 1) {
-        const lastCol = sheet.getLastColumn();
-        sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
-      }
-    } catch (error) {
-      Logger.log(`Error clearing sheet data: ${error.message}`);
-    }
-  },
 
   /**
    * Validate mappings against current data structure
@@ -1568,96 +1353,6 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       return {
         valid: false,
         reason: 'Error validating mappings: ' + error.message
-      };
-    }
-  },
-
-  /**
-   * Create data preview for UI display
-   */
-  createDataPreview(data, columns) {
-    try {
-      if (!data || data.length === 0) return [];
-      
-      return data.slice(0, 3).map(record => {
-        const preview = {};
-        columns.forEach(col => {
-          preview[col] = record[col] || '';
-        });
-        return preview;
-      });
-    } catch (error) {
-      Logger.log(`Error creating data preview: ${error.message}`);
-      return [];
-    }
-  },
-
-  /**
-   * Import data with mappings applied
-   */
-  importDataWithMappings(sheet, data, mappings) {
-    try {
-      if (!data || data.length === 0) {
-        return { success: false, message: 'No data to import' };
-      }
-
-      // Get target sheet headers
-      const lastCol = sheet.getLastColumn();
-      if (lastCol === 0) {
-        return { success: false, message: 'Target sheet has no columns' };
-      }
-
-      const headerRange = sheet.getRange(1, 1, 1, lastCol);
-      const targetHeaders = headerRange.getValues()[0];
-
-      // Find the starting row for data
-      const lastRow = sheet.getLastRow();
-      const startRow = lastRow + 1;
-
-      // Map data according to mappings
-      const mappedData = data.map(record => {
-        const mappedRecord = new Array(targetHeaders.length).fill('');
-
-        Object.keys(mappings).forEach(sourceColumn => {
-          const targetColumn = mappings[sourceColumn];
-          const targetIndex = targetHeaders.indexOf(targetColumn);
-
-          if (targetIndex >= 0 && record[sourceColumn] !== undefined) {
-            mappedRecord[targetIndex] = record[sourceColumn];
-          }
-        });
-
-        return mappedRecord;
-      });
-
-      // Write mapped data to sheet with formula preservation
-      if (mappedData.length > 0) {
-        Logger.log('🧮 Using formula-safe import for mapped data');
-        const batchSize = Math.min(Config.getBatchSize(), 100);
-
-        for (let i = 0; i < mappedData.length; i += batchSize) {
-          const batch = mappedData.slice(i, i + batchSize);
-          const currentRow = startRow + i;
-
-          // Import batch with formula preservation
-          this.importBatchWithFormulaPreservation(sheet, batch, currentRow, targetHeaders.length);
-
-          if (i + batchSize < mappedData.length) {
-            Utilities.sleep(5);
-          }
-        }
-      }
-
-      return {
-        success: true,
-        rowCount: mappedData.length
-      };
-
-    } catch (error) {
-      Logger.log(`Error importing with mappings: ${error.message}`);
-      return {
-        success: false,
-        message: 'Error importing with mappings: ' + error.message
       };
     }
   },
@@ -1715,41 +1410,6 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       Logger.log(`🔄 Falling back to regular import for batch starting at row ${startRow}`);
       const fallbackRange = sheet.getRange(startRow, 1, batch.length, numCols);
       fallbackRange.setValues(batch);
-    }
-  },
-
-  /**
-   * NEW: Check if a cell contains a formula
-   */
-  isCellFormula(cellValue) {
-    return typeof cellValue === 'string' && cellValue.trim().startsWith('=');
-  },
-
-  /**
-   * NEW: Get count of formulas preserved during import
-   */
-  countFormulasInRange(sheet, startRow, numRows, numCols) {
-    try {
-      if (startRow > sheet.getLastRow()) {
-        return 0; // No existing data, no formulas to count
-      }
-
-      const range = sheet.getRange(startRow, 1, Math.min(numRows, sheet.getLastRow() - startRow + 1), numCols);
-      const formulas = range.getFormulas();
-
-      let formulaCount = 0;
-      formulas.forEach(row => {
-        row.forEach(cell => {
-          if (cell && cell.trim().startsWith('=')) {
-            formulaCount++;
-          }
-        });
-      });
-
-      return formulaCount;
-    } catch (error) {
-      Logger.log(`Error counting formulas: ${error.message}`);
-      return 0;
     }
   }
 };

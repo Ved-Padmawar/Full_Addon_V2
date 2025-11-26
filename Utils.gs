@@ -44,26 +44,6 @@ const Utils = {
   },
 
   /**
-   * Format date for display
-   */
-  formatDate(dateString) {
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch (error) {
-      return 'Invalid Date';
-    }
-  },
-
-  /**
-   * Convert endpoint name to display format
-   */
-  formatEndpointName(endpoint) {
-    return endpoint.split('-').map(word =>
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-  },
-
-  /**
    * Get available endpoints configuration for dynamic population
    */
   getEndpointsConfiguration() {

@@ -208,39 +208,6 @@ const Config = {
   },
 
   /**
-   * Validate price list product data
-   */
-  validatePriceListProduct(product) {
-    const requiredFields = ZOTOKS_CONFIG.PRICE_LIST.REQUIRED_PRODUCT_FIELDS;
-    const errors = [];
-    
-    if (!product || typeof product !== 'object') {
-      return { valid: false, errors: ['Product must be an object'] };
-    }
-    
-    // Check required fields
-    requiredFields.forEach(field => {
-      if (!product.hasOwnProperty(field) || product[field] === null || product[field] === undefined || product[field] === '') {
-        errors.push(`Missing required field: ${field}`);
-      }
-    });
-    
-    // Validate price fields are numeric
-    if (product.price !== undefined && (isNaN(parseFloat(product.price)) || !isFinite(product.price))) {
-      errors.push('Price must be a valid number');
-    }
-    
-    if (product.priceWithMargin !== undefined && (isNaN(parseFloat(product.priceWithMargin)) || !isFinite(product.priceWithMargin))) {
-      errors.push('Price with margin must be a valid number');
-    }
-    
-    return {
-      valid: errors.length === 0,
-      errors: errors
-    };
-  },
-
-  /**
    * Sanitize price list sheet name
    */
   sanitizePriceListSheetName(name) {

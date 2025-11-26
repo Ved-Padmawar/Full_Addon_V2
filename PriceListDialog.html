@@ -44,11 +44,6 @@
       flex: 1;
       overflow-y: auto;
     }
-    .tab-button.active {
-      background-color: #0ea5e9 !important;
-      color: white !important;
-    }
-    .tab-hidden { display: none !important; }
     .fade-in { animation: fadeIn 0.2s ease-out; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .loading-overlay {
@@ -80,7 +75,7 @@
         <div class="flex flex-col h-full w-full">
             <div class="flex justify-between items-center mb-3">
                 <div>
-                    <h2 class="text-sm font-medium text-slate-900">Import Price Lists from Zono Digital</h2>
+                    <h2 class="text-sm font-medium text-slate-900">Import Price Lists from Zötok</h2>
                     <p class="text-xs text-slate-600">Select price lists to create as Google Sheets</p>
                 </div>
                 <button onclick="importPriceLists()" id="importButton" class="px-4 py-1.5 bg-price-600 text-white rounded text-xs font-medium hover:bg-price-700 transition-colors shadow-sm flex items-center gap-1.5">
@@ -143,58 +138,16 @@
     // ==========================================
     // GLOBAL STATE MANAGEMENT
     // ==========================================
-    
-    let currentTab = 'import';
+
     let priceListsData = [];
     let selectedPriceLists = new Set();
-    let priceListSheets = [];
 
     // ==========================================
-    // TAB MANAGEMENT
-    // ==========================================
-    
-    function showTab(tabName) {
-      console.log('Switching to tab:', tabName);
-      
-      // Update tab buttons - remove active from all, add to selected
-      document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-        btn.classList.add('bg-slate-200', 'text-slate-700');
-      });
-      
-      const activeButton = document.getElementById(tabName + 'TabButton');
-      if (activeButton) {
-        activeButton.classList.add('active');
-        activeButton.classList.remove('bg-slate-200', 'text-slate-700');
-      }
-      
-      // Update tab content - hide all, show selected
-      document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.add('tab-hidden');
-      });
-      
-      const activeContent = document.getElementById(tabName + 'TabContent');
-      if (activeContent) {
-        activeContent.classList.remove('tab-hidden');
-        activeContent.classList.add('fade-in');
-      }
-      
-      currentTab = tabName;
-      
-      // Initialize tab-specific functionality
-      if (tabName === 'sync') {
-        setTimeout(() => {
-          loadPriceListSheets();
-        }, 100);
-      }
-    }
-
-    // ==========================================
-    // IMPORT TAB FUNCTIONALITY
+    // IMPORT FUNCTIONALITY
     // ==========================================
     
     function importPriceLists() {
-      showLoading(true, 'Fetching price lists from Zono Digital...', 'This may take a few moments');
+      showLoading(true, 'Fetching price lists from Zötok...', 'This may take a few moments');
       
       google.script.run
         .withSuccessHandler(handlePriceListsResult)
@@ -434,9 +387,9 @@
     // ==========================================
     // INITIALIZATION
     // ==========================================
-    
+
     document.addEventListener('DOMContentLoaded', function() {
-      showTab('import');
+      console.log('Price List Dialog initialized');
     });
   </script>
 </body>

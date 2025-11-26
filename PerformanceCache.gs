@@ -147,20 +147,6 @@ const PerformanceCache = {
   },
 
   /**
-   * NEW: Delete specific validation result from cache
-   */
-  deleteCachedValidationResult(key) {
-    try {
-      if (PERFORMANCE_CACHE.validationResults.has(key)) {
-        PERFORMANCE_CACHE.validationResults.delete(key);
-        Logger.log(`🗑️ Deleted validation cache: ${key}`);
-      }
-    } catch (error) {
-      Logger.log(`Error deleting validation cache ${key}: ${error.message}`);
-    }
-  },
-
-  /**
    * Clear all caches completely
    */
   clearAllCaches() {
@@ -177,115 +163,6 @@ const PerformanceCache = {
       Logger.log('🧹 All performance caches cleared');
     } catch (error) {
       Logger.log(`Error clearing all caches: ${error.message}`);
-    }
-  },
-
-  /**
-   * Get cache statistics for monitoring
-   */
-  getCacheStats() {
-    return {
-      credentials: {
-        cached: !!PERFORMANCE_CACHE.credentials,
-        cacheTime: PERFORMANCE_CACHE.credentialsCacheTime,
-        valid: this.isCacheValid(PERFORMANCE_CACHE.credentialsCacheTime)
-      },
-      tokenStatus: {
-        cached: !!PERFORMANCE_CACHE.tokenStatus,
-        cacheTime: PERFORMANCE_CACHE.tokenStatusCacheTime,
-        valid: this.isCacheValid(PERFORMANCE_CACHE.tokenStatusCacheTime, Config.getStatusCacheDuration())
-      },
-      validationResults: {
-        count: PERFORMANCE_CACHE.validationResults.size,
-        keys: Array.from(PERFORMANCE_CACHE.validationResults.keys())
-      },
-      lastTokenCheck: PERFORMANCE_CACHE.lastTokenCheck,
-      inCooldown: this.isTokenCheckInCooldown()
-    };
-  }
-};
-
-/**
- * ✅ EXPLICIT DOCUMENT-ONLY PROPERTY OPERATIONS
- * This implementation ensures we NEVER access script properties, only document properties
- */
-const PropertyUtils = {
-  /**
-   * Get multiple properties at once from DOCUMENT PROPERTIES ONLY
-   */
-  batchGetProperties(keys) {
-    try {
-      // ✅ EXPLICITLY use document properties to comply with currentonly scope
-      const properties = PropertiesService.getDocumentProperties();
-      
-      if (!properties) {
-        Logger.log('Document properties service not available');
-        return {};
-      }
-      
-      // Get all properties at once instead of individual calls
-      const allProps = properties.getProperties();
-      const result = {};
-      
-      keys.forEach(key => {
-        if (allProps.hasOwnProperty(key)) {
-          result[key] = allProps[key];
-        }
-      });
-      
-      return result;
-    } catch (error) {
-      Logger.log(`Error in batch property retrieval: ${error.message}`);
-      return {};
-    }
-  },
-
-  /**
-   * Set multiple properties at once - DOCUMENT PROPERTIES ONLY
-   */
-  batchSetProperties(keyValuePairs) {
-    try {
-      // ✅ EXPLICITLY use document properties to comply with currentonly scope
-      const properties = PropertiesService.getDocumentProperties();
-      
-      if (!properties) {
-        Logger.log('Document properties service not available');
-        return false;
-      }
-      
-      // Set all properties at once
-      properties.setProperties(keyValuePairs);
-      return true;
-      
-    } catch (error) {
-      Logger.log(`Error in batch property setting: ${error.message}`);
-      return false;
-    }
-  },
-
-  /**
-   * Delete multiple properties at once - DOCUMENT PROPERTIES ONLY
-   */
-  batchDeleteProperties(keys) {
-    try {
-      // ✅ EXPLICITLY use document properties to comply with currentonly scope
-      const properties = PropertiesService.getDocumentProperties();
-      
-      if (!properties) {
-        Logger.log('Document properties service not available');
-        return false;
-      }
-      
-      // Delete each property
-      keys.forEach(key => {
-        properties.deleteProperty(key);
-      });
-      
-      return true;
-      
-    } catch (error) {
-      Logger.log(`Error in batch property deletion: ${error.message}`);
-      return false;
     }
   }
 };

@@ -68,7 +68,7 @@ const UIManager = {
         .setHeight(700)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-      SpreadsheetApp.getUi().showModalDialog(html, 'Configure Zotoks Credentials');
+      SpreadsheetApp.getUi().showModalDialog(html, 'Configure Zötok Credentials');
 
     } catch (error) {
       Logger.log(`Error showing credentials dialog: ${error.message}`);
@@ -106,7 +106,7 @@ const UIManager = {
         .setHeight(500)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
-      SpreadsheetApp.getUi().showModalDialog(html, 'Zotoks Price List Management');
+      SpreadsheetApp.getUi().showModalDialog(html, 'Zötok Price List Management');
 
     } catch (error) {
       Logger.log(`Error showing price list dialog: ${error.message}`);
@@ -177,77 +177,6 @@ const UIManager = {
   /**
    * Show detailed token status - only called by user action
    */
-  /**
-   * Manual token refresh - only called by user action
-   */
-  manualTokenRefresh() {
-    try {
-      const result = AuthManager.manuallyRefreshToken();
-
-      if (result.success) {
-        SpreadsheetApp.getUi().alert(
-          'Token Refreshed',
-          `✅ Token refreshed successfully!\n\nNew expiry: ${Utils.formatDate(result.expiresAt)}\nDays until expiry: ${result.daysUntilExpiry}`,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-      } else {
-        SpreadsheetApp.getUi().alert('Refresh Failed', '❌ ' + result.message, SpreadsheetApp.getUi().ButtonSet.OK);
-      }
-
-    } catch (error) {
-      Logger.log(`Error in manual refresh: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error refreshing token: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
-  /**
-   * Show connection status - Enhanced with token info
-   */
-  showConnectionStatus() {
-    try {
-      const statusData = Utils.getConnectionStatusData();
-
-      if (!statusData.success) {
-        SpreadsheetApp.getUi().alert('Error', statusData.message, SpreadsheetApp.getUi().ButtonSet.OK);
-        return;
-      }
-
-      let message = `Zotoks Integration Status:\n\n`;
-
-      if (statusData.status === 'not_configured') {
-        message += '❌ Credentials: Not configured\n';
-        message += '❌ Connection: Not available\n\n';
-        message += 'Please configure your Zotoks credentials first using:\nZotoks Data Import → Settings → Configure Credentials';
-      } else if (statusData.status === 'active') {
-        message += '✅ Credentials: Configured\n';
-        message += '✅ Connection: Active\n';
-        message += `🔑 Token: ${statusData.data.token}\n\n`;
-        message += `Available data sources:\n`;
-        statusData.data.endpoints.forEach(endpoint => {
-          message += `• ${Utils.formatEndpointName(endpoint)}\n`;
-        });
-
-        if (statusData.data.mappedSheets > 0) {
-          message += `\n📊 Configured Sheets: ${statusData.data.mappedSheets}`;
-        }
-
-        message += `\n\n🔄 Auto-refresh: Token automatically refreshes every 28 days`;
-      } else {
-        message += '✅ Credentials: Configured\n';
-        message += '❌ Connection: Failed\n';
-        message += `🔑 Token: ${statusData.data.token}\n`;
-        message += `Error: ${statusData.data.error}\n\n`;
-        message += 'Try reconfiguring your credentials or check your network connection.';
-      }
-
-      SpreadsheetApp.getUi().alert('Zotoks Integration Status', message, SpreadsheetApp.getUi().ButtonSet.OK);
-
-    } catch (error) {
-      Logger.log(`Error checking status: ${error.message}`);
-      SpreadsheetApp.getUi().alert('Error', 'Error checking connection status: ' + error.message, SpreadsheetApp.getUi().ButtonSet.OK);
-    }
-  },
-
   /**
    * Get endpoints configuration for the dialog dropdown
    */
