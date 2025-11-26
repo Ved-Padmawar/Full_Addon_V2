@@ -515,13 +515,16 @@ const ImportDialog = {
   },
 
   /**
-   * Export products from current sheet to API with mappings
+   * Generic mapping engine - handles column mapping, validation, and data reading
+   * Returns mapped data objects ready for payload building
+   *
+   * @param {string} endpoint - The endpoint name
+   * @param {object|null} mappings - Column mappings (null to check existing or show dialog)
+   * @param {object} fieldTypes - Field type definitions { fieldName: 'string'|'number'|'boolean'|'array' }
+   * @returns {object|null} { success, sheetName, mappingObj, mappedRecords, headers, dataRows } or null if dialog shown
    */
-  exportProducts(mappings = null) {
+  getMappedData(endpoint, mappings, fieldTypes) {
     try {
-      const endpoint = 'products';
-      Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
-
       // Get current sheet info
       const sheetInfo = SheetManager.getActiveSheetName();
       if (!sheetInfo.success) {
@@ -530,7 +533,7 @@ const ImportDialog = {
           'Could not get active sheet information: ' + sheetInfo.message,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        return;
+        return { success: false, error: sheetInfo.message };
       }
 
       const sheetName = sheetInfo.sheetName;
@@ -546,7 +549,7 @@ const ImportDialog = {
           'Sheet has no headers. Please add column headers first.',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        return;
+        return { success: false, error: 'No headers found' };
       }
 
       // If mappings NOT provided, check for existing or show dialog
@@ -559,7 +562,7 @@ const ImportDialog = {
             `Failed to fetch API structure: ${dataResult.message}`,
             SpreadsheetApp.getUi().ButtonSet.OK
           );
-          return;
+          return { success: false, error: dataResult.message };
         }
 
         const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
@@ -569,7 +572,7 @@ const ImportDialog = {
             'Unable to determine API columns from fetched data',
             SpreadsheetApp.getUi().ButtonSet.OK
           );
-          return;
+          return { success: false, error: 'No source columns found' };
         }
 
         // Check for existing mappings
@@ -589,19 +592,19 @@ const ImportDialog = {
             // Show mapping dialog
             const sampleData = dataResult.data.slice(0, 3);
             UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
-            return;
+            return null; // Dialog shown, exit
           }
         } else {
           // No valid mappings - show mapping dialog
           Logger.log('No valid mappings found, showing column mapping dialog');
           const sampleData = dataResult.data.slice(0, 3);
           UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
-          return;
+          return null; // Dialog shown, exit
         }
       }
 
-      // At this point, mappings are available - proceed with upload
-      Logger.log('Uploading products data with mappings');
+      // At this point, mappings are available - proceed with data reading
+      Logger.log(`Reading ${endpoint} data with mappings`);
 
       // Read sheet data
       const sheetDataResult = SheetManager.readSheetData(sheetName);
@@ -611,7 +614,7 @@ const ImportDialog = {
           sheetDataResult.message,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        return;
+        return { success: false, error: sheetDataResult.message };
       }
 
       if (sheetDataResult.rowCount < 1) {
@@ -620,7 +623,7 @@ const ImportDialog = {
           'No data found in sheet (only headers or empty sheet)',
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        return;
+        return { success: false, error: 'No data rows' };
       }
 
       const headers = sheetDataResult.headers;
@@ -637,29 +640,8 @@ const ImportDialog = {
         mappingObj = mappings;
       }
 
-      // Define field types for products (string, number, boolean, array)
-      const fieldTypes = {
-        'productName': 'string',
-        'skuCode': 'string',
-        'description': 'string',
-        'displayOrder': 'number',
-        'taxCategory': 'string',
-        'shortDiscription': 'string',
-        'upcCode': 'string',
-        'baseUnit': 'string',
-        'packSize': 'number',
-        'maxOrderQuantity': 'number',
-        'quantityMultiplier': 'number',
-        'isEnabled': 'boolean',
-        'caseSize': 'number',
-        'category': 'string',
-        'mrp': 'number',
-        'price': 'number',
-        'productImages': 'array'
-      };
-
-      // Build payload using mappings
-      const records = dataRows.map(row => {
+      // Apply mappings and type conversion
+      const mappedRecords = dataRows.map(row => {
         const record = {};
 
         Object.keys(fieldTypes).forEach(apiField => {
@@ -691,10 +673,9 @@ const ImportDialog = {
                   const numValue = parseFloat(value);
                   record[apiField] = isNaN(numValue) ? 0 : numValue;
                 } else if (fieldType === 'boolean') {
-                  // Convert to boolean (handles 'true', 'false', 1, 0, etc.)
                   record[apiField] = value === true || value === 'true' || value === 1 || value === '1';
                 } else if (fieldType === 'array') {
-                  // Parse array - assume comma-separated or JSON array
+                  // Parse array - comma-separated or JSON
                   if (typeof value === 'string') {
                     value = value.trim();
                     if (value.startsWith('[')) {
@@ -712,7 +693,7 @@ const ImportDialog = {
                 }
               }
             } else {
-              // Column not found
+              // Column not found - set defaults
               if (fieldTypes[apiField] === 'array') {
                 record[apiField] = [];
               } else if (fieldTypes[apiField] === 'number') {
@@ -729,7 +710,68 @@ const ImportDialog = {
         return record;
       });
 
-      if (records.length === 0) {
+      return {
+        success: true,
+        sheetName: sheetName,
+        mappingObj: mappingObj,
+        mappedRecords: mappedRecords,
+        headers: headers,
+        dataRows: dataRows
+      };
+
+    } catch (error) {
+      Logger.log(`❌ Error in mapping engine: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Export products from current sheet to API with mappings
+   */
+  exportProducts(mappings = null) {
+    try {
+      const endpoint = 'products';
+      Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
+
+      // Define field types for products
+      const fieldTypes = {
+        'productName': 'string',
+        'skuCode': 'string',
+        'description': 'string',
+        'displayOrder': 'number',
+        'taxCategory': 'string',
+        'shortDiscription': 'string',
+        'upcCode': 'string',
+        'baseUnit': 'string',
+        'packSize': 'number',
+        'maxOrderQuantity': 'number',
+        'quantityMultiplier': 'number',
+        'isEnabled': 'boolean',
+        'caseSize': 'number',
+        'category': 'string',
+        'mrp': 'number',
+        'price': 'number',
+        'productImages': 'array'
+      };
+
+      // Use generic mapping engine
+      const mappingResult = this.getMappedData(endpoint, mappings, fieldTypes);
+
+      // If null, dialog was shown - exit
+      if (mappingResult === null) {
+        return;
+      }
+
+      // If error occurred
+      if (!mappingResult.success) {
+        Logger.log(`❌ Mapping failed: ${mappingResult.error}`);
+        return;
+      }
+
+      const { sheetName, mappingObj, mappedRecords } = mappingResult;
+
+      // Payload builder - products use the mapped records directly
+      if (mappedRecords.length === 0) {
         SpreadsheetApp.getUi().alert(
           'Error',
           'No records to export',
@@ -738,8 +780,8 @@ const ImportDialog = {
         return;
       }
 
-      Logger.log(`✅ Built payload with ${records.length} records`);
-      const payload = { [endpoint]: records };
+      Logger.log(`✅ Built payload with ${mappedRecords.length} records`);
+      const payload = { [endpoint]: mappedRecords };
       const payloadPreview = JSON.stringify(payload);
       Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
 
@@ -752,10 +794,10 @@ const ImportDialog = {
 
         SpreadsheetApp.getUi().alert(
           'Success',
-          `Successfully synced ${records.length} ${endpoint} to Zotok platform.`,
+          `Successfully synced ${mappedRecords.length} ${endpoint} to Zotok platform.`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        Logger.log(`✅ Upload completed successfully for ${records.length} ${endpoint}`);
+        Logger.log(`✅ Upload completed successfully for ${mappedRecords.length} ${endpoint}`);
       } else {
         SpreadsheetApp.getUi().alert(
           'Error',
@@ -783,152 +825,33 @@ const ImportDialog = {
       const endpoint = 'customers';
       Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
 
-      // Get current sheet info
-      const sheetInfo = SheetManager.getActiveSheetName();
-      if (!sheetInfo.success) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'Could not get active sheet information: ' + sheetInfo.message,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
+      // Define field types for customers (all strings)
+      const fieldTypes = {
+        'customerCode': 'string',
+        'contactName': 'string',
+        'firmName': 'string',
+        'mobile': 'string',
+        'email': 'string'
+      };
+
+      // Use generic mapping engine
+      const mappingResult = this.getMappedData(endpoint, mappings, fieldTypes);
+
+      // If null, dialog was shown - exit
+      if (mappingResult === null) {
         return;
       }
 
-      const sheetName = sheetInfo.sheetName;
-      Logger.log(`Active sheet: "${sheetName}"`);
-
-      // Get sheet headers
-      const sheet = SpreadsheetApp.getActiveSheet();
-      const targetColumns = SheetManager.getTargetSheetColumns(sheet);
-
-      if (!targetColumns || targetColumns.length === 0) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'Sheet has no headers. Please add column headers first.',
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
+      // If error occurred
+      if (!mappingResult.success) {
+        Logger.log(`❌ Mapping failed: ${mappingResult.error}`);
         return;
       }
 
-      // If mappings NOT provided, check for existing or show dialog
-      if (mappings === null) {
-        // Fetch API preview to get source columns
-        const dataResult = this.fetchPreview(endpoint, 30);
-        if (!dataResult.success) {
-          SpreadsheetApp.getUi().alert(
-            'Error',
-            `Failed to fetch API structure: ${dataResult.message}`,
-            SpreadsheetApp.getUi().ButtonSet.OK
-          );
-          return;
-        }
+      const { sheetName, mappingObj, mappedRecords } = mappingResult;
 
-        const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
-        if (!sourceColumns || sourceColumns.length === 0) {
-          SpreadsheetApp.getUi().alert(
-            'Error',
-            'Unable to determine API columns from fetched data',
-            SpreadsheetApp.getUi().ButtonSet.OK
-          );
-          return;
-        }
-
-        // Check for existing mappings
-        const existingMappings = MappingManager.getMappings(sheetName);
-
-        if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
-          Logger.log(`Found existing mappings for ${sheetName}`);
-
-          // Validate existing mappings
-          const validationResult = SheetManager.validateMappings(existingMappings.mappings, sourceColumns, targetColumns);
-
-          if (validationResult.valid) {
-            Logger.log(`Valid existing mappings found, proceeding with export`);
-            mappings = existingMappings.mappings;
-          } else {
-            Logger.log(`Existing mappings invalid: ${validationResult.reason}`);
-            // Show mapping dialog
-            const sampleData = dataResult.data.slice(0, 3);
-            UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
-            return;
-          }
-        } else {
-          // No valid mappings - show mapping dialog
-          Logger.log('No valid mappings found, showing column mapping dialog');
-          const sampleData = dataResult.data.slice(0, 3);
-          UIManager.showColumnMappingDialogForExport(sheetName, endpoint, sourceColumns, targetColumns, sampleData);
-          return;
-        }
-      }
-
-      // At this point, mappings are available - proceed with upload
-      Logger.log('Uploading customers data with mappings');
-
-      // Read sheet data
-      const sheetDataResult = SheetManager.readSheetData(sheetName);
-      if (!sheetDataResult.success) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          sheetDataResult.message,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-
-      if (sheetDataResult.rowCount < 1) {
-        SpreadsheetApp.getUi().alert(
-          'Error',
-          'No data found in sheet (only headers or empty sheet)',
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-
-      const headers = sheetDataResult.headers;
-      const dataRows = sheetDataResult.data;
-      Logger.log(`Processing ${dataRows.length} rows with ${headers.length} columns`);
-
-      // Convert mappings to object if it's an array
-      let mappingObj = {};
-      if (Array.isArray(mappings)) {
-        mappings.forEach(mapping => {
-          mappingObj[mapping.source_column] = mapping.target_column;
-        });
-      } else {
-        mappingObj = mappings;
-      }
-
-      // Define writable fields for customers endpoint
-      const writableFields = ['customerCode', 'contactName', 'firmName', 'mobile', 'email'];
-
-      // Build payload using mappings - only for writable fields
-      const records = dataRows.map(row => {
-        const record = {};
-
-        // Only process writable fields
-        writableFields.forEach(apiField => {
-          if (mappingObj.hasOwnProperty(apiField)) {
-            const sheetColumn = mappingObj[apiField];
-            const columnIndex = headers.indexOf(sheetColumn);
-
-            if (columnIndex !== -1) {
-              let value = row[columnIndex];
-              // Convert value to string, use empty string if empty
-              const stringValue = (value === null || value === undefined || value === '') ? '' : String(value).trim();
-              record[apiField] = stringValue;
-            } else {
-              record[apiField] = '';
-            }
-          } else {
-            // Field not in mapping, set to empty string
-            record[apiField] = '';
-          }
-        });
-
-        return record;
-      });
-
-      if (records.length === 0) {
+      // Payload builder - customers use the mapped records directly
+      if (mappedRecords.length === 0) {
         SpreadsheetApp.getUi().alert(
           'Error',
           'No records to export',
@@ -937,8 +860,8 @@ const ImportDialog = {
         return;
       }
 
-      Logger.log(`✅ Built payload with ${records.length} records`);
-      const payload = { [endpoint]: records };
+      Logger.log(`✅ Built payload with ${mappedRecords.length} records`);
+      const payload = { [endpoint]: mappedRecords };
       const payloadPreview = JSON.stringify(payload);
       Logger.log(`Payload: ${payloadPreview.substring(0, 500)}${payloadPreview.length > 500 ? '...' : ''}`);
 
@@ -951,10 +874,10 @@ const ImportDialog = {
 
         SpreadsheetApp.getUi().alert(
           'Success',
-          `Successfully synced ${records.length} ${endpoint} to Zotok platform.`,
+          `Successfully synced ${mappedRecords.length} ${endpoint} to Zotok platform.`,
           SpreadsheetApp.getUi().ButtonSet.OK
         );
-        Logger.log(`✅ Upload completed successfully for ${records.length} ${endpoint}`);
+        Logger.log(`✅ Upload completed successfully for ${mappedRecords.length} ${endpoint}`);
       } else {
         SpreadsheetApp.getUi().alert(
           'Error',

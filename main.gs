@@ -33,7 +33,7 @@ function onOpen(e) {
       .addItem('📥 Import', 'showProductImportDialog')
       .addItem('⬆️ Upload', 'exportProducts');
 
-    const orderSubmenu = ui.createMenu('📦 Orders')
+    const orderSubmenu = ui.createMenu('📝 Orders')
       .addItem('📥 Import', 'showOrderImportDialog');
 
     const menu = ui.createAddonMenu()
@@ -95,7 +95,7 @@ function createZotoksMenuSafely() {
       .addItem('📥 Import', 'showProductImportDialog')
       .addItem('⬆️ Upload', 'exportProducts');
 
-    const orderSubmenu = ui.createMenu('📦 Orders')
+    const orderSubmenu = ui.createMenu('📝 Orders')
       .addItem('📥 Import', 'showOrderImportDialog');
 
     ui.createMenu('Zötok')
