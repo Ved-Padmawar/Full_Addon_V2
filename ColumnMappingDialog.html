@@ -245,75 +245,337 @@
       // Create mapping interface
       function initializeMappings() {
         const container = document.getElementById('mappingContainer');
-        container.innerHTML = '';
-        
-        sourceColumns.forEach((sourceCol, index) => {
-          const row = document.createElement('div');
-          row.className = 'mb-4 p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors bg-white';
-          
-          row.innerHTML = `
-            <div class="mapping-grid">
-              <!-- Source Column -->
-              <div class="text-left">
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="w-6 h-6 bg-zotoks-100 rounded flex items-center justify-center">
-                    <svg class="w-3 h-3 text-zotoks-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
+
+        // OPTIMIZATION 1: Pre-build target options HTML once (reuse for all rows)
+        const targetOptionsHtml = targetColumns.map(col => `
+          <li class="text-slate-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zotoks-100" role="option" data-value="${col}">
+            <span class="font-normal block truncate">${col}</span>
+          </li>
+        `).join('');
+
+        // OPTIMIZATION 2: Build all rows as one HTML string (single DOM write)
+        const allRowsHtml = sourceColumns.map((sourceCol) => {
+          const sampleValue = sampleData.length > 0 && sampleData[0][sourceCol] !== undefined
+            ? String(sampleData[0][sourceCol]).substring(0, 50) + (String(sampleData[0][sourceCol]).length > 50 ? '...' : '')
+            : 'No data';
+
+          return `
+            <div class="mb-4 p-4 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors bg-white">
+              <div class="mapping-grid">
+                <!-- Source Column -->
+                <div class="text-left">
+                  <div class="flex items-center gap-2 mb-2">
+                    <div class="w-6 h-6 bg-zotoks-100 rounded flex items-center justify-center">
+                      <svg class="w-3 h-3 text-zotoks-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                    </div>
+                    <span class="font-medium text-slate-900 text-sm">${sourceCol}</span>
                   </div>
-                  <span class="font-medium text-slate-900 text-sm">${sourceCol}</span>
+                  <div class="text-xs text-slate-500 bg-slate-50 rounded px-2 py-1 font-mono max-w-48 truncate">
+                    ${sampleValue}
+                  </div>
                 </div>
-                <div class="text-xs text-slate-500 bg-slate-50 rounded px-2 py-1 font-mono max-w-48 truncate">
-                  ${sampleData.length > 0 && sampleData[0][sourceCol] !== undefined 
-                    ? String(sampleData[0][sourceCol]).substring(0, 50) + (String(sampleData[0][sourceCol]).length > 50 ? '...' : '')
-                    : 'No data'}
+
+                <!-- Arrow -->
+                <div class="flex justify-center">
+                  <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                  </svg>
                 </div>
-              </div>
-              
-              <!-- Arrow -->
-              <div class="flex justify-center">
-                <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
-                </svg>
-              </div>
-              
-              <!-- Target Dropdown -->
-              <div class="text-left">
-                <div class="relative w-full" data-custom-dropdown>
-                  <input type="hidden" name="target-column" value="" data-source="${sourceCol}">
-                  <button type="button" class="target-select w-full flex items-center justify-between text-left px-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-zotoks-500 text-sm" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="block truncate text-slate-700">Select target column</span>
-                    <svg class="w-4 h-4 text-slate-400 transform transition-transform duration-150" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
-                    </svg>
-                  </button>
-                  <ul class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-sm ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none hidden transition-all duration-150 transform origin-top scale-95 opacity-0" tabindex="-1" role="listbox">
-                    ${targetColumns.map(col => `
-                      <li class="text-slate-900 cursor-default select-none relative py-2 pl-3 pr-9 hover:bg-zotoks-100" role="option" data-value="${col}">
-                        <span class="font-normal block truncate">${col}</span>
-                      </li>
-                    `).join('')}
-                  </ul>
+
+                <!-- Target Dropdown -->
+                <div class="text-left">
+                  <div class="relative w-full" data-custom-dropdown>
+                    <input type="hidden" name="target-column" value="" data-source="${sourceCol}">
+                    <button type="button" class="target-select w-full flex items-center justify-between text-left px-3 py-2 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-zotoks-500 text-sm" aria-haspopup="listbox" aria-expanded="false">
+                      <span class="block truncate text-slate-700">Select target column</span>
+                      <svg class="w-4 h-4 text-slate-400 transform transition-transform duration-150" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                    <ul class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-sm ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none hidden transition-all duration-150 transform origin-top scale-95 opacity-0" tabindex="-1" role="listbox">
+                      ${targetOptionsHtml}
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
           `;
-          
-          // Add click listener for custom dropdown
-          const dropdown = row.querySelector('[data-custom-dropdown]');
+        }).join('');
+
+        // Single DOM write
+        container.innerHTML = allRowsHtml;
+
+        // OPTIMIZATION 3: Setup dropdowns after HTML injection (no staggered timeouts)
+        const dropdowns = container.querySelectorAll('[data-custom-dropdown]');
+        dropdowns.forEach(dropdown => {
           setupCustomDropdown(dropdown);
-          
-          container.appendChild(row);
-          
-          // Add animation
-          setTimeout(() => {
-            row.classList.add('fade-in');
-          }, index * 50);
         });
-        
-        updatePreview();
+
+        // OPTIMIZATION 4: Single fade-in on the whole container
+        container.classList.add('fade-in');
+
+        // OPTIMIZATION 5: Defer preview generation until after first paint
+        requestAnimationFrame(() => {
+          updatePreview();
+        });
       }
       
+      // ============================================================
+      // ADVANCED AUTO-MAPPING ALGORITHM
+      // ============================================================
+
+      // Abbreviation map: single token -> one or more words
+      const ABBR = {
+        cust: 'customer',
+        cid: 'customer id',
+        fname: 'first name',
+        lname: 'last name',
+        qty: 'quantity',
+        amt: 'amount',
+        no: 'number',
+        num: 'number',
+        dt: 'date',
+        ts: 'timestamp',
+        addr: 'address',
+        bill: 'billing',
+        ship: 'shipping',
+        mob: 'mobile',
+        ph: 'phone',
+        tel: 'phone',
+        emailaddr: 'email address',
+        phoneno: 'phone number',
+        shipaddr: 'shipping address',
+        billaddr: 'billing address',
+        custid: 'customer id',
+        orderdt: 'order date',
+        createdts: 'created timestamp',
+        createdtimestamp: 'created timestamp',
+        tripid: 'trip id',
+        orderid: 'order id'
+      };
+
+      // Synonym / canonicalization map: token -> canonical token
+      const SYN = {
+        phone: 'phone',
+        mobile: 'phone',
+        number: 'number',
+        no: 'number',
+        email: 'email',
+        mail: 'email',
+        addr: 'address',
+        address: 'address',
+        shipping: 'shipping',
+        ship: 'shipping',
+        billing: 'billing',
+        bill: 'billing',
+        date: 'date',
+        dt: 'date',
+        ts: 'timestamp',
+        timestamp: 'timestamp',
+        state: 'state',
+        status: 'status',
+        id: 'id',
+        qty: 'quantity',
+        amount: 'amount',
+        customer: 'customer',
+        cust: 'customer',
+        order: 'order',
+        trip: 'trip',
+        created: 'created',
+        updated: 'updated'
+      };
+
+      function simpleStem(token) {
+        // very light stemming: plurals etc.
+        if (token.endsWith('ies') && token.length > 4) {
+          return token.slice(0, -3) + 'y'; // companies -> company
+        }
+        if (token.endsWith('s') && !token.endsWith('ss') && token.length > 3) {
+          return token.slice(0, -1); // names -> name, addresses -> addresse (good enough for overlap)
+        }
+        return token;
+      }
+
+      function tokenize(name) {
+        if (!name) return [];
+        let s = name.trim();
+
+        // Split camelCase / PascalCase / digit boundaries
+        s = s.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+        s = s.replace(/([A-Za-z])([0-9])/g, '$1 $2');
+        s = s.replace(/([0-9])([A-Za-z])/g, '$1 $2');
+
+        s = s.toLowerCase();
+        // Replace non-alphanumeric (incl. _, -, spaces) with space
+        s = s.replace(/[^a-z0-9]+/g, ' ');
+
+        const rawTokens = s.split(/\s+/).filter(Boolean);
+        const expanded = [];
+
+        // 1) Expand abbreviations (can produce multiple tokens)
+        rawTokens.forEach(t => {
+          if (ABBR[t]) {
+            const exp = ABBR[t].toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+            exp.split(/\s+/).filter(Boolean).forEach(et => expanded.push(et));
+          } else {
+            expanded.push(t);
+          }
+        });
+
+        // 2) Apply synonyms / canonicalization + stemming
+        const canonical = expanded.map(t => {
+          const base = SYN[t] || t;
+          return simpleStem(base);
+        });
+
+        return canonical;
+      }
+
+      function normalizeName(name) {
+        const tokens = tokenize(name);
+        return {
+          normalized: tokens.join(' '),
+          tokens
+        };
+      }
+
+      function jaccardOverlap(srcTokens, tgtTokens) {
+        if (!srcTokens.length || !tgtTokens.length) return 0;
+        const srcSet = new Set(srcTokens);
+        const tgtSet = new Set(tgtTokens);
+        let overlap = 0;
+        srcSet.forEach(t => {
+          if (tgtSet.has(t)) overlap++;
+        });
+        const denom = Math.max(srcSet.size, tgtSet.size);
+        return denom === 0 ? 0 : overlap / denom;
+      }
+
+      // Levenshtein distance
+      function levenshtein(a, b) {
+        const m = a.length, n = b.length;
+        if (m === 0) return n;
+        if (n === 0) return m;
+        const dp = new Array(n + 1);
+        for (let j = 0; j <= n; j++) dp[j] = j;
+        for (let i = 1; i <= m; i++) {
+          let prev = dp[0];
+          dp[0] = i;
+          for (let j = 1; j <= n; j++) {
+            const tmp = dp[j];
+            if (a[i - 1] === b[j - 1]) {
+              dp[j] = prev;
+            } else {
+              dp[j] = Math.min(prev + 1, dp[j] + 1, dp[j - 1] + 1);
+            }
+            prev = tmp;
+          }
+        }
+        return dp[n];
+      }
+
+      function levenshteinSim(a, b) {
+        if (!a || !b) return 0;
+        const maxLen = Math.max(a.length, b.length);
+        if (maxLen === 0) return 1;
+        const dist = levenshtein(a, b);
+        return 1 - dist / maxLen;
+      }
+
+      function buildTargetIndex(targetCols) {
+        const index = [];
+        const exactMap = Object.create(null);
+        targetCols.forEach((name, idx) => {
+          const info = normalizeName(name);
+          const entry = {
+            original: name,
+            normalized: info.normalized,
+            tokens: info.tokens,
+            index: idx
+          };
+          index.push(entry);
+          if (info.normalized) {
+            exactMap[info.normalized] = entry;
+          }
+        });
+        return { index, exactMap };
+      }
+
+      // Weighted scoring with uniqueness lock per target
+      function performAutoMapping(sourceCols, targetCols, threshold = 0.5) {
+        const { index: targetIndex, exactMap } = buildTargetIndex(targetCols);
+        const mappings = [];
+        const usedTargetIndices = new Set();
+
+        sourceCols.forEach((srcName) => {
+          const srcInfo = normalizeName(srcName);
+          const srcNorm = srcInfo.normalized;
+          const srcTokens = srcInfo.tokens;
+
+          let bestTarget = null;
+          let bestScore = 0;
+
+          // 1) Exact normalized match via hashmap (strongest signal)
+          if (srcNorm && exactMap[srcNorm] && !usedTargetIndices.has(exactMap[srcNorm].index)) {
+            bestTarget = exactMap[srcNorm];
+            bestScore = 1.0;
+          } else {
+            // 2) Weighted token overlap + prefix + fuzzy (fallback)
+            for (const tgt of targetIndex) {
+              if (usedTargetIndices.has(tgt.index)) continue;
+
+              const overlap = jaccardOverlap(srcTokens, tgt.tokens);
+
+              // Prefix boost: same first token
+              const prefixMatch =
+                srcTokens.length && tgt.tokens.length && srcTokens[0] === tgt.tokens[0]
+                  ? 1
+                  : 0;
+
+              // Fuzzy similarity only when no token overlap
+              let fuzzy = 0;
+              if (overlap === 0) {
+                const a = srcNorm;
+                const b = tgt.normalized;
+                if (a && b) {
+                  fuzzy = levenshteinSim(a, b);
+                }
+              }
+
+              // Weighted score
+              const score =
+                overlap * 0.7 +
+                prefixMatch * 0.2 +
+                fuzzy * 0.3;
+
+              if (score > bestScore) {
+                bestScore = score;
+                bestTarget = tgt;
+              }
+            }
+          }
+
+          if (bestTarget && bestScore >= threshold) {
+            mappings.push({
+              source: srcName,
+              target: bestTarget.original,
+              score: bestScore
+            });
+            usedTargetIndices.add(bestTarget.index);
+          } else {
+            mappings.push({
+              source: srcName,
+              target: '',
+              score: 0
+            });
+          }
+        });
+
+        return mappings;
+      }
+
       function autoMapColumns() {
         // Add animation to the auto map button
         const autoMapButton = document.querySelector('button[onclick="autoMapColumns()"]');
@@ -324,90 +586,24 @@
           }, 1500);
         }
 
+        // Perform advanced auto-mapping
+        const mappings = performAutoMapping(sourceColumns, targetColumns, 0.5);
+
+        // Apply mappings to UI
         const dropdowns = document.querySelectorAll('[data-custom-dropdown]');
         let mappedCount = 0;
 
-        // OPTIMIZATION: Build target column lookup maps once (O(1) lookups instead of O(m) per source)
-        // Get all available target options from first dropdown (all dropdowns have same options)
-        const firstDropdown = dropdowns[0];
-        if (!firstDropdown) return;
-
-        const allOptions = firstDropdown.querySelectorAll('li[role="option"]');
-
-        // Build hashmaps for fast lookup
-        const exactMatchMap = new Map(); // normalized -> {value, text}
-        const targetOptions = []; // [{value, text, normalized}] for partial/rule matching
-
-        allOptions.forEach(option => {
-          const value = option.getAttribute('data-value');
-          const text = option.textContent.trim();
-          const normalized = value.toLowerCase();
-
-          // Exact match map
-          exactMatchMap.set(normalized, { value, text });
-
-          // Store for partial/rule matching
-          targetOptions.push({ value, text, normalized });
-        });
-
-        // Special mapping rules for common Zotoks fields (defined once outside loop)
-        const mappingRules = {
-          'id': ['id', 'identifier', 'key'],
-          'customer_id': ['customer', 'customer_id', 'client'],
-          'trip_id': ['trip', 'trip_id', 'journey'],
-          'order_id': ['order', 'order_id', 'purchase'],
-          'created_at': ['created', 'date', 'timestamp'],
-          'updated_at': ['updated', 'modified', 'last_updated'],
-          'status': ['status', 'state', 'condition'],
-          'amount': ['amount', 'total', 'price', 'cost'],
-          'name': ['name', 'title', 'label']
-        };
-
-        // Single pass over source columns
         dropdowns.forEach(dropdown => {
           const hiddenInput = dropdown.querySelector('input[type="hidden"]');
-          const sourceCol = hiddenInput.getAttribute('data-source').toLowerCase();
+          const sourceCol = hiddenInput.getAttribute('data-source');
           const buttonText = dropdown.querySelector('button span');
 
-          let bestMatch = null;
-          let bestMatchText = null;
+          // Find mapping for this source column
+          const mapping = mappings.find(m => m.source === sourceCol);
 
-          // 1. Exact match via hashmap (O(1))
-          const exactMatch = exactMatchMap.get(sourceCol);
-          if (exactMatch) {
-            bestMatch = exactMatch.value;
-            bestMatchText = exactMatch.text;
-          }
-
-          // 2. Partial match (only if no exact match)
-          if (!bestMatch) {
-            for (const target of targetOptions) {
-              if (target.normalized.includes(sourceCol) || sourceCol.includes(target.normalized)) {
-                bestMatch = target.value;
-                bestMatchText = target.text;
-                break;
-              }
-            }
-          }
-
-          // 3. Rule-based match (only if no exact/partial match)
-          if (!bestMatch) {
-            const rule = mappingRules[sourceCol];
-            if (rule) {
-              for (const target of targetOptions) {
-                if (rule.some(r => target.normalized.includes(r))) {
-                  bestMatch = target.value;
-                  bestMatchText = target.text;
-                  break;
-                }
-              }
-            }
-          }
-
-          // Apply mapping if found
-          if (bestMatch) {
-            hiddenInput.value = bestMatch;
-            buttonText.textContent = bestMatchText;
+          if (mapping && mapping.target) {
+            hiddenInput.value = mapping.target;
+            buttonText.textContent = mapping.target;
             mappedCount++;
           }
         });
