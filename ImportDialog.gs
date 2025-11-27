@@ -9,6 +9,40 @@
 const ImportDialog = {
 
   /**
+   * Flatten nested value for spreadsheet cells using hybrid approach:
+   * - Simple primitive arrays → comma-separated strings (user-friendly, editable)
+   * - Complex nested structures → JSON strings (reliable, round-trip safe)
+   */
+  flattenForCell(value) {
+    // Handle null/undefined
+    if (value === null || value === undefined) return '';
+
+    // Handle primitives
+    if (typeof value !== 'object') return String(value);
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '';
+
+      // Check if all items are primitives (strings/numbers/booleans)
+      const allPrimitives = value.every(item =>
+        item === null || typeof item !== 'object'
+      );
+
+      if (allPrimitives) {
+        // Simple array → comma-separated (e.g., routes, segments, tags)
+        return value.filter(v => v !== null && v !== undefined).join(', ');
+      } else {
+        // Complex array → JSON (e.g., cfaDivisions)
+        return JSON.stringify(value);
+      }
+    }
+
+    // Handle objects → JSON
+    return JSON.stringify(value);
+  },
+
+  /**
    * Transform API response - expects {headers, data} format
    */
   transformApiResponse(apiResponse) {
@@ -32,9 +66,20 @@ const ImportDialog = {
 
       Logger.log(`✅ API returned ${data.length} records`);
 
+      // Flatten nested structures for all rows
+      const flattenedData = data.map(row => {
+        const flatRow = {};
+        Object.keys(row).forEach(key => {
+          flatRow[key] = (row[key] !== null && typeof row[key] === 'object')
+            ? this.flattenForCell(row[key])
+            : row[key];
+        });
+        return flatRow;
+      });
+
       return {
         success: true,
-        data: data,
+        data: flattenedData,
         headers: headers
       };
 
@@ -675,16 +720,19 @@ const ImportDialog = {
                 } else if (fieldType === 'boolean') {
                   record[apiField] = value === true || value === 'true' || value === 1 || value === '1';
                 } else if (fieldType === 'array') {
-                  // Parse array - comma-separated or JSON
+                  // Parse array - JSON or comma-separated
                   if (typeof value === 'string') {
                     value = value.trim();
-                    if (value.startsWith('[')) {
+                    if (value.startsWith('[') || value.startsWith('{')) {
+                      // JSON format (complex nested structures)
                       try {
                         record[apiField] = JSON.parse(value);
                       } catch(e) {
-                        record[apiField] = [value];
+                        Logger.log(`Failed to parse JSON for ${apiField}: ${e.message}`);
+                        record[apiField] = [];
                       }
                     } else {
+                      // Comma-separated format (simple arrays)
                       record[apiField] = value.split(',').map(v => v.trim()).filter(v => v);
                     }
                   } else {
@@ -825,13 +873,23 @@ const ImportDialog = {
       const endpoint = 'customers';
       Logger.log(`🔄 Starting ${endpoint} export from current sheet...`);
 
-      // Define field types for customers (all strings)
+      // Define field types for customers
       const fieldTypes = {
-        'customerCode': 'string',
-        'contactName': 'string',
         'firmName': 'string',
+        'contactName': 'string',
+        'customerCode': 'string',
         'mobile': 'string',
-        'email': 'string'
+        'email': 'string',
+        'address': 'string',
+        'gstNumber': 'string',
+        'creditLimit': 'number',
+        'pincode': 'string',
+        'city': 'string',
+        'state': 'string',
+        'priceListCode': 'string',
+        'routes': 'array',
+        'segments': 'array',
+        'cfaDivisions': 'array'
       };
 
       // Use generic mapping engine
