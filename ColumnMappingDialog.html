@@ -196,8 +196,8 @@
         <div class="flex items-center justify-center h-full">
           <div class="bg-white rounded-lg shadow-lg border border-slate-200 p-8 text-center max-w-sm">
             <div class="w-8 h-8 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <h3 class="font-medium text-slate-900 mb-2">Importing Zötok Data</h3>
-            <p class="text-sm text-slate-600 mb-2">Applying column mappings and importing your data...</p>
+            <h3 class="font-medium text-slate-900 mb-2" id="loadingTitle">Importing Zötok Data</h3>
+            <p class="text-sm text-slate-600 mb-2" id="loadingMessage">Applying column mappings and importing your data...</p>
             <p class="text-xs text-zotoks-600">Mappings will be saved for future imports and exports to this sheet</p>
           </div>
         </div>
@@ -212,7 +212,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
               </svg>
             </div>
-            <h3 class="font-medium text-slate-900 mb-2">Import Successful!</h3>
+            <h3 class="font-medium text-slate-900 mb-2" id="successTitle">Import Successful!</h3>
             <p class="text-sm text-slate-600 mb-2" id="successMessage">Data imported successfully</p>
             <p class="text-xs text-zotoks-600">Column mappings have been saved for future imports and exports to this sheet</p>
           </div>
@@ -817,21 +817,40 @@
       
       function showLoading(show) {
         const loadingDiv = document.getElementById('loadingDiv');
+        const loadingTitle = document.getElementById('loadingTitle');
+        const loadingMessage = document.getElementById('loadingMessage');
+
+        if (show) {
+          if (isExportMode) {
+            loadingTitle.textContent = 'Uploading Zötok Data';
+            loadingMessage.textContent = 'Applying column mappings and uploading your data...';
+          } else {
+            loadingTitle.textContent = 'Importing Zötok Data';
+            loadingMessage.textContent = 'Applying column mappings and importing your data...';
+          }
+        }
+
         loadingDiv.classList.toggle('hidden', !show);
       }
-      
+
       function showSuccess(message, show) {
         const successDiv = document.getElementById('successDiv');
+        const successTitle = document.getElementById('successTitle');
         const successMessage = document.getElementById('successMessage');
-        
+
         if (show) {
+          if (isExportMode) {
+            successTitle.textContent = 'Upload Successful!';
+          } else {
+            successTitle.textContent = 'Import Successful!';
+          }
           successMessage.textContent = message;
           successDiv.classList.remove('hidden');
         } else {
           successDiv.classList.add('hidden');
         }
       }
-      
+
       function proceedWithMapping() {
         const mappings = getMappings();
 
