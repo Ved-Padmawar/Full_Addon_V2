@@ -366,12 +366,15 @@ const ImportDialog = {
       let page = 1;
 
       if (endpointConfig.supportsPagination) {
-        // PAGINATED ENDPOINTS: Use pagination logic
+        // PAGINATED ENDPOINTS: Use parallel batch fetching
         hasNextPage = true;
 
         Logger.log(`📏 Pagination limits: ${maxPages} max pages, ${memoryLimit} max records, ${maxExecutionTime}ms max time`);
 
-        // Main pagination loop
+        const batchSize = 10; // Fetch 10 pages in parallel per batch
+        const pageSize = Config.getPageSize();
+
+        // Parallel pagination loop
         while (hasNextPage && pagesProcessed < maxPages && totalRecords < memoryLimit) {
           // Check execution time
           const elapsedTime = Date.now() - startTime;
@@ -380,35 +383,87 @@ const ImportDialog = {
             break;
           }
 
-          const pageResult = this.fetchSinglePage(endpoint, period, page, tokenResult.token);
+          // Determine how many pages to fetch in this batch
+          const remainingPages = maxPages - pagesProcessed;
+          const pagesToFetch = Math.min(batchSize, remainingPages);
 
-          if (!pageResult.success) {
-            if (pageResult.endOfData) {
-              Logger.log(`📄 Reached end of data at page ${page}`);
-              hasNextPage = false;
+          // Build parallel requests for this batch
+          const requests = [];
+          for (let i = 0; i < pagesToFetch; i++) {
+            const currentPage = page + i;
+            const dataUrl = Config.buildApiUrl(endpoint, period, { pageSize: pageSize, pageNo: currentPage });
+
+            requests.push({
+              url: dataUrl,
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${tokenResult.token}`
+              },
+              muteHttpExceptions: true
+            });
+          }
+
+          Logger.log(`🚀 Fetching pages ${page}-${page + pagesToFetch - 1} in parallel (batch of ${pagesToFetch})`);
+
+          // Execute parallel requests
+          const responses = UrlFetchApp.fetchAll(requests);
+
+          // Process all responses
+          let batchHasData = false;
+          let shouldStopPagination = false;
+
+          for (let i = 0; i < responses.length; i++) {
+            const response = responses[i];
+            const currentPage = page + i;
+            const responseCode = response.getResponseCode();
+            const responseText = response.getContentText();
+
+            if (responseCode >= 200 && responseCode < 300) {
+              const rawApiResponse = JSON.parse(responseText);
+              const transformResult = this.transformApiResponse(rawApiResponse);
+
+              if (!transformResult.success) {
+                Logger.log(`⚠️ Page ${currentPage} transform failed: ${transformResult.error}`);
+                continue;
+              }
+
+              const pageData = transformResult.data;
+
+              if (pageData && pageData.length > 0) {
+                allData = allData.concat(pageData);
+                totalRecords += pageData.length;
+                batchHasData = true;
+                Logger.log(`📊 Page ${currentPage}: ${pageData.length} records (total: ${totalRecords})`);
+
+                // If this page has fewer records than pageSize, it's the last page
+                if (pageData.length < pageSize) {
+                  Logger.log(`📄 Page ${currentPage} has fewer records than pageSize (${pageData.length} < ${pageSize}), stopping pagination`);
+                  shouldStopPagination = true;
+                  break; // Stop processing remaining pages in batch
+                }
+              } else {
+                Logger.log(`📄 Page ${currentPage}: No data, stopping pagination`);
+                shouldStopPagination = true;
+                break; // Stop processing remaining pages in batch
+              }
+
+            } else if (responseCode === 400) {
+              Logger.log(`📄 Page ${currentPage} returned 400 - end of data`);
+              shouldStopPagination = true;
               break;
             } else {
-              throw new Error(`Failed to fetch page ${page}: ${pageResult.error}`);
+              Logger.log(`⚠️ Page ${currentPage} failed (${responseCode}): ${responseText.substring(0, 100)}`);
             }
           }
 
-          // Add data from this page
-          if (pageResult.data && pageResult.data.length > 0) {
-            allData = allData.concat(pageResult.data);
-            totalRecords += pageResult.data.length;
-            Logger.log(`📊 Page ${page}: ${pageResult.data.length} records (total: ${totalRecords})`);
-          } else {
-            Logger.log(`📄 Page ${page}: No data, reached end`);
+          // Update pagination state
+          page += pagesToFetch;
+          pagesProcessed += pagesToFetch;
+
+          // Stop if we detected end of data
+          if (shouldStopPagination || !batchHasData) {
             hasNextPage = false;
-          }
-
-          hasNextPage = pageResult.hasNextPage && pageResult.data.length > 0;
-          page++;
-          pagesProcessed++;
-
-          // Small delay between requests to be API-friendly
-          if (hasNextPage && pagesProcessed < maxPages) {
-            Utilities.sleep(Config.getPageProcessingDelay());
           }
         }
       } else {
