@@ -1213,8 +1213,9 @@
 
       showImportLoading(true, 'Creating sheet and importing data...', 'This may take a few moments');
 
-      // For products endpoint, don't pass period parameter
-      if (dataSource === 'products') {
+      // Check if endpoint supports time period
+      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
+      if (endpointConfig && !endpointConfig.supportsTimePeriod) {
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
@@ -1239,8 +1240,9 @@
 
       showImportLoading(true, 'Preparing import...', 'Checking mappings and importing data');
 
-      // For products endpoint, don't pass period parameter
-      if (dataSource === 'products') {
+      // Check if endpoint supports time period
+      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
+      if (endpointConfig && !endpointConfig.supportsTimePeriod) {
         google.script.run
           .withSuccessHandler(handleImportResult)
           .withFailureHandler(handleError)
