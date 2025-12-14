@@ -113,8 +113,8 @@ const SheetManager = {
           mappingObj[header] = header;
         });
 
-        // Store mappings
-        const storeResult = MappingManager.storeMappings(sheetName, endpoint, mappingObj, period);
+        // Store mappings using sheet ID
+        const storeResult = MappingManager.storeMappings(sheet.getSheetId(), endpoint, mappingObj, period);
         if (storeResult.success) {
           Logger.log(`✅ Metadata stored for ${sheetName}`);
         } else {
@@ -216,7 +216,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
           mappingObj[header] = header;  // 1:1 mapping
         });
 
-        const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
+        const storeResult = MappingManager.storeMappings(targetSheet.getSheetId(), endpoint, mappingObj, period);
         if (storeResult.success) {
           Logger.log(`✅ Metadata stored for ${targetSheetName}`);
         }
@@ -250,7 +250,7 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
         sourceColumns.forEach(col => {
           mappingObj[col] = col;
         });
-        const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
+        const storeResult = MappingManager.storeMappings(targetSheet.getSheetId(), endpoint, mappingObj, period);
         if (storeResult.success) {
           Logger.log(`✅ Stored 1:1 mappings for exact match import`);
         }
@@ -269,8 +269,8 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
       };
     }
     
-    // Check for existing mappings with performance optimization
-    const existingMappings = MappingManager.getMappings(targetSheetName, endpoint);
+    // Check for existing mappings with performance optimization (using sheet ID)
+    const existingMappings = MappingManager.getMappings(targetSheet.getSheetId());
     
     if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
       Logger.log(`Found existing mappings for ${targetSheetName}-${endpoint}`);
@@ -411,8 +411,8 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
       }
     }
 
-    // Store mappings for future use
-    const storeResult = MappingManager.storeMappings(targetSheetName, endpoint, mappingObj, period);
+    // Store mappings for future use (using sheet ID)
+    const storeResult = MappingManager.storeMappings(sheet.getSheetId(), endpoint, mappingObj, period);
     let message = `Successfully imported ${mappedRows.length} rows of ${endpoint} data to ${targetSheetName}`;
     if (storeResult.success) {
       message += '. Column mappings saved for future imports.';

@@ -365,7 +365,15 @@ function dispatch(action, payload) {
       // COLUMN MAPPING ACTIONS
       // ==========================================
       case 'getColumnMappings':
-        return MappingManager.getMappings(params.sheetName || params);
+        // Convert sheet name to ID if needed
+        if (params.sheetName) {
+          const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(params.sheetName);
+          if (!sheet) {
+            return { success: false, message: `Sheet "${params.sheetName}" not found` };
+          }
+          return MappingManager.getMappings(sheet.getSheetId());
+        }
+        return MappingManager.getMappings(params);
 
       case 'clearAllMappings':
         return MappingManager.clearAllMappings();
@@ -453,8 +461,18 @@ function dispatch(action, payload) {
  */
 function checkImportMappingCompatibility(sheetName, endpoint) {
   try {
+    // Convert sheet name to ID
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) {
+      return {
+        success: false,
+        message: `Sheet "${sheetName}" not found`
+      };
+    }
+    const sheetId = sheet.getSheetId();
+
     // Get stored mappings (only when called)
-    const mappingResult = MappingManager.getMappings(sheetName);
+    const mappingResult = MappingManager.getMappings(sheetId);
 
     if (!mappingResult.success || !mappingResult.mappings || mappingResult.mappings.length === 0) {
       return {
@@ -477,7 +495,7 @@ function checkImportMappingCompatibility(sheetName, endpoint) {
     }
 
     // Check if mappings are outdated
-    const outdatedCheck = MappingManager.checkIfMappingsOutdated(sheetName, mappingResult);
+    const outdatedCheck = MappingManager.checkIfMappingsOutdated(sheetId, mappingResult);
 
     return {
       success: true,

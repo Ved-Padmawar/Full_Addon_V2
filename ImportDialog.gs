@@ -675,8 +675,8 @@ const ImportDialog = {
           return { success: false, error: 'No source columns found' };
         }
 
-        // Check for existing mappings
-        const existingMappings = MappingManager.getMappings(sheetName);
+        // Check for existing mappings (using sheet ID)
+        const existingMappings = MappingManager.getMappings(sheet.getSheetId());
 
         if (existingMappings.success && existingMappings.mappings && Object.keys(existingMappings.mappings).length > 0) {
           Logger.log(`Found existing mappings for ${sheetName}`);
@@ -899,8 +899,9 @@ const ImportDialog = {
       const result = this.updateEntity(endpoint, payload);
 
       if (result.success) {
-        // Store mappings for future use
-        MappingManager.storeMappings(sheetName, endpoint, mappingObj, 30);
+        // Store mappings for future use (using sheet ID)
+        const sheet = SpreadsheetApp.getActiveSheet();
+        MappingManager.storeMappings(sheet.getSheetId(), endpoint, mappingObj, 30);
 
         SpreadsheetApp.getUi().alert(
           'Success',
@@ -989,8 +990,9 @@ const ImportDialog = {
       const result = this.updateEntity(endpoint, payload);
 
       if (result.success) {
-        // Store mappings for future use
-        MappingManager.storeMappings(sheetName, endpoint, mappingObj, 30);
+        // Store mappings for future use (using sheet ID)
+        const sheet = SpreadsheetApp.getActiveSheet();
+        MappingManager.storeMappings(sheet.getSheetId(), endpoint, mappingObj, 30);
 
         SpreadsheetApp.getUi().alert(
           'Success',
