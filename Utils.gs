@@ -8,37 +8,64 @@
 const Utils = {
 
   /**
-   * Get mapping management data
+   * Get mapping manager data for new dialog (replacement for old getMappingManagementData)
    */
-
-  /**
-   * Get mapping management data for frontend display
-   */
-  getMappingManagementData() {
+  getMappingManagerData() {
     try {
       const mappingsResult = MappingManager.getAllSheetsWithMappings();
-      
+
       if (!mappingsResult.success) {
         return {
           success: false,
           message: 'Error retrieving mappings: ' + mappingsResult.message
         };
       }
-      
+
       return {
         success: true,
-        title: 'Zotoks Mapping Management',
         data: {
           sheets: mappingsResult.sheets || [],
           totalCount: mappingsResult.sheets ? mappingsResult.sheets.length : 0
         }
       };
-      
+
     } catch (error) {
-      Logger.log(`Error getting mapping data: ${error.message}`);
+      Logger.log(`Error getting mapping manager data: ${error.message}`);
       return {
         success: false,
         message: 'Error retrieving mapping data: ' + error.message
+      };
+    }
+  },
+
+  /**
+   * Delete a specific mapping by sheet ID
+   */
+  deleteMapping(sheetId) {
+    try {
+      const result = MappingManager.clearStoredMappings(sheetId);
+      return result;
+    } catch (error) {
+      Logger.log(`Error deleting mapping: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error deleting mapping: ' + error.message
+      };
+    }
+  },
+
+  /**
+   * Scan and delete orphaned mappings
+   */
+  scanAndDeleteOrphanedMappings() {
+    try {
+      const result = MappingManager.scanAndDeleteOrphanedMappings();
+      return result;
+    } catch (error) {
+      Logger.log(`Error deleting orphaned mappings: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error deleting orphaned mappings: ' + error.message
       };
     }
   },

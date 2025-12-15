@@ -170,6 +170,24 @@ const UIManager = {
     }
   },
 
+  /**
+   * Show Mapping Manager dialog
+   */
+  showMappingManagerDialog() {
+    try {
+      const html = HtmlService.createHtmlOutputFromFile('MappingManagerDialog')
+        .setWidth(700)
+        .setHeight(500)
+        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+      SpreadsheetApp.getUi().showModalDialog(html, 'Zötok Mapping Manager');
+
+    } catch (error) {
+      Logger.log(`Error showing mapping manager dialog: ${error.message}`);
+      throw new Error('Error showing mapping manager dialog: ' + error.message);
+    }
+  },
+
   // ==========================================
   // MENU AND STATUS FUNCTIONS
   // ==========================================
@@ -184,4 +202,3 @@ const UIManager = {
     return Utils.getEndpointsConfiguration();
   }
 };
-

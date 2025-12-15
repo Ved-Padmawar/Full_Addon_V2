@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#f8fafc', 100: '#f1f5f9', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' },
+            zotoks: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1', 900: '#0c4a6e' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    .dialog-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background-color: #f8fafc;
+    }
+    .header-container, .footer-container {
+      flex-shrink: 0;
+    }
+    .main-content-area {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+    }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50">
+  <div class="dialog-container bg-white">
+
+    <!-- Header -->
+    <div class="header-container border-b border-slate-200 p-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-zotoks-100 rounded flex items-center justify-center">
+                    <svg class="w-3 h-3 text-zotoks-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-sm font-semibold text-slate-900">Mapping Manager</h1>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content-area p-3">
+        <div class="flex flex-col h-full w-full">
+            <!-- Action Bar -->
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <h2 class="text-sm font-medium text-slate-900">Stored Column Mappings</h2>
+                    <p class="text-xs text-slate-600">Manage sheet-to-API column mappings</p>
+                </div>
+                <button onclick="scanOrphanedMappings()" id="scanOrphansButton" class="px-4 py-1.5 bg-yellow-500 text-white rounded text-xs font-medium hover:bg-yellow-600 transition-colors shadow-sm flex items-center gap-1.5">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Auto Cleanup
+                </button>
+            </div>
+
+            <!-- Mappings Table -->
+            <div class="flex flex-col flex-1">
+                <div class="bg-white rounded border border-slate-200 flex flex-col flex-1">
+                    <div class="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                        <div class="flex justify-between items-center">
+                            <h3 class="font-medium text-slate-900 text-xs">Sheet Mappings (<span id="mappingCount">0</span> total)</h3>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="w-full text-xs">
+                            <thead class="bg-slate-50 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Sheet Name</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Endpoint</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Period</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Last Updated</th>
+                                    <th class="px-3 py-2 text-center text-xs font-medium text-slate-500 uppercase tracking-wider w-20">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mappingTableBody" class="bg-white divide-y divide-slate-200">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-container border-t border-slate-200 px-3 py-2 bg-slate-50">
+        <div class="flex justify-end items-center">
+            <button onclick="closeDialog()" class="px-3 py-1 border border-slate-300 text-slate-700 rounded text-xs font-medium hover:bg-slate-100 transition-colors">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="text-center">
+            <div class="w-5 h-5 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-2"></div>
+            <p class="text-slate-600 font-medium text-sm" id="loadingText">Processing...</p>
+            <p class="text-xs text-slate-500 mt-0.5" id="loadingSubtext">Please wait</p>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" id="confirmDialog">
+      <div class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full">
+        <!-- Dialog Header -->
+        <div class="bg-gradient-to-r from-yellow-500 to-yellow-600 px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white" id="confirmDialogTitle">Confirm Action</h3>
+          </div>
+        </div>
+
+        <!-- Dialog Content -->
+        <div class="p-4">
+          <p class="text-slate-700 leading-relaxed whitespace-pre-line" id="confirmDialogMessage">
+            Are you sure you want to proceed?
+          </p>
+        </div>
+
+        <!-- Dialog Footer -->
+        <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
+          <div class="flex justify-end gap-2">
+            <button onclick="closeConfirmDialog()" class="px-4 py-1.5 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+            <button onclick="confirmDialogAction()" id="confirmDialogBtn" class="px-4 py-1.5 bg-yellow-600 text-white rounded-md font-medium hover:bg-yellow-700 transition-colors">
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // GLOBAL STATE MANAGEMENT
+    // ==========================================
+
+    let mappingsData = [];
+
+    // ==========================================
+    // INITIALIZATION
+    // ==========================================
+
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Mapping Manager Dialog initialized');
+      loadMappings();
+    });
+
+    // ==========================================
+    // LOAD MAPPINGS
+    // ==========================================
+
+    function loadMappings() {
+      showLoading(true, 'Loading mappings...', 'Please wait');
+
+      google.script.run
+        .withSuccessHandler(handleMappingsResult)
+        .withFailureHandler(handleError)
+        .dispatch('getMappingManagerData');
+    }
+
+    function handleMappingsResult(result) {
+      showLoading(false);
+
+      if (result.success) {
+        mappingsData = result.data.sheets || [];
+        displayMappings(mappingsData);
+        updateMappingCount();
+
+        if (mappingsData.length > 0) {
+          showToast(`Loaded ${mappingsData.length} mapping(s)`, 'success');
+        }
+      } else {
+        showToast('Failed to load mappings: ' + result.message, 'error');
+        displayEmptyState();
+      }
+    }
+
+    function displayMappings(mappings) {
+      const tableBody = document.getElementById('mappingTableBody');
+
+      tableBody.innerHTML = '';
+
+      if (!mappings || mappings.length === 0) {
+        displayEmptyState();
+        return;
+      }
+
+      mappings.forEach((mapping) => {
+        const row = document.createElement('tr');
+        row.className = mapping.isOrphaned
+          ? 'bg-red-50 hover:bg-red-100 transition-colors'
+          : 'hover:bg-slate-50 transition-colors';
+
+        const formattedDate = new Date(mapping.lastUpdated).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        });
+
+        const endpointDisplay = mapping.endpoint.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        row.innerHTML = `
+          <td class="px-3 py-2">
+            <div class="flex items-center gap-2">
+              <div class="w-1 h-1 ${mapping.isOrphaned ? 'bg-red-500' : 'bg-zotoks-500'} rounded-full"></div>
+              <span class="text-xs font-medium ${mapping.isOrphaned ? 'text-red-900' : 'text-slate-900'}">${mapping.sheetName}</span>
+              ${mapping.isOrphaned ? '<span class="px-1.5 py-0.5 bg-red-200 text-red-800 text-xs rounded font-medium">⚠️ Sheet Deleted</span>' : ''}
+            </div>
+          </td>
+          <td class="px-3 py-2">
+            <span class="text-xs ${mapping.isOrphaned ? 'text-red-700' : 'text-slate-700'}">${endpointDisplay}</span>
+          </td>
+          <td class="px-3 py-2">
+            <span class="text-xs ${mapping.isOrphaned ? 'text-red-700' : 'text-slate-700'}">${mapping.period} days</span>
+          </td>
+          <td class="px-3 py-2">
+            <span class="text-xs ${mapping.isOrphaned ? 'text-red-600' : 'text-slate-600'}">${formattedDate}</span>
+          </td>
+          <td class="px-3 py-2 text-center">
+            <button onclick="deleteMapping(${mapping.sheetId}, '${mapping.sheetName}')"
+                    class="inline-flex items-center justify-center w-6 h-6 text-red-600 hover:bg-red-50 rounded transition-colors"
+                    title="Delete mapping">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          </td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+    }
+
+    function displayEmptyState() {
+      const tableBody = document.getElementById('mappingTableBody');
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="5" class="px-3 py-8 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                <svg class="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+              </div>
+              <p class="text-xs font-medium text-slate-900 mb-1">No Mappings Found</p>
+              <p class="text-xs text-slate-500">Import data to create column mappings</p>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function updateMappingCount() {
+      document.getElementById('mappingCount').textContent = mappingsData.length;
+    }
+
+    // ==========================================
+    // DELETE MAPPING
+    // ==========================================
+
+    function deleteMapping(sheetId, sheetName) {
+      showConfirmDialog(
+        'Delete Mapping',
+        `Delete mapping for sheet "${sheetName}"?\n\nThis will remove the stored column mapping configuration.`,
+        () => {
+          showLoading(true, 'Deleting mapping...', 'Please wait');
+
+          google.script.run
+            .withSuccessHandler(handleDeleteResult)
+            .withFailureHandler(handleError)
+            .dispatch('deleteMapping', { sheetId: sheetId });
+        }
+      );
+    }
+
+    function handleDeleteResult(result) {
+      showLoading(false);
+
+      if (result.success) {
+        showToast('Mapping deleted successfully', 'success');
+        loadMappings(); // Reload the list
+      } else {
+        showToast('Failed to delete mapping: ' + result.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // SCAN ORPHANED MAPPINGS
+    // ==========================================
+
+    function scanOrphanedMappings() {
+      // Use already-loaded data instead of re-scanning
+      const orphanedCount = mappingsData.filter(m => m.isOrphaned).length;
+
+      if (orphanedCount === 0) {
+        // Show info dialog for no deleted sheets
+        showInfoDialog(
+          'All Clean',
+          'All mappings are up to date!\n\nNo unused mappings found. All stored mappings belong to existing sheets.'
+        );
+        return;
+      }
+
+      // Show confirmation with count from already-loaded data
+      showConfirmDialog(
+        'Remove Unused Mappings',
+        `Found ${orphanedCount} unused mapping${orphanedCount !== 1 ? 's' : ''} from deleted sheets.\n\nThese mappings are no longer needed.\n\nDo you want to remove ${orphanedCount === 1 ? 'it' : 'them'}? This cannot be undone.`,
+        () => {
+          showLoading(true, 'Removing unused mappings...', 'Please wait');
+
+          google.script.run
+            .withSuccessHandler(handleDeleteOrphansResult)
+            .withFailureHandler(handleError)
+            .dispatch('scanAndDeleteOrphanedMappings');
+        }
+      );
+    }
+
+    function handleDeleteOrphansResult(result) {
+      showLoading(false);
+
+      if (result.success) {
+        const count = result.deletedCount || 0;
+        showToast(`Removed ${count} unused mapping${count !== 1 ? 's' : ''}`, 'success');
+        loadMappings(); // Reload the list
+      } else {
+        showToast('Failed to delete orphans: ' + result.message, 'error');
+      }
+    }
+
+    // ==========================================
+    // CONFIRMATION DIALOG
+    // ==========================================
+
+    let confirmCallback = null;
+
+    function showConfirmDialog(title, message, onConfirm) {
+      document.getElementById('confirmDialogTitle').textContent = title;
+      document.getElementById('confirmDialogMessage').textContent = message;
+
+      confirmCallback = onConfirm;
+
+      // Show confirm button
+      document.getElementById('confirmDialogBtn').classList.remove('hidden');
+
+      document.getElementById('confirmDialog').classList.remove('hidden');
+
+      // Focus on cancel button by default for safety
+      setTimeout(() => {
+        document.querySelector('#confirmDialog button').focus();
+      }, 100);
+    }
+
+    function showInfoDialog(title, message) {
+      document.getElementById('confirmDialogTitle').textContent = title;
+      document.getElementById('confirmDialogMessage').textContent = message;
+
+      confirmCallback = null;
+
+      // Hide confirm button for info-only dialogs
+      document.getElementById('confirmDialogBtn').classList.add('hidden');
+
+      document.getElementById('confirmDialog').classList.remove('hidden');
+
+      // Focus on cancel button
+      setTimeout(() => {
+        document.querySelector('#confirmDialog button').focus();
+      }, 100);
+    }
+
+    function closeConfirmDialog() {
+      document.getElementById('confirmDialog').classList.add('hidden');
+      confirmCallback = null;
+    }
+
+    function confirmDialogAction() {
+      if (confirmCallback) {
+        confirmCallback();
+      }
+      closeConfirmDialog();
+    }
+
+    // Close confirm dialog on escape key
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        if (!document.getElementById('confirmDialog').classList.contains('hidden')) {
+          closeConfirmDialog();
+        }
+      }
+    });
+
+    document.getElementById('confirmDialog').addEventListener('click', function (e) {
+      if (e.target === this) {
+        closeConfirmDialog();
+      }
+    });
+
+    // ==========================================
+    // UTILITY FUNCTIONS
+    // ==========================================
+
+    function showLoading(show, text = 'Processing...', subtext = 'Please wait') {
+      const overlay = document.getElementById('loadingOverlay');
+      const loadingText = document.getElementById('loadingText');
+      const loadingSubtext = document.getElementById('loadingSubtext');
+
+      if (show) {
+        loadingText.textContent = text;
+        loadingSubtext.textContent = subtext;
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    function showToast(message, type) {
+      const toast = document.createElement('div');
+      toast.className = `fixed top-3 right-3 px-3 py-1.5 rounded text-xs font-medium z-50 transition-all shadow-md max-w-xs ${
+        type === 'success' ? 'bg-green-600 text-white' :
+        type === 'error' ? 'bg-red-600 text-white' :
+        type === 'warning' ? 'bg-yellow-600 text-white' : 'bg-slate-600 text-white'
+      }`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      }, 100);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+    }
+
+    function handleError(error) {
+      console.error('Error:', error);
+      showLoading(false);
+      showToast('Error: ' + error.message, 'error');
+    }
+
+    function closeDialog() {
+      google.script.host.close();
+    }
+  </script>
+</body>
+</html>

@@ -44,6 +44,7 @@ function onOpen(e) {
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
       .addSeparator()
+      .addItem('🗂️ Mapping Manager', 'showMappingManagerDialog')
       .addItem('🔐 Manage Credentials', 'showZotoksCredentialsDialog');
 
     menu.addToUi();
@@ -106,6 +107,7 @@ function createZotoksMenuSafely() {
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
       .addSeparator()
+      .addItem('🗂️ Mapping Manager', 'showMappingManagerDialog')
       .addItem('Manage Credentials', 'showZotoksCredentialsDialog')
       .addToUi();
     Logger.log('Zotoks menu created successfully with Price List, Customer, and Order submenus');
@@ -222,6 +224,18 @@ function showZotoksPriceListDialog() {
     } catch (uiError) {
       Logger.log(`UI error: ${uiError.message}`);
     }
+  }
+}
+
+/**
+ * Show Mapping Manager dialog
+ */
+function showMappingManagerDialog() {
+  try {
+    UIManager.showMappingManagerDialog();
+  } catch (error) {
+    Logger.log(`Error showing mapping manager dialog: ${error.message}`);
+    throw error;
   }
 }
 
@@ -406,6 +420,9 @@ function dispatch(action, payload) {
           params.sampleData
         );
 
+      case 'showMappingManagerDialog':
+        return UIManager.showMappingManagerDialog();
+
       // ==========================================
       // CONFIGURATION & UTILITY ACTIONS
       // ==========================================
@@ -419,8 +436,14 @@ function dispatch(action, payload) {
         }
         return preSelected || '';
 
-      case 'getMappingManagementData':
-        return Utils.getMappingManagementData();
+      case 'getMappingManagerData':
+        return Utils.getMappingManagerData();
+
+      case 'deleteMapping':
+        return Utils.deleteMapping(params.sheetId);
+
+      case 'scanAndDeleteOrphanedMappings':
+        return Utils.scanAndDeleteOrphanedMappings();
 
       // ==========================================
       // DEBUG & MAINTENANCE ACTIONS

@@ -560,53 +560,6 @@
     </div>
   </div>
 
-  <!-- Mapping Management Modal -->
-  <div id="mappingManagementModal"
-    class="modal-backdrop fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden opacity-0">
-    <div class="flex items-center justify-center h-full p-4">
-      <div
-        class="modal-content bg-white rounded-lg shadow-xl border border-slate-200 max-w-4xl w-full max-h-[90vh] overflow-hidden">
-        <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-zotoks-600 to-zotoks-700 px-4 py-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                  </path>
-                </svg>
-              </div>
-              <h3 class="text-lg font-semibold text-white" id="mappingManagementTitle">Zötok Mapping Management</h3>
-            </div>
-            <button onclick="closeMappingManagementModal()" class="text-white/80 hover:text-white transition-colors">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Modal Content -->
-        <div class="p-6 overflow-y-auto max-h-[calc(80vh-6rem)]">
-          <div id="mappingManagementContent">
-            <!-- Content will be populated dynamically -->
-          </div>
-        </div>
-
-        <!-- Modal Footer -->
-        <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
-          <div class="flex justify-end">
-            <button onclick="closeMappingManagementModal()"
-              class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- Custom Confirmation Modal -->
   <div id="confirmModal"
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -655,189 +608,7 @@
 
     let confirmCallback = null;
 
-    // Mapping Management Modal Functions
-    function showMappingManagementModal() {
-      const modal = document.getElementById('mappingManagementModal');
-      const backdrop = modal;
-      const content = modal.querySelector('.modal-content');
-
-      // Show backdrop immediately
-      modal.classList.remove('hidden');
-
-      // Start animations
-      requestAnimationFrame(() => {
-        backdrop.classList.add('show');
-        content.classList.add('show');
-      });
-
-      // Fetch and populate data
-      showMappingManagementLoading();
-      google.script.run
-        .withSuccessHandler(populateMappingManagementModal)
-        .withFailureHandler(handleMappingManagementError)
-        .dispatch('getMappingManagementData');
-
-      // Focus trap
-      setTimeout(() => {
-        const closeBtn = modal.querySelector('button');
-        if (closeBtn) closeBtn.focus();
-      }, 300);
-    }
-
-    function closeMappingManagementModal() {
-      const modal = document.getElementById('mappingManagementModal');
-      const backdrop = modal;
-      const content = modal.querySelector('.modal-content');
-
-      // Start exit animations
-      backdrop.classList.remove('show');
-      content.classList.remove('show');
-
-      // Hide after animation
-      setTimeout(() => {
-        modal.classList.add('hidden');
-      }, 300);
-    }
-
-    function showMappingManagementLoading() {
-      const content = document.getElementById('mappingManagementContent');
-      content.innerHTML = `
-          <div class="text-center py-8">
-            <div class="w-8 h-8 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p class="text-slate-600">Loading mapping information...</p>
-          </div>
-        `;
-    }
-
-    function populateMappingManagementModal(result) {
-      const content = document.getElementById('mappingManagementContent');
-
-      if (!result.success) {
-        content.innerHTML = `
-            <div class="text-center py-8">
-              <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-slate-900 mb-2">Error</h4>
-              <p class="text-slate-600">${result.message}</p>
-            </div>
-          `;
-        return;
-      }
-
-      const data = result.data;
-
-      if (data.totalCount === 0) {
-        content.innerHTML = `
-            <div class="text-center py-12">
-              <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-              </div>
-              <h4 class="text-lg font-medium text-slate-900 mb-2">No Mappings Found</h4>
-              <p class="text-slate-600">No sheets have stored Zotoks column mappings yet.</p>
-              <p class="text-sm text-slate-500 mt-2">Import data to an existing sheet to create column mappings.</p>
-            </div>
-          `;
-        return;
-      }
-
-      let html = `
-          <div class="space-y-6">
-            <!-- Summary -->
-            <div class="bg-zotoks-50 rounded-lg p-4 border border-zotoks-200">
-              <h4 class="font-medium text-zotoks-900 mb-2">Mapping Summary</h4>
-              <p class="text-sm text-zotoks-700">
-                <span class="font-semibold">${data.totalCount}</span> sheet${data.totalCount !== 1 ? 's' : ''} 
-                with stored Zotoks column mappings
-              </p>
-            </div>
-            
-            <!-- Sheets List -->
-            <div class="space-y-4">
-              <h4 class="font-medium text-slate-900">Configured Sheets</h4>
-              <div class="grid gap-4">
-        `;
-
-      data.sheets.forEach(sheet => {
-        html += `
-            <div class="bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors">
-              <div class="flex items-start justify-between">
-                <div class="flex-1">
-                  <h5 class="font-medium text-slate-900 mb-2 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                    </svg>
-                    ${sheet.sheetName}
-                  </h5>
-                  
-                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
-                    <div>
-                      <span class="text-slate-500">Data Source:</span>
-                      <div class="font-medium text-slate-900">${sheet.endpoint.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                    </div>
-                    <div>
-                      <span class="text-slate-500">Time Period:</span>
-                      <div class="font-medium text-slate-900">${sheet.period} days</div>
-                    </div>
-                    <div>
-                      <span class="text-slate-500">Column Mappings:</span>
-                      <div class="font-medium text-slate-900">${sheet.mappingCount} columns</div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="ml-4 text-right">
-                  <div class="text-xs text-slate-500">Last Updated</div>
-                  <div class="text-sm font-medium text-slate-700">
-                    ${new Date(sheet.lastUpdated).toLocaleDateString()}
-                  </div>
-                  <div class="text-xs text-slate-500">
-                    ${new Date(sheet.lastUpdated).toLocaleTimeString()}
-                  </div>
-                </div>
-              </div>
-            </div>
-          `;
-      });
-
-      html += `
-              </div>
-            </div>
-            
-            <!-- Help Text -->
-            <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <h5 class="font-medium text-blue-900 mb-2">About Column Mappings</h5>
-              <p class="text-sm text-blue-700">
-                Column mappings are automatically saved when you import Zotoks data to existing sheets. 
-                They enable quick sync operations and ensure consistent data placement across imports.
-              </p>
-            </div>
-          </div>
-        `;
-
-      content.innerHTML = html;
-    }
-
-    function handleMappingManagementError(error) {
-      const content = document.getElementById('mappingManagementContent');
-      content.innerHTML = `
-          <div class="text-center py-8">
-            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-              </svg>
-            </div>
-            <h4 class="text-lg font-medium text-slate-900 mb-2">Loading Error</h4>
-            <p class="text-slate-600">${error.message}</p>
-          </div>
-        `;
-    }
-
-    // Existing modal functions (confirm only)
+    // Confirmation modal functions
     function showConfirmModal(title, message, onConfirm, confirmText = 'Confirm', confirmStyle = 'red') {
       document.getElementById('confirmModalTitle').textContent = title;
       document.getElementById('confirmModalMessage').textContent = message;
@@ -875,18 +646,9 @@
     // Close modals on escape key
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        if (!document.getElementById('mappingManagementModal').classList.contains('hidden')) {
-          closeMappingManagementModal();
-        }
         if (!document.getElementById('confirmModal').classList.contains('hidden')) {
           closeConfirmModal();
         }
-      }
-    });
-
-    document.getElementById('mappingManagementModal').addEventListener('click', function (e) {
-      if (e.target === this) {
-        closeMappingManagementModal();
       }
     });
 
@@ -1361,7 +1123,7 @@
           break;
 
         case 'mappings':
-          showMappingManagementModal();
+          showMappingManagerDialog();
           break;
 
         case 'clearMappings':
@@ -1425,6 +1187,22 @@
         document.getElementById('settingsArrow').style.transform = 'rotate(0deg)';
       }
     });
+
+    // ==========================================
+    // MAPPING MANAGER DIALOG
+    // ==========================================
+
+    function showMappingManagerDialog() {
+      google.script.run
+        .withSuccessHandler(function() {
+          // Dialog opened successfully
+          console.log('Mapping Manager dialog opened');
+        })
+        .withFailureHandler(function(error) {
+          showToast('Failed to open Mapping Manager: ' + error.message, 'error');
+        })
+        .dispatch('showMappingManagerDialog');
+    }
 
     // ==========================================
     // OPTIMIZED INITIALIZATION - TASK 2

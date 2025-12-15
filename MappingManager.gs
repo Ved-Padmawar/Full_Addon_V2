@@ -112,7 +112,7 @@ const MappingManager = {
 
   /**
    * Get all sheets with mappings using document properties
-   * Now returns sheets by ID and cleans up orphaned mappings
+   * Returns ALL mappings (including orphaned) with isOrphaned flag
    */
   getAllSheetsWithMappings() {
     try {
@@ -126,57 +126,95 @@ const MappingManager = {
       const allProperties = documentProperties.getProperties();
 
       const sheetsWithMappings = [];
-      const orphanedMappings = [];
 
-      // Filter and process mapping properties in single iteration
+      // Process ALL mapping properties (including orphaned)
       Object.keys(allProperties).forEach(key => {
         if (key.startsWith('zotoks_mappings_')) {
           const sheetId = parseInt(key.replace('zotoks_mappings_', ''));
           try {
             const data = JSON.parse(allProperties[key]);
 
-            // Check if sheet still exists
-            if (existingSheetIds.has(sheetId)) {
-              const sheet = this._getSheetById(sheetId);
-              sheetsWithMappings.push({
-                sheetId: sheetId,
-                sheetName: sheet ? sheet.getName() : data.sheetName || 'Unknown',
-                endpoint: data.endpoint,
-                period: data.period || 30,
-                mappingCount: data.mappings ? Object.keys(data.mappings).length : 0,
-                lastUpdated: data.timestamp,
-                version: data.version || '1.0'
-              });
-            } else {
-              // Sheet deleted - mark for cleanup
-              orphanedMappings.push(key);
-            }
+            const isOrphaned = !existingSheetIds.has(sheetId);
+            const sheet = isOrphaned ? null : this._getSheetById(sheetId);
+
+            sheetsWithMappings.push({
+              sheetId: sheetId,
+              sheetName: sheet ? sheet.getName() : (data.sheetName || 'Unknown'),
+              endpoint: data.endpoint,
+              period: data.period || 30,
+              mappingCount: data.mappings ? Object.keys(data.mappings).length : 0,
+              lastUpdated: data.timestamp,
+              version: data.version || '1.0',
+              isOrphaned: isOrphaned
+            });
           } catch (parseError) {
             Logger.log(`Error parsing mappings for sheet ID ${sheetId}: ${parseError.message}`);
           }
         }
       });
 
-      // Auto-cleanup orphaned mappings
-      if (orphanedMappings.length > 0) {
-        Logger.log(`Auto-cleaning ${orphanedMappings.length} orphaned mappings`);
-        orphanedMappings.forEach(key => {
-          documentProperties.deleteProperty(key);
-        });
-      }
-
-      Logger.log(`Retrieved ${sheetsWithMappings.length} sheets with Zotoks mappings (cleaned ${orphanedMappings.length} orphaned)`);
+      Logger.log(`Retrieved ${sheetsWithMappings.length} sheets with Zotoks mappings`);
 
       return {
         success: true,
-        sheets: sheetsWithMappings,
-        cleanedOrphans: orphanedMappings.length
+        sheets: sheetsWithMappings
       };
 
     } catch (error) {
       return {
         success: false,
         message: 'Error getting sheets with mappings: ' + error.message
+      };
+    }
+  },
+
+  /**
+   * Scan and delete orphaned mappings (manual cleanup)
+   * Returns count of deleted orphaned mappings
+   */
+  scanAndDeleteOrphanedMappings() {
+    try {
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const currentSheets = spreadsheet.getSheets();
+
+      // Create map of existing sheet IDs
+      const existingSheetIds = new Set(currentSheets.map(sheet => sheet.getSheetId()));
+
+      const documentProperties = PropertiesService.getDocumentProperties();
+      const allProperties = documentProperties.getProperties();
+
+      const orphanedMappings = [];
+
+      // Find orphaned mappings
+      Object.keys(allProperties).forEach(key => {
+        if (key.startsWith('zotoks_mappings_')) {
+          const sheetId = parseInt(key.replace('zotoks_mappings_', ''));
+
+          // Check if sheet no longer exists
+          if (!existingSheetIds.has(sheetId)) {
+            orphanedMappings.push(key);
+          }
+        }
+      });
+
+      // Delete orphaned mappings
+      orphanedMappings.forEach(key => {
+        documentProperties.deleteProperty(key);
+      });
+
+      Logger.log(`Manually deleted ${orphanedMappings.length} orphaned mappings`);
+
+      return {
+        success: true,
+        deletedCount: orphanedMappings.length,
+        message: `Deleted ${orphanedMappings.length} orphaned mapping(s)`
+      };
+
+    } catch (error) {
+      Logger.log(`Error deleting orphaned mappings: ${error.message}`);
+      return {
+        success: false,
+        message: 'Error deleting orphaned mappings: ' + error.message
       };
     }
   },
