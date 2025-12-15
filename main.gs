@@ -44,7 +44,6 @@ function onOpen(e) {
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
       .addSeparator()
-      .addItem('🗂️ Mapping Manager', 'showMappingManagerDialog')
       .addItem('🔐 Manage Credentials', 'showZotoksCredentialsDialog');
 
     menu.addToUi();
@@ -107,7 +106,6 @@ function createZotoksMenuSafely() {
       .addSeparator()
       .addItem('📥 All Entities', 'showZotoksImportDialog')
       .addSeparator()
-      .addItem('🗂️ Mapping Manager', 'showMappingManagerDialog')
       .addItem('Manage Credentials', 'showZotoksCredentialsDialog')
       .addToUi();
     Logger.log('Zotoks menu created successfully with Price List, Customer, and Order submenus');
