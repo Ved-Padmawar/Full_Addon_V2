@@ -409,16 +409,10 @@ const MappingManager = {
   },
 
   /**
-   * Helper function to get sheet by ID
+   * Helper function to get sheet by ID using native Apps Script method
    * @private
    */
   _getSheetById(sheetId) {
-    const sheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-    for (let i = 0; i < sheets.length; i++) {
-      if (sheets[i].getSheetId() === sheetId) {
-        return sheets[i];
-      }
-    }
-    return null;
+    return SpreadsheetApp.getActiveSpreadsheet().getSheetById(sheetId);
   }
 };
