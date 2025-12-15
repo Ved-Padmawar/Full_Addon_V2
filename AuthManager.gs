@@ -580,4 +580,3 @@ const AuthManager = {
     }
   }
 };
-
