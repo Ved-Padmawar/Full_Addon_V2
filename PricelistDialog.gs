@@ -16,11 +16,17 @@ const PricelistDialog = {
       Logger.log('🏷️ Fetching all price lists with pagination...');
       const startTime = Date.now();
 
-      // Get login token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
+
+      const token = authResult.token;
 
       // Get endpoint config
       const endpointConfig = Config.getPriceListEndpointConfig('pricelist');
@@ -43,7 +49,7 @@ const PricelistDialog = {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenResult.token}`
+                'Authorization': `Bearer ${token}`
               },
               muteHttpExceptions: true,
               timeout: Config.getTimeout()
@@ -139,11 +145,17 @@ const PricelistDialog = {
         };
       }
 
-      // Get login token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
+
+      const token = authResult.token;
 
       // Get endpoint config
       const endpointConfig = Config.getPriceListEndpointConfig('pricelist-items');
@@ -167,7 +179,7 @@ const PricelistDialog = {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenResult.token}`
+                'Authorization': `Bearer ${token}`
               },
               muteHttpExceptions: true,
               timeout: Config.getTimeout()
@@ -292,11 +304,17 @@ const PricelistDialog = {
         };
       }
 
-      // Get login token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
+
+      const token = authResult.token;
 
       // Construct URL for price list update API
       const updateUrl = Config.buildPriceListUrl('pricelist-update');

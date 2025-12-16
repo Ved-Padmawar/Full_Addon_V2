@@ -250,17 +250,81 @@ function showZotoksCredentialsDialog() {
 }
 
 /**
- * Export customers from current sheet
+ * Export customers from current sheet with credential validation
  */
 function exportCustomers() {
-  ImportDialog.exportCustomers();
+  try {
+    // Check if credentials are configured
+    if (!AuthManager.hasCredentials()) {
+      UIManager.showCredentialsDialog();
+      return;
+    }
+
+    // Test connection with API validation using helper
+    const connectionTest = AuthManager.authenticateForUserAction();
+    if (!connectionTest.success) {
+      if (connectionTest.needsCredentials) {
+        UIManager.showCredentialsDialog();
+        return;
+      } else {
+        SpreadsheetApp.getUi().alert(
+          'Connection Error',
+          connectionTest.message,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+    }
+
+    // Proceed with export
+    ImportDialog.exportCustomers();
+  } catch (error) {
+    Logger.log(`Error in exportCustomers: ${error.message}`);
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Error exporting customers: ' + error.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
 }
 
 /**
- * Export products from current sheet
+ * Export products from current sheet with credential validation
  */
 function exportProducts() {
-  ImportDialog.exportProducts();
+  try {
+    // Check if credentials are configured
+    if (!AuthManager.hasCredentials()) {
+      UIManager.showCredentialsDialog();
+      return;
+    }
+
+    // Test connection with API validation using helper
+    const connectionTest = AuthManager.authenticateForUserAction();
+    if (!connectionTest.success) {
+      if (connectionTest.needsCredentials) {
+        UIManager.showCredentialsDialog();
+        return;
+      } else {
+        SpreadsheetApp.getUi().alert(
+          'Connection Error',
+          connectionTest.message,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+    }
+
+    // Proceed with export
+    ImportDialog.exportProducts();
+  } catch (error) {
+    Logger.log(`Error in exportProducts: ${error.message}`);
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Error exporting products: ' + error.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
 }
 
 /**

@@ -578,5 +578,253 @@ const AuthManager = {
         message: 'Error refreshing token: ' + error.message
       };
     }
+  },
+
+  // ==========================================
+  // CENTRALIZED AUTHENTICATION HANDLER
+  // ==========================================
+
+  /**
+   * Helper: Authenticate for user-initiated actions (with API validation)
+   * Use for: dialog opens, exports, manual operations
+   * @returns {Object} { success: boolean, token: string, message: string, needsCredentials: boolean, errorType: string }
+   */
+  authenticateForUserAction() {
+    Logger.log('🔐 Authenticating for user action (with API validation)');
+    return this.authenticateRequest(true);
+  },
+
+  /**
+   * Helper: Authenticate for data fetch operations (no API validation)
+   * Use for: fetches, imports, background operations
+   * @returns {Object} { success: boolean, token: string, message: string, needsCredentials: boolean, errorType: string }
+   */
+  authenticateForDataFetch() {
+    Logger.log('🔐 Authenticating for data fetch (no API validation)');
+    return this.authenticateRequest(false);
+  },
+
+  /**
+   * Centralized authentication handler - single source of truth for all API requests
+   * Handles token retrieval, validation, refresh, and 401 retry logic
+   *
+   * @private - Use authenticateForUserAction() or authenticateForDataFetch() instead
+   * @param {boolean} validateWithApi - Whether to validate token with real API call (default: false for performance)
+   * @returns {Object} { success: boolean, token: string, message: string, needsCredentials: boolean, errorType: string }
+   */
+  authenticateRequest(validateWithApi = false) {
+    let retryCount = 0;
+    const maxRetries = 1; // Single retry only to prevent loops
+
+    try {
+      Logger.log(`🔐 Authenticating request (validateWithApi: ${validateWithApi})...`);
+
+      // Step 1: Get token (with automatic silent refresh if near expiry)
+      const tokenResult = this.getLoginToken();
+
+      if (!tokenResult.success) {
+        Logger.log(`❌ [AUTH_ERROR] Token retrieval failed: ${tokenResult.message}`);
+        Logger.log(`   - Needs credentials: ${tokenResult.needsCredentials}`);
+        return {
+          success: false,
+          message: tokenResult.message || 'Failed to obtain authentication token',
+          needsCredentials: tokenResult.needsCredentials || true,
+          errorType: 'TOKEN_RETRIEVAL_FAILED'
+        };
+      }
+
+      Logger.log(`✅ Token obtained (cached: ${tokenResult.cached || false}, expires: ${tokenResult.expiresAt || 'unknown'})`);
+
+      // Step 2: Optionally validate token with real API call
+      if (validateWithApi) {
+        Logger.log('🔍 Validating token with API call...');
+        const validationResult = this._validateTokenWithApi(tokenResult.token);
+
+        if (!validationResult.success) {
+          const statusCode = validationResult.statusCode;
+          Logger.log(`❌ [VALIDATION_ERROR] Token validation failed (HTTP ${statusCode}): ${validationResult.message}`);
+
+          // If validation failed due to 401, try refreshing token once
+          if (statusCode === 401 && retryCount < maxRetries) {
+            retryCount++;
+            Logger.log(`🔄 [RETRY ${retryCount}/${maxRetries}] Token invalid (401), attempting refresh...`);
+
+            // Force token refresh
+            const refreshResult = this.getLoginToken(true);
+
+            if (!refreshResult.success) {
+              Logger.log(`❌ [REFRESH_FAILED] Token refresh attempt failed: ${refreshResult.message}`);
+              return {
+                success: false,
+                message: 'Authentication token expired and refresh failed. Please reconfigure credentials.',
+                needsCredentials: true,
+                errorType: 'TOKEN_REFRESH_FAILED',
+                retryAttempted: true
+              };
+            }
+
+            Logger.log(`✅ Token refreshed successfully, validating new token...`);
+
+            // Validate refreshed token
+            const revalidationResult = this._validateTokenWithApi(refreshResult.token);
+
+            if (!revalidationResult.success) {
+              Logger.log(`❌ [REVALIDATION_FAILED] Refreshed token validation failed (HTTP ${revalidationResult.statusCode}): ${revalidationResult.message}`);
+              return {
+                success: false,
+                message: 'Credentials appear to be invalid. Please reconfigure.',
+                needsCredentials: true,
+                errorType: 'INVALID_CREDENTIALS',
+                retryAttempted: true
+              };
+            }
+
+            Logger.log('✅ Token refreshed and validated successfully');
+            return {
+              success: true,
+              token: refreshResult.token,
+              message: 'Authentication successful (token refreshed)',
+              refreshed: true,
+              validated: true,
+              errorType: null
+            };
+          }
+
+          // Other validation errors (not 401, or retry already attempted)
+          const errorType = statusCode === 403 ? 'FORBIDDEN' :
+                           statusCode === 401 ? 'UNAUTHORIZED_MAX_RETRIES' :
+                           statusCode === 0 ? 'NETWORK_ERROR' :
+                           'VALIDATION_FAILED';
+
+          Logger.log(`   - Error type: ${errorType}`);
+          Logger.log(`   - Retry attempted: ${retryCount > 0}`);
+
+          return {
+            success: false,
+            message: validationResult.message || 'Token validation failed',
+            needsCredentials: statusCode === 403 || statusCode === 401,
+            errorType: errorType,
+            statusCode: statusCode
+          };
+        }
+
+        Logger.log('✅ Token validated with API successfully');
+      }
+
+      // Step 3: Return authenticated token
+      return {
+        success: true,
+        token: tokenResult.token,
+        message: 'Authentication successful',
+        cached: tokenResult.cached || false,
+        validated: validateWithApi,
+        errorType: null
+      };
+
+    } catch (error) {
+      Logger.log(`❌ [EXCEPTION] Authentication error: ${error.message}`);
+      Logger.log(`   - Stack: ${error.stack || 'No stack trace'}`);
+      return {
+        success: false,
+        message: 'Authentication error: ' + error.message,
+        needsCredentials: true,
+        errorType: 'EXCEPTION',
+        exceptionDetails: error.message
+      };
+    }
+  },
+
+  /**
+   * Validate token with lightweight API call
+   * @private
+   */
+  _validateTokenWithApi(token) {
+    const startTime = Date.now();
+
+    try {
+      // Use a lightweight endpoint - get products with limit=1
+      const validationUrl = `${Config.getDataUrl('products')}?limit=1`;
+
+      Logger.log(`📡 [API_VALIDATION] Calling: ${validationUrl}`);
+      Logger.log(`   - Token prefix: ${token ? token.substring(0, 20) + '...' : 'null'}`);
+
+      const response = UrlFetchApp.fetch(validationUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        muteHttpExceptions: true,
+        timeout: Config.getTimeout()
+      });
+
+      const statusCode = response.getResponseCode();
+      const responseTime = Date.now() - startTime;
+
+      Logger.log(`📡 [API_VALIDATION] Response: HTTP ${statusCode} (${responseTime}ms)`);
+
+      if (statusCode >= 200 && statusCode < 300) {
+        Logger.log(`   - Result: SUCCESS - Token is valid`);
+        return {
+          success: true,
+          message: 'Token validated successfully',
+          statusCode: statusCode,
+          responseTime: responseTime
+        };
+      } else if (statusCode === 401) {
+        const responseText = response.getContentText();
+        Logger.log(`   - Result: UNAUTHORIZED - Token invalid or expired`);
+        Logger.log(`   - Response: ${responseText.substring(0, 200)}`);
+        return {
+          success: false,
+          message: 'Token is invalid or expired (401)',
+          statusCode: 401,
+          responseTime: responseTime
+        };
+      } else if (statusCode === 403) {
+        const responseText = response.getContentText();
+        Logger.log(`   - Result: FORBIDDEN - Insufficient permissions`);
+        Logger.log(`   - Response: ${responseText.substring(0, 200)}`);
+        return {
+          success: false,
+          message: 'Access forbidden - insufficient permissions (403)',
+          statusCode: 403,
+          responseTime: responseTime
+        };
+      } else {
+        const responseText = response.getContentText();
+        Logger.log(`   - Result: ERROR - Unexpected status code`);
+        Logger.log(`   - Response: ${responseText.substring(0, 200)}`);
+        return {
+          success: false,
+          message: `API validation failed with status ${statusCode}`,
+          statusCode: statusCode,
+          responseTime: responseTime
+        };
+      }
+
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      const isNetworkError = error.message && (
+        error.message.includes('timeout') ||
+        error.message.includes('network') ||
+        error.message.includes('DNS') ||
+        error.message.includes('connection')
+      );
+
+      Logger.log(`❌ [API_VALIDATION] Exception after ${responseTime}ms: ${error.message}`);
+      Logger.log(`   - Error type: ${isNetworkError ? 'NETWORK_ERROR' : 'UNKNOWN_ERROR'}`);
+      Logger.log(`   - Stack: ${error.stack || 'No stack trace'}`);
+
+      return {
+        success: false,
+        message: isNetworkError
+          ? 'Network error - unable to reach API server'
+          : 'API validation error: ' + error.message,
+        statusCode: 0,
+        responseTime: responseTime,
+        isNetworkError: isNetworkError
+      };
+    }
   }
 };

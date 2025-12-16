@@ -221,13 +221,17 @@ const ImportDialog = {
         }
       }
 
-      // Get token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
 
-      const token = tokenResult.token;
+      const token = authResult.token;
 
       // Check if endpoint supports pagination
       if (endpointConfig.supportsPagination) {
@@ -345,11 +349,17 @@ const ImportDialog = {
 
       Logger.log(`Starting ${endpointConfig.supportsPagination ? 'paginated' : 'direct'} fetch for ${endpoint}${endpointConfig.supportsTimePeriod ? ` (period: ${period} days)` : ''}`);
 
-      // Get token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
+
+      const token = authResult.token;
 
       // Handle both paginated and non-paginated endpoints
       let allData = [];
@@ -398,7 +408,7 @@ const ImportDialog = {
               method: 'GET',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${tokenResult.token}`
+                'Authorization': `Bearer ${token}`
               },
               muteHttpExceptions: true
             });
@@ -469,7 +479,7 @@ const ImportDialog = {
       } else {
         // NON-PAGINATED ENDPOINTS: Single request
         Logger.log(`📄 Fetching all data in single request (no pagination)`);
-        const pageResult = this.fetchSinglePage(endpoint, period, 1, tokenResult.token);
+        const pageResult = this.fetchSinglePage(endpoint, period, 1, token);
 
         if (!pageResult.success) {
           throw new Error(`Failed to fetch data: ${pageResult.error}`);
@@ -526,11 +536,17 @@ const ImportDialog = {
         };
       }
 
-      // Get login token
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
-        return tokenResult;
+      // Get token using centralized auth for data fetch (no API validation)
+      const authResult = AuthManager.authenticateForDataFetch();
+      if (!authResult.success) {
+        return {
+          success: false,
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
+        };
       }
+
+      const token = authResult.token;
 
       // Get update URL from config
       const updateUrl = Config.getUpdateUrl(endpoint);
@@ -544,7 +560,7 @@ const ImportDialog = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokenResult.token}`,
+              'Authorization': `Bearer ${token}`,
               'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
               'Referer': 'https://app-qa.zono.digital/',
               'sec-ch-ua': '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
@@ -581,8 +597,8 @@ const ImportDialog = {
               updatedAt: new Date().toISOString(),
               executionTime: executionTime,
               tokenInfo: {
-                cached: tokenResult.cached,
-                daysUntilExpiry: tokenResult.daysUntilExpiry
+                cached: authResult.cached || false,
+                validated: authResult.validated || false
               }
             };
 
@@ -1035,26 +1051,28 @@ const ImportDialog = {
         };
       }
 
-      Logger.log('Testing Zotoks connection...');
+      Logger.log('Testing Zotoks connection with centralized auth...');
 
-      const tokenResult = AuthManager.getLoginToken();
-      if (!tokenResult.success) {
+      // Use centralized auth with API validation for user action
+      const authResult = AuthManager.authenticateForUserAction();
+
+      if (!authResult.success) {
         const result = {
           success: false,
-          message: tokenResult.message,
-          needsCredentials: tokenResult.needsCredentials
+          message: authResult.message,
+          needsCredentials: authResult.needsCredentials
         };
 
         PerformanceCache.setCachedValidationResult(validationKey, result);
         return result;
       }
 
-      Logger.log('✅ Zotoks connection test successful - authentication token obtained');
+      Logger.log('✅ Zotoks connection test successful - token validated with API');
       const result = {
         success: true,
         message: 'Zotoks connection successful',
-        tokenCached: tokenResult.cached,
-        daysUntilExpiry: tokenResult.daysUntilExpiry
+        tokenValidated: authResult.validated,
+        tokenRefreshed: authResult.refreshed || false
       };
 
       PerformanceCache.setCachedValidationResult(validationKey, result);
