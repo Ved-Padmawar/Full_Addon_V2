@@ -16,8 +16,8 @@ const PricelistDialog = {
       Logger.log('🏷️ Fetching all price lists with pagination...');
       const startTime = Date.now();
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -114,11 +114,7 @@ const PricelistDialog = {
         data: allData,
         recordCount: allData.length,
         fetchedAt: new Date().toISOString(),
-        executionTime: executionTime,
-        tokenInfo: {
-          cached: tokenResult.cached,
-          daysUntilExpiry: tokenResult.daysUntilExpiry
-        }
+        executionTime: executionTime
       };
 
     } catch (error) {
@@ -145,8 +141,8 @@ const PricelistDialog = {
         };
       }
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -265,11 +261,7 @@ const PricelistDialog = {
         priceListId: priceListId,
         recordCount: allData.length,
         fetchedAt: new Date().toISOString(),
-        executionTime: executionTime,
-        tokenInfo: {
-          cached: tokenResult.cached,
-          daysUntilExpiry: tokenResult.daysUntilExpiry
-        }
+        executionTime: executionTime
       };
 
     } catch (error) {
@@ -304,8 +296,8 @@ const PricelistDialog = {
         };
       }
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -328,7 +320,7 @@ const PricelistDialog = {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${tokenResult.token}`,
+              'Authorization': `Bearer ${token}`,
               'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
               'Referer': 'https://app-qa.zono.digital/',
               'sec-ch-ua': '"Google Chrome";v="135", "Not-A.Brand";v="8", "Chromium";v="135"',
@@ -364,11 +356,7 @@ const PricelistDialog = {
               data: apiResponse,
               message: 'Price list updated successfully',
               updatedAt: new Date().toISOString(),
-              executionTime: executionTime,
-              tokenInfo: {
-                cached: tokenResult.cached,
-                daysUntilExpiry: tokenResult.daysUntilExpiry
-              }
+              executionTime: executionTime
             };
 
           } else if (responseCode === 401) {

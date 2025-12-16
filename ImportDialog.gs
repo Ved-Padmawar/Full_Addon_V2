@@ -221,8 +221,8 @@ const ImportDialog = {
         }
       }
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -349,8 +349,8 @@ const ImportDialog = {
 
       Logger.log(`Starting ${endpointConfig.supportsPagination ? 'paginated' : 'direct'} fetch for ${endpoint}${endpointConfig.supportsTimePeriod ? ` (period: ${period} days)` : ''}`);
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -536,8 +536,8 @@ const ImportDialog = {
         };
       }
 
-      // Get token using centralized auth for data fetch (no API validation)
-      const authResult = AuthManager.authenticateForDataFetch();
+      // Get token using centralized auth
+      const authResult = AuthManager.authenticateRequest();
       if (!authResult.success) {
         return {
           success: false,
@@ -595,11 +595,7 @@ const ImportDialog = {
               data: apiResponse,
               message: `${endpoint} updated successfully`,
               updatedAt: new Date().toISOString(),
-              executionTime: executionTime,
-              tokenInfo: {
-                cached: authResult.cached || false,
-                validated: authResult.validated || false
-              }
+              executionTime: executionTime
             };
 
           } else if (responseCode === 401) {
@@ -1053,8 +1049,8 @@ const ImportDialog = {
 
       Logger.log('Testing Zotoks connection with centralized auth...');
 
-      // Use centralized auth with API validation for user action
-      const authResult = AuthManager.authenticateForUserAction();
+      // Use centralized auth to get token
+      const authResult = AuthManager.authenticateRequest();
 
       if (!authResult.success) {
         const result = {
@@ -1067,11 +1063,10 @@ const ImportDialog = {
         return result;
       }
 
-      Logger.log('✅ Zotoks connection test successful - token validated with API');
+      Logger.log('✅ Zotoks connection test successful - token retrieved');
       const result = {
         success: true,
         message: 'Zotoks connection successful',
-        tokenValidated: authResult.validated,
         tokenRefreshed: authResult.refreshed || false
       };
 
@@ -1091,5 +1086,4 @@ const ImportDialog = {
       return result;
     }
   },
-
 };

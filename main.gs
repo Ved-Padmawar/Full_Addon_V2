@@ -260,8 +260,8 @@ function exportCustomers() {
       return;
     }
 
-    // Test connection with API validation using helper
-    const connectionTest = AuthManager.authenticateForUserAction();
+    // Validate token
+    const connectionTest = AuthManager.authenticateRequest();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -299,8 +299,8 @@ function exportProducts() {
       return;
     }
 
-    // Test connection with API validation using helper
-    const connectionTest = AuthManager.authenticateForUserAction();
+    // Validate token
+    const connectionTest = AuthManager.authenticateRequest();
     if (!connectionTest.success) {
       if (connectionTest.needsCredentials) {
         UIManager.showCredentialsDialog();
@@ -328,10 +328,42 @@ function exportProducts() {
 }
 
 /**
- * Sync Current Price List Sheet - routes to PricelistDialog
+ * Sync Current Price List Sheet with credential validation
  */
 function syncCurrentPriceListSheet() {
-  PricelistDialog.syncCurrentPriceListSheet();
+  try {
+    // Check if credentials are configured
+    if (!AuthManager.hasCredentials()) {
+      UIManager.showCredentialsDialog();
+      return;
+    }
+
+    // Validate token
+    const connectionTest = AuthManager.authenticateRequest();
+    if (!connectionTest.success) {
+      if (connectionTest.needsCredentials) {
+        UIManager.showCredentialsDialog();
+        return;
+      } else {
+        SpreadsheetApp.getUi().alert(
+          'Connection Error',
+          connectionTest.message,
+          SpreadsheetApp.getUi().ButtonSet.OK
+        );
+        return;
+      }
+    }
+
+    // Proceed with sync
+    PricelistDialog.syncCurrentPriceListSheet();
+  } catch (error) {
+    Logger.log(`Error in syncCurrentPriceListSheet: ${error.message}`);
+    SpreadsheetApp.getUi().alert(
+      'Error',
+      'Error syncing price list: ' + error.message,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
 }
 
 // ==========================================
