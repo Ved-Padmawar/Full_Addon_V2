@@ -214,9 +214,12 @@ const Config = {
   sanitizePriceListSheetName(name) {
     if (!name) return 'Unnamed Price List';
     
-    // Remove invalid characters for sheet names
-    const invalidChars = /[\/\\\?\*\[\]]/g;
+    // Remove HTML/script tags and invalid characters for sheet names
+    const invalidChars = /[\/\\\?\*\[\]<>]/g;
     let sanitized = String(name).replace(invalidChars, '_');
+    
+    // Remove any remaining HTML tags
+    sanitized = sanitized.replace(/<[^>]*>/g, '');
     
     // Limit length
     const maxLength = ZOTOKS_CONFIG.PRICE_LIST.MAX_SHEET_NAME_LENGTH;
