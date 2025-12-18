@@ -330,9 +330,11 @@ graph LR
     C --> D[AG Grid / Gallery]
     B --> E[IndexedDB]
     E --> F[Persistence]
+    F --> G[ ]
 
     style B fill:#e91e63,stroke:#333,stroke-width:2px,color:#fff
     style E fill:#2196f3,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:none,stroke:none
 ```
 
 ### Data Flow Architecture
