@@ -331,8 +331,8 @@ graph LR
     B --> E[IndexedDB]
     E --> F[Persistence]
 
-    style B fill:#f9f,stroke:#333
-    style E fill:#bbf,stroke:#333
+    style B fill:#e91e63,stroke:#333,stroke-width:2px,color:#fff
+    style E fill:#2196f3,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ### Data Flow Architecture
