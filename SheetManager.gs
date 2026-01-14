@@ -180,22 +180,17 @@ prepareImportToExistingSheet(targetSheetName, endpoint, period = 30) {
       return dataResult;
     }
     
-    if (!dataResult.data || dataResult.recordCount === 0) {
+    // Extract column information from data (with headers fallback)
+    const sourceColumns = this.extractColumnsFromData(dataResult.data, dataResult.headers);
+
+    // Only fail if we have no data AND couldn't extract columns from headers
+    if ((!dataResult.data || dataResult.recordCount === 0) && sourceColumns.length === 0) {
       return {
         success: false,
         message: endpoint === 'products' ? `No ${endpoint} data available` : `No ${endpoint} data available for period ${period} days`
       };
     }
-    
-    // Extract column information from data
-    const sourceColumns = this.extractColumnsFromData(dataResult.data);
-    if (!sourceColumns || sourceColumns.length === 0) {
-      return {
-        success: false,
-        message: 'Unable to determine columns from fetched data'
-      };
-    }
-    
+
     // Get target sheet columns with enhanced validation
     const targetColumns = this.getTargetSheetColumns(targetSheet);
 
@@ -437,18 +432,24 @@ importWithMappings(targetSheetName, endpoint, period, mappings) {
 
   /**
    * Extract column names from data with enhanced detection
+   * Falls back to headers object when data is empty
    */
-  extractColumnsFromData(data) {
+  extractColumnsFromData(data, headers) {
     try {
-      if (!data || !Array.isArray(data) || data.length === 0) {
-        return [];
+      // First try: extract from data array
+      if (data && Array.isArray(data) && data.length > 0) {
+        const firstRecord = data[0];
+        if (typeof firstRecord === 'object' && firstRecord !== null) {
+          return Object.keys(firstRecord);
+        }
       }
-      
-      const firstRecord = data[0];
-      if (typeof firstRecord === 'object' && firstRecord !== null) {
-        return Object.keys(firstRecord);
+
+      // Fallback: extract from headers object
+      if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+        Logger.log('Using headers object as fallback for column extraction');
+        return Object.keys(headers);
       }
-      
+
       // Fallback for unexpected data formats
       return [];
     } catch (error) {

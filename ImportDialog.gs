@@ -677,7 +677,7 @@ const ImportDialog = {
           return { success: false, error: dataResult.message };
         }
 
-        const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data);
+        const sourceColumns = SheetManager.extractColumnsFromData(dataResult.data, dataResult.headers);
         if (!sourceColumns || sourceColumns.length === 0) {
           SpreadsheetApp.getUi().alert(
             'Error',
