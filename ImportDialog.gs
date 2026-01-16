@@ -847,6 +847,10 @@ const ImportDialog = {
         mappingObj = mappings;
       }
 
+      // Build header index map once (O(n) instead of O(n²))
+      const headerIndex = {};
+      headers.forEach((h, i) => (headerIndex[h] = i));
+
       // Apply mappings and type conversion
       const mappedRecords = dataRows.map((row) => {
         const record = {};
@@ -854,7 +858,7 @@ const ImportDialog = {
         Object.keys(fieldTypes).forEach((apiField) => {
           if (mappingObj.hasOwnProperty(apiField)) {
             const sheetColumn = mappingObj[apiField];
-            const columnIndex = headers.indexOf(sheetColumn);
+            const columnIndex = headerIndex[sheetColumn] ?? -1;
 
             if (columnIndex !== -1) {
               let value = row[columnIndex];

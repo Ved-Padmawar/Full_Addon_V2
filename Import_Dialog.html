@@ -1,1040 +1,1428 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
+  <head>
+    <base target="_top" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#f8fafc",
+                100: "#f1f5f9",
+                500: "#64748b",
+                600: "#475569",
+                700: "#334155",
+                800: "#1e293b",
+                900: "#0f172a",
+              },
+              zotoks: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                500: "#0ea5e9",
+                600: "#0284c7",
+                700: "#0369a1",
+                900: "#0c4a6e",
+              },
+              accent: {
+                50: "#eff6ff",
+                100: "#dbeafe",
+                500: "#3b82f6",
+                600: "#2563eb",
+                700: "#1d4ed8",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* Loading overlay styling similar to pricelist */
+      .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+      }
 
-<head>
-  <base target="_top">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f8fafc',
-              100: '#f1f5f9',
-              500: '#64748b',
-              600: '#475569',
-              700: '#334155',
-              800: '#1e293b',
-              900: '#0f172a'
-            },
-            zotoks: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              500: '#0ea5e9',
-              600: '#0284c7',
-              700: '#0369a1',
-              900: '#0c4a6e'
-            },
-            accent: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8'
+      .expandable-section {
+        transition: all 0.3s ease-out;
+        overflow: hidden;
+      }
+
+      .expandable-section.collapsed {
+        max-height: 0;
+        opacity: 0;
+      }
+
+      .expandable-section.expanded {
+        max-height: 500px;
+        opacity: 1;
+      }
+
+      .fade-in {
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Dropdown container and arrow base styles */
+      .dropdown-wrapper {
+        position: relative;
+      }
+
+      .dropdown-arrow {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        width: 16px;
+        height: 16px;
+        transform: translateY(-50%);
+        transition: transform 0.2s ease;
+        pointer-events: none;
+        color: #64748b;
+      }
+
+      /* Arrow rotation states */
+      .dropdown-wrapper.dropdown-open .dropdown-arrow {
+        transform: translateY(-50%) rotate(180deg);
+      }
+
+      /* Select element styling */
+      .dropdown-select {
+        width: 100%;
+        padding: 8px 32px 8px 12px;
+        /* Extra right padding for arrow */
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        background: white;
+        appearance: none;
+        transition: all 0.2s ease;
+      }
+
+      .dropdown-select:focus {
+        border-color: #0ea5e9;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+      }
+
+      .dropdown-select:hover {
+        border-color: #cbd5e1;
+      }
+
+      /* Fix for preview layout to prevent button displacement */
+      .controls-container {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        contain: layout;
+      }
+
+      .preview-container {
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        contain: layout;
+        margin-top: 1rem;
+      }
+
+      .preview-table-wrapper {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        contain: layout;
+      }
+
+      /* Custom Modal Animations */
+      .modal-backdrop {
+        transition: opacity 0.25s ease-out;
+      }
+
+      .modal-backdrop.show {
+        opacity: 1;
+      }
+
+      .modal-content {
+        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform: scale(0.8) translateY(-20px);
+        opacity: 0;
+      }
+
+      .modal-content.show {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+      }
+
+      /* Status indicators */
+      .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+
+      .status-success {
+        background-color: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+
+      .status-error {
+        background-color: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+      }
+
+      .status-warning {
+        background-color: #fefce8;
+        color: #a16207;
+        border: 1px solid #fde68a;
+      }
+    </style>
+  </head>
+
+  <body class="bg-slate-50">
+    <div
+      style="
+        background-color: #f8fafc;
+        padding: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+      "
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="88.176"
+        height="29.974"
+        viewBox="0 0 88.176 29.974"
+      >
+        <g id="ZoTok_Logo" transform="translate(-483.089 -826.374)">
+          <path
+            id="Union_122"
+            data-name="Union 122"
+            d="M24.326,21.7a10.327,10.327,0,0,1-6.51-2.5,8.571,8.571,0,0,1,0-12.124c3.342-3.342,10.014-3.289,13.358.053a8.588,8.588,0,0,1,0,12.123c-.143.14-.3.285-.487.445l-6.361,5.314Zm-3.9-12.133c-.065.064-.127.129-.186.2a5.329,5.329,0,0,0,3.916,8.9h.184v1.769A19.4,19.4,0,0,0,27.966,17.1c1.321-1.667,1.7-2.83,1.514-4.4a5.33,5.33,0,0,0-9.058-3.136ZM0,22.348,7.216,9.286H2.238L.644,4.591H15.309L8.139,17.63h4.676L15,22.348Zm21.126-8.878a.918.918,0,1,1,.919.918A.918.918,0,0,1,21.127,13.469Zm4.9,0a.918.918,0,1,1,.917.917A.917.917,0,0,1,26.025,13.469Zm-2.449,0a.918.918,0,1,1,.917.917A.917.917,0,0,1,23.576,13.469Zm2.2-10.243c-.015-.015-.03-.032-.045-.049l-.015-.016a1.849,1.849,0,0,0,0-2.551c.016-.019.033-.036.051-.054l.008-.009a1.887,1.887,0,0,1,3.227,1.339,1.83,1.83,0,0,1-.547,1.34,1.918,1.918,0,0,1-2.679,0ZM26.563.971A.536.536,0,1,0,27.1.435.536.536,0,0,0,26.563.971ZM20.449,3.226a1.836,1.836,0,0,1-.547-1.34A1.829,1.829,0,0,1,20.449.546a1.913,1.913,0,0,1,2.679,0l.015.016.044.047a1.85,1.85,0,0,0,0,2.552l-.058.061a1.918,1.918,0,0,1-2.682,0Zm.8-2.254a.536.536,0,1,0,.536-.536A.536.536,0,0,0,21.249.971Z"
+            transform="translate(483.088 826.375)"
+            fill="#589981"
+          ></path>
+          <path
+            id="Union_123"
+            data-name="Union 123"
+            d="M56.389,25.048a.328.328,0,0,1,.341-.328.322.322,0,0,1,.334.328.332.332,0,0,1-.334.334A.338.338,0,0,1,56.389,25.048Zm-10,.085a1.59,1.59,0,0,1-.617-.636,1.975,1.975,0,0,1-.224-.956,2,2,0,0,1,.218-.953,1.52,1.52,0,0,1,.612-.631,1.823,1.823,0,0,1,.9-.219,1.767,1.767,0,0,1,.884.217,1.512,1.512,0,0,1,.59.6,1.761,1.761,0,0,1,.208.861c0,.107-.008.225-.021.349h-2.8a1.1,1.1,0,0,0,1.138,1.1,1.073,1.073,0,0,0,.631-.176.925.925,0,0,0,.355-.471H48.9a1.518,1.518,0,0,1-.563.824,1.706,1.706,0,0,1-1.05.316A1.774,1.774,0,0,1,46.393,25.133Zm.114-2.624a1.157,1.157,0,0,0-.355.782h2.213a1.055,1.055,0,0,0-.147-.573.959.959,0,0,0-.4-.365,1.246,1.246,0,0,0-.56-.124A1.083,1.083,0,0,0,46.507,22.509ZM29.443,25.158a1.363,1.363,0,0,1-.515-.505V25.3h-.581V20.566h.581v1.881a1.365,1.365,0,0,1,.525-.513,1.544,1.544,0,0,1,.787-.2,1.64,1.64,0,0,1,.851.224,1.586,1.586,0,0,1,.594.631,1.97,1.97,0,0,1,.218.944,2.017,2.017,0,0,1-.218.945,1.6,1.6,0,0,1-1.445.878A1.55,1.55,0,0,1,29.443,25.158Zm.083-2.759a1.132,1.132,0,0,0-.434.454,1.41,1.41,0,0,0-.164.687,1.435,1.435,0,0,0,.164.695,1.133,1.133,0,0,0,.434.453,1.171,1.171,0,0,0,.592.158,1.157,1.157,0,0,0,.6-.158,1.116,1.116,0,0,0,.432-.453,1.469,1.469,0,0,0,.16-.7,1.429,1.429,0,0,0-.16-.691,1.089,1.089,0,0,0-.432-.447,1.178,1.178,0,0,0-.6-.154A1.151,1.151,0,0,0,29.526,22.4ZM3.388,25.133a1.578,1.578,0,0,1-.617-.636,1.953,1.953,0,0,1-.224-.956,1.981,1.981,0,0,1,.218-.953,1.515,1.515,0,0,1,.61-.631,1.823,1.823,0,0,1,.9-.219,1.767,1.767,0,0,1,.884.217,1.5,1.5,0,0,1,.59.6,1.761,1.761,0,0,1,.208.861c0,.107-.008.225-.019.349h-2.8a1.1,1.1,0,0,0,1.138,1.1,1.077,1.077,0,0,0,.631-.176.936.936,0,0,0,.355-.471h.627a1.529,1.529,0,0,1-.563.824,1.706,1.706,0,0,1-1.05.316A1.775,1.775,0,0,1,3.388,25.133ZM3.5,22.509a1.149,1.149,0,0,0-.355.782H5.36a1.072,1.072,0,0,0-.147-.573.959.959,0,0,0-.4-.365,1.255,1.255,0,0,0-.561-.124A1.079,1.079,0,0,0,3.5,22.509Zm50.089,2.709a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.6.6,0,0,0,.247.43.942.942,0,0,0,.579.166.832.832,0,0,0,.523-.147.447.447,0,0,0,.193-.37.369.369,0,0,0-.2-.343,2.929,2.929,0,0,0-.635-.22,4.646,4.646,0,0,1-.635-.206,1.154,1.154,0,0,1-.423-.315.811.811,0,0,1-.177-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.455-.355,1.648,1.648,0,0,1,.671-.131,1.427,1.427,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.828.828,0,0,0,.282.179c.114.044.27.095.471.15a5.218,5.218,0,0,1,.614.2,1.067,1.067,0,0,1,.407.3.8.8,0,0,1,.176.517.9.9,0,0,1-.16.519,1.065,1.065,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.793,1.793,0,0,1,53.591,25.218Zm-3.338,0a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.6.6,0,0,0,.245.43.951.951,0,0,0,.581.166.836.836,0,0,0,.523-.147.447.447,0,0,0,.193-.37.369.369,0,0,0-.2-.343,2.969,2.969,0,0,0-.635-.22,4.559,4.559,0,0,1-.635-.206,1.138,1.138,0,0,1-.423-.315.811.811,0,0,1-.177-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.453-.355,1.657,1.657,0,0,1,.673-.131,1.431,1.431,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.81.81,0,0,0,.282.179c.114.044.27.095.471.15a5.339,5.339,0,0,1,.614.2,1.067,1.067,0,0,1,.407.3.8.8,0,0,1,.176.517.9.9,0,0,1-.16.519,1.066,1.066,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.787,1.787,0,0,1,50.254,25.218Zm-12.971,0a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.591.591,0,0,0,.247.43.942.942,0,0,0,.579.166.833.833,0,0,0,.523-.147.447.447,0,0,0,.193-.37.366.366,0,0,0-.2-.343,2.929,2.929,0,0,0-.635-.22,4.65,4.65,0,0,1-.635-.206,1.154,1.154,0,0,1-.423-.315.81.81,0,0,1-.176-.546.834.834,0,0,1,.158-.494,1.1,1.1,0,0,1,.455-.355,1.641,1.641,0,0,1,.671-.131,1.427,1.427,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.81.81,0,0,0,.282.179c.114.044.27.095.471.15a5.217,5.217,0,0,1,.614.2,1.066,1.066,0,0,1,.407.3.8.8,0,0,1,.176.517.894.894,0,0,1-.16.519,1.065,1.065,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.786,1.786,0,0,1,37.282,25.218Zm-19.238-.093a1.611,1.611,0,0,1-.6-.646,2.02,2.02,0,0,1-.218-.948,1.98,1.98,0,0,1,.218-.943,1.576,1.576,0,0,1,.6-.629,1.648,1.648,0,0,1,.849-.224,1.538,1.538,0,0,1,.8.2,1.317,1.317,0,0,1,.505.5v-.639h.589v3.5H20.2v-.652a1.385,1.385,0,0,1-.515.509,1.546,1.546,0,0,1-.8.2A1.569,1.569,0,0,1,18.044,25.125Zm.369-2.729a1.1,1.1,0,0,0-.428.447,1.429,1.429,0,0,0-.16.691,1.455,1.455,0,0,0,.16.7,1.123,1.123,0,0,0,.428.455,1.168,1.168,0,0,0,.6.156,1.184,1.184,0,0,0,.6-.156,1.13,1.13,0,0,0,.432-.455,1.441,1.441,0,0,0,.158-.693,1.425,1.425,0,0,0-.158-.691,1.15,1.15,0,0,0-.432-.452,1.184,1.184,0,0,0-.6-.156A1.166,1.166,0,0,0,18.412,22.4Zm-7.82,2.822a1.217,1.217,0,0,1-.507-.384,1.028,1.028,0,0,1-.2-.567h.6a.6.6,0,0,0,.245.43.942.942,0,0,0,.579.166.838.838,0,0,0,.525-.147.452.452,0,0,0,.193-.37A.367.367,0,0,0,11.818,24a2.944,2.944,0,0,0-.633-.22,4.684,4.684,0,0,1-.637-.206,1.154,1.154,0,0,1-.423-.315.821.821,0,0,1-.176-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.453-.355,1.658,1.658,0,0,1,.673-.131,1.434,1.434,0,0,1,.94.3,1.055,1.055,0,0,1,.382.8h-.581a.6.6,0,0,0-.222-.44.812.812,0,0,0-.54-.167.822.822,0,0,0-.5.133.414.414,0,0,0-.185.351.379.379,0,0,0,.112.284.793.793,0,0,0,.282.179,4.9,4.9,0,0,0,.471.15,5.343,5.343,0,0,1,.614.2,1.066,1.066,0,0,1,.407.3.806.806,0,0,1,.176.517.894.894,0,0,1-.16.519,1.06,1.06,0,0,1-.451.36,1.615,1.615,0,0,1-.668.131A1.786,1.786,0,0,1,10.593,25.218Zm22.75-.038a1.224,1.224,0,0,1-.515-.51,1.67,1.67,0,0,1-.189-.824V21.793h.575v1.976a1.118,1.118,0,0,0,.262.8.936.936,0,0,0,.716.278.96.96,0,0,0,.737-.287,1.182,1.182,0,0,0,.268-.838V21.793h.583V25.3H35.2V24.78a1.124,1.124,0,0,1-.463.418,1.43,1.43,0,0,1-.656.151A1.565,1.565,0,0,1,33.342,25.18Zm10.9.12V23.316a1.122,1.122,0,0,0-.262-.8.933.933,0,0,0-.716-.278.963.963,0,0,0-.733.288,1.183,1.183,0,0,0-.27.837V25.3h-.583V21.793h.583v.5a1.153,1.153,0,0,1,.469-.415,1.452,1.452,0,0,1,.656-.146,1.424,1.424,0,0,1,1.036.386,1.492,1.492,0,0,1,.4,1.117V25.3Zm-4.137,0V21.793h.583V25.3Zm-14.8,0L23.927,23.75V25.3h-.583V20.564h.583v2.782l1.349-1.553h.814L24.438,23.54,26.1,25.3Zm-3.531,0V20.564h.583V25.3Zm-5.551,0a1.051,1.051,0,0,1-.729-.224.967.967,0,0,1-.243-.737V22.271h-.455v-.478h.455V20.91h.583v.884h.915v.478h-.915v2.067a.482.482,0,0,0,.108.36.527.527,0,0,0,.376.106h.43V25.3Zm-8.393,0a1.045,1.045,0,0,1-.727-.224.967.967,0,0,1-.245-.737V22.271H6.4v-.478h.453V20.91h.583v.884h.915v.478H7.438v2.067a.482.482,0,0,0,.11.36.523.523,0,0,0,.376.106h.428V25.3ZM0,25.3V20.84H.583v3.986H2.142V25.3ZM56.551,24l-.091-3.151H57L56.9,24Zm-47.68-2.52-.083-1.273h.563l-.077,1.273Zm31.251-.373a.4.4,0,0,1,.282-.677.358.358,0,0,1,.27.114.41.41,0,0,1,0,.563.359.359,0,0,1-.27.116A.378.378,0,0,1,40.122,21.108Zm11.411-3.349-4.81-6.444-1.781,2v4.44H40.226V0h4.716V7.382L51.461,0h5.244l-6.88,7.865,7.241,9.894ZM19.1,8.88C19.1,3.757,23.128,0,28.594,0s9.491,3.756,9.491,8.879-4.027,8.879-9.491,8.879S19.1,14,19.1,8.88Zm4.881,0a4.619,4.619,0,1,0,9.223,0,4.619,4.619,0,1,0-9.223,0ZM7.816,17.759V3.983H2.568V0H17.876V3.985H12.651V17.759Z"
+            transform="translate(514.198 830.966)"
+            fill="#333"
+          ></path>
+        </g>
+      </svg>
+    </div>
+
+    <div class="w-full max-w-4xl mx-auto p-3">
+      <div class="bg-white rounded-lg shadow-sm border border-slate-200">
+        <!-- Header -->
+        <div class="border-b border-slate-200 px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div
+              class="w-8 h-8 bg-zotoks-100 rounded-lg flex items-center justify-center"
+            >
+              <svg
+                class="w-4 h-4 text-zotoks-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                ></path>
+              </svg>
+            </div>
+            <div>
+              <h1 class="text-lg font-semibold text-slate-900">Import Data</h1>
+              <p class="text-xs text-slate-600 mt-0.5">
+                Select data source and import options
+              </p>
+            </div>
+            <div class="ml-auto relative">
+              <div class="relative inline-block">
+                <button
+                  onclick="toggleSettingsDropdown()"
+                  id="settingsBtn"
+                  class="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors border border-slate-300 flex items-center gap-2"
+                >
+                  ⚙️ Settings
+                  <svg
+                    class="w-3 h-3 transition-transform"
+                    id="settingsArrow"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    ></path>
+                  </svg>
+                </button>
+
+                <!-- Settings Dropdown -->
+                <div
+                  id="settingsDropdown"
+                  class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50"
+                >
+                  <div class="py-2">
+                    <button
+                      onclick="handleSettingsAction('credentials')"
+                      class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <svg
+                        class="w-4 h-4 text-slate-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3a1 1 0 011-1h2.586l6.243-6.243A6 6 0 0121 9z"
+                        ></path>
+                      </svg>
+                      Manage Credentials
+                    </button>
+
+                    <button
+                      onclick="handleSettingsAction('mappings')"
+                      class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <svg
+                        class="w-4 h-4 text-slate-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        ></path>
+                      </svg>
+                      Manage Mappings
+                    </button>
+
+                    <button
+                      onclick="handleSettingsAction('clearMappings')"
+                      class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+                    >
+                      <svg
+                        class="w-4 h-4 text-slate-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        ></path>
+                      </svg>
+                      Clear All Mappings
+                    </button>
+
+                    <hr class="my-2 border-slate-200" />
+
+                    <button
+                      onclick="handleSettingsAction('clearCredentials')"
+                      class="w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <svg
+                        class="w-4 h-4 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                        ></path>
+                      </svg>
+                      Clear Credentials
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Content -->
+        <div class="p-4">
+          <!-- Data Source Selection - FIXED LAYOUT -->
+          <div
+            class="mb-8 p-4 bg-gradient-to-r from-zotoks-50 to-blue-50 rounded-lg border border-zotoks-200"
+          >
+            <div class="flex items-start gap-2">
+              <div
+                class="w-8 h-8 bg-zotoks-200 rounded-lg flex items-center justify-center flex-shrink-0"
+              >
+                <svg
+                  class="w-4 h-4 text-zotoks-700"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2-2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-zotoks-900 mb-2">
+                  Manual Data Import
+                </h3>
+
+                <!-- Controls Container - Fixed Width -->
+                <div class="controls-container">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="min-w-0">
+                      <label
+                        for="dataSourceSelect"
+                        class="block text-sm font-medium text-slate-700 mb-2"
+                      >
+                        Zötok Data Source
+                      </label>
+                      <div class="dropdown-wrapper">
+                        <select id="dataSourceSelect" class="dropdown-select">
+                          <option value="">Select data source...</option>
+                          <!-- Options populated dynamically -->
+                        </select>
+                        <svg
+                          class="dropdown-arrow"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          ></path>
+                        </svg>
+                      </div>
+                    </div>
+
+                    <div class="min-w-0">
+                      <label
+                        for="periodSelect"
+                        class="block text-sm font-medium text-slate-700 mb-2"
+                      >
+                        Time Period (days)
+                      </label>
+                      <div class="dropdown-wrapper">
+                        <select id="periodSelect" class="dropdown-select">
+                          <option value="7">Last 14 days</option>
+                          <option value="30">Last 30 days</option>
+                          <option value="60">Last 60 days</option>
+                          <option value="90" selected>Last 90 days</option>
+                          <option value="180">Last 6 months</option>
+                          <option value="365">Last year</option>
+                        </select>
+                        <svg
+                          class="dropdown-arrow"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          ></path>
+                        </svg>
+                      </div>
+                      <p class="text-xs text-slate-500 mt-1">
+                        Note: Some periods may have limited data availability
+                      </p>
+                    </div>
+
+                    <div class="min-w-0">
+                      <label
+                        class="block text-sm font-medium text-slate-700 mb-2"
+                      >
+                        Data Preview
+                      </label>
+                      <button
+                        onclick="loadDataPreview()"
+                        id="previewBtn"
+                        disabled
+                        class="w-full px-4 py-2 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                      >
+                        <svg
+                          class="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                          ></path>
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          ></path>
+                        </svg>
+                        Preview Data
+                      </button>
+                      <p class="text-xs text-slate-500 mt-1">
+                        Preview limited to 30 days max for performance
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Data Preview - Isolated Container -->
+                <div id="dataPreview" class="preview-container hidden">
+                  <div class="bg-white rounded-md border border-slate-200 p-4">
+                    <h4 class="font-medium text-slate-700 mb-3">
+                      Data Preview
+                    </h4>
+                    <div id="previewContent" class="text-sm">
+                      <!-- Preview content will be populated here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import Options -->
+          <div class="space-y-6">
+            <h2 class="text-lg font-semibold text-slate-900 mb-4">
+              Import Options
+            </h2>
+
+            <!-- New Sheet Option -->
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <label
+                class="option-card cursor-pointer block"
+                onclick="selectOption('new')"
+                id="newOptionContainer"
+              >
+                <div class="p-5 hover:bg-slate-50 transition-colors">
+                  <div class="flex items-start gap-4">
+                    <div class="flex items-center h-6 mt-1">
+                      <input
+                        type="radio"
+                        name="importChoice"
+                        value="new"
+                        id="newOption"
+                        class="w-4 h-4 text-zotoks-600 focus:ring-zotoks-500 border-slate-300"
+                      />
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2 mb-2">
+                        <div
+                          class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center"
+                        >
+                          <svg
+                            class="w-4 h-4 text-blue-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            ></path>
+                          </svg>
+                        </div>
+                        <h3 class="font-semibold text-slate-900">
+                          Create New Sheet
+                        </h3>
+                      </div>
+                      <p class="text-sm text-slate-600 leading-relaxed">
+                        Create a fresh sheet with the selected Zötok data.
+                        Perfect for new datasets or one-time imports.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </label>
+
+              <!-- New Sheet Expanded Section -->
+              <div class="expandable-section collapsed" id="newSheetSection">
+                <div class="border-t border-slate-200 bg-slate-50 p-5">
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        for="sheetNameInput"
+                        class="block text-sm font-medium text-slate-700 mb-2"
+                      >
+                        Sheet Name
+                      </label>
+                      <input
+                        type="text"
+                        id="sheetNameInput"
+                        placeholder="Enter sheet name..."
+                        maxlength="100"
+                        class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-zotoks-500 focus:border-zotoks-500 transition-colors"
+                      />
+                      <p class="text-xs text-slate-500 mt-1">
+                        Choose a descriptive name for your new sheet
+                      </p>
+                      <div
+                        class="validation-message mt-2 hidden"
+                        id="validationMessage"
+                      ></div>
+                    </div>
+
+                    <div
+                      class="bg-white rounded-md border border-slate-200 p-4"
+                    >
+                      <p class="text-sm font-medium text-slate-700 mb-3">
+                        Quick suggestions:
+                      </p>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onclick="
+                            applySuggestion('Zotoks_Data_' + getCurrentDate())
+                          "
+                          class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200"
+                        >
+                          Zotoks_Data_[Today]
+                        </button>
+                        <button
+                          type="button"
+                          onclick="
+                            applySuggestion(getDataSourceName() + '_Data')
+                          "
+                          class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200"
+                        >
+                          [DataSource]_Data
+                        </button>
+                        <button
+                          type="button"
+                          onclick="
+                            applySuggestion('Import_' + getCurrentTime())
+                          "
+                          class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200"
+                        >
+                          Import_[Time]
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                      <button
+                        onclick="createAndImport()"
+                        id="createImportBtn"
+                        disabled
+                        class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <svg
+                          class="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                          ></path>
+                        </svg>
+                        Create & Import
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Existing Sheet Option -->
+            <div class="border border-slate-200 rounded-lg overflow-hidden">
+              <label
+                class="option-card cursor-pointer block"
+                onclick="selectOption('existing')"
+                id="existingOptionContainer"
+              >
+                <div class="p-5 hover:bg-slate-50 transition-colors">
+                  <div class="flex items-start gap-4">
+                    <div class="flex items-center h-6 mt-1">
+                      <input
+                        type="radio"
+                        name="importChoice"
+                        value="existing"
+                        id="existingOption"
+                        class="w-4 h-4 text-zotoks-600 focus:ring-zotoks-500 border-slate-300"
+                      />
+                    </div>
+                    <div class="flex-1">
+                      <div class="flex items-center gap-2 mb-2">
+                        <div
+                          class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center"
+                        >
+                          <svg
+                            class="w-4 h-4 text-amber-600"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            ></path>
+                          </svg>
+                        </div>
+                        <h3 class="font-semibold text-slate-900">
+                          Import to Existing Sheet
+                        </h3>
+                      </div>
+                      <p class="text-sm text-slate-600 leading-relaxed">
+                        Add data to an existing sheet with intelligent column
+                        mapping. Great for updating existing datasets.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </label>
+
+              <!-- Existing Sheet Expanded Section -->
+              <div
+                class="expandable-section collapsed"
+                id="existingSheetSection"
+              >
+                <div class="border-t border-slate-200 bg-slate-50 p-5">
+                  <div class="space-y-4">
+                    <div>
+                      <label
+                        for="existingSheetSelect"
+                        class="block text-sm font-medium text-slate-700 mb-2"
+                      >
+                        Select Sheet
+                      </label>
+                      <div class="dropdown-wrapper">
+                        <select
+                          id="existingSheetSelect"
+                          class="dropdown-select"
+                        >
+                          <option value="">Loading sheets...</option>
+                        </select>
+                        <svg
+                          class="dropdown-arrow"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M19 9l-7 7-7-7"
+                          ></path>
+                        </svg>
+                      </div>
+                      <p class="text-xs text-slate-500 mt-1">
+                        Choose which sheet to import the data to
+                      </p>
+                    </div>
+
+                    <div class="flex justify-end">
+                      <button
+                        onclick="proceedToMapping()"
+                        id="proceedBtn"
+                        disabled
+                        class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <svg
+                          class="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"
+                          ></path>
+                        </svg>
+                        Proceed to Import
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Import Loading Overlay (similar to pricelist) -->
+          <div class="loading-overlay hidden" id="importLoadingOverlay">
+            <div class="text-center">
+              <div
+                class="w-5 h-5 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-2"
+              ></div>
+              <p
+                class="text-slate-600 font-medium text-sm"
+                id="importLoadingText"
+              >
+                Processing...
+              </p>
+              <p
+                class="text-xs text-slate-500 mt-0.5"
+                id="importLoadingSubtext"
+              >
+                Please wait
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
+          <div class="flex justify-between items-center">
+            <div class="text-xs text-slate-500">
+              Connected to Zötok's API • Credentials stored securely
+            </div>
+            <button
+              onclick="closeDialog()"
+              class="px-4 py-1.5 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-white transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div
+      id="confirmModal"
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full"
+      >
+        <!-- Modal Header -->
+        <div class="bg-gradient-to-r from-red-500 to-red-600 px-4 py-3">
+          <div class="flex items-center gap-2">
+            <div
+              class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center"
+            >
+              <svg
+                class="w-5 h-5 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                ></path>
+              </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-white" id="confirmModalTitle">
+              Confirm Action
+            </h3>
+          </div>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-4">
+          <p class="text-slate-700 leading-relaxed" id="confirmModalMessage">
+            Are you sure you want to proceed with this action?
+          </p>
+        </div>
+
+        <!-- Modal Footer -->
+        <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
+          <div class="flex justify-end gap-2">
+            <button
+              onclick="closeConfirmModal()"
+              class="px-4 py-1.5 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onclick="confirmAction()"
+              id="confirmActionBtn"
+              class="px-4 py-1.5 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ==========================================
+      // CUSTOM MODAL FUNCTIONS
+      // ==========================================
+
+      let confirmCallback = null;
+
+      // Confirmation modal functions
+      function showConfirmModal(
+        title,
+        message,
+        onConfirm,
+        confirmText = "Confirm",
+        confirmStyle = "red",
+      ) {
+        document.getElementById("confirmModalTitle").textContent = title;
+        document.getElementById("confirmModalMessage").textContent = message;
+
+        const confirmBtn = document.getElementById("confirmActionBtn");
+        confirmBtn.textContent = confirmText;
+
+        // Update button style based on action type
+        confirmBtn.className = `px-4 py-1.5 rounded-md font-medium transition-colors ${
+          confirmStyle === "red"
+            ? "bg-red-600 text-white hover:bg-red-700"
+            : "bg-zotoks-600 text-white hover:bg-zotoks-700"
+        }`;
+
+        confirmCallback = onConfirm;
+        document.getElementById("confirmModal").classList.remove("hidden");
+
+        // Focus on cancel button by default for safety
+        setTimeout(() => {
+          document.querySelector("#confirmModal button").focus();
+        }, 100);
+      }
+
+      function closeConfirmModal() {
+        document.getElementById("confirmModal").classList.add("hidden");
+        confirmCallback = null;
+      }
+
+      function confirmAction() {
+        if (confirmCallback) {
+          confirmCallback();
+        }
+        closeConfirmModal();
+      }
+
+      // Close modals on escape key
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          if (
+            !document
+              .getElementById("confirmModal")
+              .classList.contains("hidden")
+          ) {
+            closeConfirmModal();
+          }
+        }
+      });
+
+      document
+        .getElementById("confirmModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            closeConfirmModal();
+          }
+        });
+
+      // ==========================================
+      // DROPDOWN ARROW MANAGER
+      // ==========================================
+
+      class DropdownArrowManager {
+        constructor(selectElement) {
+          this.select = selectElement;
+          this.wrapper = selectElement.closest(".dropdown-wrapper");
+          this.arrow = this.wrapper?.querySelector(".dropdown-arrow");
+
+          if (!this.wrapper || !this.arrow) {
+            console.warn(
+              "Dropdown wrapper or arrow not found for",
+              selectElement,
+            );
+            return;
+          }
+
+          this.isOpen = false;
+          this.init();
+        }
+
+        init() {
+          // Use mousedown to catch the interaction before focus changes
+          this.select.addEventListener(
+            "mousedown",
+            this.handleMouseDown.bind(this),
+          );
+          this.select.addEventListener("blur", this.handleBlur.bind(this));
+          this.select.addEventListener(
+            "keydown",
+            this.handleKeydown.bind(this),
+          );
+
+          // Handle change event to close dropdown
+          this.select.addEventListener("change", this.handleChange.bind(this));
+        }
+
+        handleMouseDown(e) {
+          // Toggle state on mousedown (before focus event)
+          this.toggle();
+        }
+
+        handleBlur() {
+          // Always close on blur
+          this.close();
+        }
+
+        handleKeydown(e) {
+          if (e.key === "Escape") {
+            this.close();
+            this.select.blur();
+          } else if (e.key === "Enter" || e.key === " ") {
+            // Toggle on Enter/Space
+            this.toggle();
+          }
+        }
+
+        handleChange() {
+          // Close dropdown when option is selected
+          this.close();
+        }
+
+        toggle() {
+          if (this.isOpen) {
+            this.close();
+          } else {
+            this.open();
+          }
+        }
+
+        open() {
+          this.isOpen = true;
+          this.wrapper.classList.add("dropdown-open");
+        }
+
+        close() {
+          this.isOpen = false;
+          this.wrapper.classList.remove("dropdown-open");
+        }
+      }
+
+      // Global function to initialize all dropdowns
+      function initializeAllDropdowns() {
+        const dropdowns = document.querySelectorAll(".dropdown-select");
+        dropdowns.forEach((select) => {
+          new DropdownArrowManager(select);
+        });
+      }
+
+      // ==========================================
+      // DYNAMIC DROPDOWN POPULATION
+      // ==========================================
+
+      // Load endpoints configuration directly from server
+      let endpointsConfig = {};
+      let dropdownPopulated = false;
+
+      // Load endpoints when dialog opens
+      loadEndpointsFromServer();
+
+      function loadEndpointsFromServer() {
+        // Load endpoints and pre-selected endpoint in parallel
+        let endpointsLoaded = false;
+        let preSelectedLoaded = false;
+        let preSelectedEndpoint = "";
+
+        // Load endpoints
+        google.script.run
+          .withSuccessHandler(function (result) {
+            if (result.success && result.endpoints) {
+              endpointsConfig = result.endpoints;
+            } else {
+              useFallbackEndpoints();
             }
+            endpointsLoaded = true;
+            checkAndPopulate();
+          })
+          .withFailureHandler(function (error) {
+            console.error("Failed to load endpoints:", error);
+            useFallbackEndpoints();
+            endpointsLoaded = true;
+            checkAndPopulate();
+          })
+          .dispatch("getEndpointsConfiguration");
+
+        // Load pre-selected endpoint
+        google.script.run
+          .withSuccessHandler(function (endpoint) {
+            preSelectedEndpoint = endpoint || "";
+            preSelectedLoaded = true;
+            checkAndPopulate();
+          })
+          .withFailureHandler(function (error) {
+            console.error("Failed to load pre-selected endpoint:", error);
+            preSelectedLoaded = true;
+            checkAndPopulate();
+          })
+          .dispatch("getPreSelectedEndpoint");
+
+        // Populate dropdown only after both calls complete
+        function checkAndPopulate() {
+          if (endpointsLoaded && preSelectedLoaded) {
+            populateDataSourceDropdown(preSelectedEndpoint);
           }
         }
       }
-    }
-  </script>
-  <style>
-    /* Loading overlay styling similar to pricelist */
-    .loading-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 50;
-    }
 
-
-    .expandable-section {
-      transition: all 0.3s ease-out;
-      overflow: hidden;
-    }
-
-    .expandable-section.collapsed {
-      max-height: 0;
-      opacity: 0;
-    }
-
-    .expandable-section.expanded {
-      max-height: 500px;
-      opacity: 1;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.3s ease-out;
-    }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(8px);
+      function useFallbackEndpoints() {
+        endpointsConfig = [
+          {
+            key: "customers",
+            label: "Customers",
+            supportsTimePeriod: false,
+            allowedTimePeriods: [],
+          },
+          {
+            key: "products",
+            label: "Products",
+            supportsTimePeriod: false,
+            allowedTimePeriods: [],
+          },
+          {
+            key: "orders",
+            label: "Orders",
+            supportsTimePeriod: true,
+            allowedTimePeriods: ["7", "30", "90"],
+          },
+          {
+            key: "trips",
+            label: "Trips",
+            supportsTimePeriod: true,
+            allowedTimePeriods: ["7", "30", "90"],
+          },
+          {
+            key: "supply-tracker",
+            label: "Supply Tracker",
+            supportsTimePeriod: true,
+            allowedTimePeriods: ["7", "30", "90"],
+          },
+        ];
       }
 
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-
-    /* Dropdown container and arrow base styles */
-    .dropdown-wrapper {
-      position: relative;
-    }
-
-    .dropdown-arrow {
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      width: 16px;
-      height: 16px;
-      transform: translateY(-50%);
-      transition: transform 0.2s ease;
-      pointer-events: none;
-      color: #64748b;
-    }
-
-    /* Arrow rotation states */
-    .dropdown-wrapper.dropdown-open .dropdown-arrow {
-      transform: translateY(-50%) rotate(180deg);
-    }
-
-    /* Select element styling */
-    .dropdown-select {
-      width: 100%;
-      padding: 8px 32px 8px 12px;
-      /* Extra right padding for arrow */
-      border: 2px solid #e2e8f0;
-      border-radius: 6px;
-      background: white;
-      appearance: none;
-      transition: all 0.2s ease;
-    }
-
-    .dropdown-select:focus {
-      border-color: #0ea5e9;
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
-    }
-
-    .dropdown-select:hover {
-      border-color: #cbd5e1;
-    }
-
-    /* Fix for preview layout to prevent button displacement */
-    .controls-container {
-      width: 100%;
-      max-width: 100%;
-      overflow: hidden;
-      contain: layout;
-    }
-
-    .preview-container {
-      width: 100%;
-      max-width: 100%;
-      overflow: hidden;
-      contain: layout;
-      margin-top: 1rem;
-    }
-
-    .preview-table-wrapper {
-      width: 100%;
-      max-width: 100%;
-      overflow-x: auto;
-      overflow-y: hidden;
-      contain: layout;
-    }
-
-    /* Custom Modal Animations */
-    .modal-backdrop {
-      transition: opacity 0.25s ease-out;
-    }
-
-    .modal-backdrop.show {
-      opacity: 1;
-    }
-
-    .modal-content {
-      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-      transform: scale(0.8) translateY(-20px);
-      opacity: 0;
-    }
-
-    .modal-content.show {
-      transform: scale(1) translateY(0);
-      opacity: 1;
-    }
-
-    /* Status indicators */
-    .status-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.5rem 0.75rem;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-
-    .status-success {
-      background-color: #dcfce7;
-      color: #166534;
-      border: 1px solid #bbf7d0;
-    }
-
-    .status-error {
-      background-color: #fef2f2;
-      color: #991b1b;
-      border: 1px solid #fecaca;
-    }
-
-    .status-warning {
-      background-color: #fefce8;
-      color: #a16207;
-      border: 1px solid #fde68a;
-    }
-  </style>
-</head>
-
-<body class="bg-slate-50">
-
-  <div
-    style="background-color: #f8fafc; padding: 1rem; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center;">
-
-    <svg xmlns="http://www.w3.org/2000/svg" width="88.176" height="29.974" viewBox="0 0 88.176 29.974">
-      <g id="ZoTok_Logo" transform="translate(-483.089 -826.374)">
-        <path id="Union_122" data-name="Union 122"
-          d="M24.326,21.7a10.327,10.327,0,0,1-6.51-2.5,8.571,8.571,0,0,1,0-12.124c3.342-3.342,10.014-3.289,13.358.053a8.588,8.588,0,0,1,0,12.123c-.143.14-.3.285-.487.445l-6.361,5.314Zm-3.9-12.133c-.065.064-.127.129-.186.2a5.329,5.329,0,0,0,3.916,8.9h.184v1.769A19.4,19.4,0,0,0,27.966,17.1c1.321-1.667,1.7-2.83,1.514-4.4a5.33,5.33,0,0,0-9.058-3.136ZM0,22.348,7.216,9.286H2.238L.644,4.591H15.309L8.139,17.63h4.676L15,22.348Zm21.126-8.878a.918.918,0,1,1,.919.918A.918.918,0,0,1,21.127,13.469Zm4.9,0a.918.918,0,1,1,.917.917A.917.917,0,0,1,26.025,13.469Zm-2.449,0a.918.918,0,1,1,.917.917A.917.917,0,0,1,23.576,13.469Zm2.2-10.243c-.015-.015-.03-.032-.045-.049l-.015-.016a1.849,1.849,0,0,0,0-2.551c.016-.019.033-.036.051-.054l.008-.009a1.887,1.887,0,0,1,3.227,1.339,1.83,1.83,0,0,1-.547,1.34,1.918,1.918,0,0,1-2.679,0ZM26.563.971A.536.536,0,1,0,27.1.435.536.536,0,0,0,26.563.971ZM20.449,3.226a1.836,1.836,0,0,1-.547-1.34A1.829,1.829,0,0,1,20.449.546a1.913,1.913,0,0,1,2.679,0l.015.016.044.047a1.85,1.85,0,0,0,0,2.552l-.058.061a1.918,1.918,0,0,1-2.682,0Zm.8-2.254a.536.536,0,1,0,.536-.536A.536.536,0,0,0,21.249.971Z"
-          transform="translate(483.088 826.375)" fill="#589981"></path>
-        <path id="Union_123" data-name="Union 123"
-          d="M56.389,25.048a.328.328,0,0,1,.341-.328.322.322,0,0,1,.334.328.332.332,0,0,1-.334.334A.338.338,0,0,1,56.389,25.048Zm-10,.085a1.59,1.59,0,0,1-.617-.636,1.975,1.975,0,0,1-.224-.956,2,2,0,0,1,.218-.953,1.52,1.52,0,0,1,.612-.631,1.823,1.823,0,0,1,.9-.219,1.767,1.767,0,0,1,.884.217,1.512,1.512,0,0,1,.59.6,1.761,1.761,0,0,1,.208.861c0,.107-.008.225-.021.349h-2.8a1.1,1.1,0,0,0,1.138,1.1,1.073,1.073,0,0,0,.631-.176.925.925,0,0,0,.355-.471H48.9a1.518,1.518,0,0,1-.563.824,1.706,1.706,0,0,1-1.05.316A1.774,1.774,0,0,1,46.393,25.133Zm.114-2.624a1.157,1.157,0,0,0-.355.782h2.213a1.055,1.055,0,0,0-.147-.573.959.959,0,0,0-.4-.365,1.246,1.246,0,0,0-.56-.124A1.083,1.083,0,0,0,46.507,22.509ZM29.443,25.158a1.363,1.363,0,0,1-.515-.505V25.3h-.581V20.566h.581v1.881a1.365,1.365,0,0,1,.525-.513,1.544,1.544,0,0,1,.787-.2,1.64,1.64,0,0,1,.851.224,1.586,1.586,0,0,1,.594.631,1.97,1.97,0,0,1,.218.944,2.017,2.017,0,0,1-.218.945,1.6,1.6,0,0,1-1.445.878A1.55,1.55,0,0,1,29.443,25.158Zm.083-2.759a1.132,1.132,0,0,0-.434.454,1.41,1.41,0,0,0-.164.687,1.435,1.435,0,0,0,.164.695,1.133,1.133,0,0,0,.434.453,1.171,1.171,0,0,0,.592.158,1.157,1.157,0,0,0,.6-.158,1.116,1.116,0,0,0,.432-.453,1.469,1.469,0,0,0,.16-.7,1.429,1.429,0,0,0-.16-.691,1.089,1.089,0,0,0-.432-.447,1.178,1.178,0,0,0-.6-.154A1.151,1.151,0,0,0,29.526,22.4ZM3.388,25.133a1.578,1.578,0,0,1-.617-.636,1.953,1.953,0,0,1-.224-.956,1.981,1.981,0,0,1,.218-.953,1.515,1.515,0,0,1,.61-.631,1.823,1.823,0,0,1,.9-.219,1.767,1.767,0,0,1,.884.217,1.5,1.5,0,0,1,.59.6,1.761,1.761,0,0,1,.208.861c0,.107-.008.225-.019.349h-2.8a1.1,1.1,0,0,0,1.138,1.1,1.077,1.077,0,0,0,.631-.176.936.936,0,0,0,.355-.471h.627a1.529,1.529,0,0,1-.563.824,1.706,1.706,0,0,1-1.05.316A1.775,1.775,0,0,1,3.388,25.133ZM3.5,22.509a1.149,1.149,0,0,0-.355.782H5.36a1.072,1.072,0,0,0-.147-.573.959.959,0,0,0-.4-.365,1.255,1.255,0,0,0-.561-.124A1.079,1.079,0,0,0,3.5,22.509Zm50.089,2.709a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.6.6,0,0,0,.247.43.942.942,0,0,0,.579.166.832.832,0,0,0,.523-.147.447.447,0,0,0,.193-.37.369.369,0,0,0-.2-.343,2.929,2.929,0,0,0-.635-.22,4.646,4.646,0,0,1-.635-.206,1.154,1.154,0,0,1-.423-.315.811.811,0,0,1-.177-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.455-.355,1.648,1.648,0,0,1,.671-.131,1.427,1.427,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.828.828,0,0,0,.282.179c.114.044.27.095.471.15a5.218,5.218,0,0,1,.614.2,1.067,1.067,0,0,1,.407.3.8.8,0,0,1,.176.517.9.9,0,0,1-.16.519,1.065,1.065,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.793,1.793,0,0,1,53.591,25.218Zm-3.338,0a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.6.6,0,0,0,.245.43.951.951,0,0,0,.581.166.836.836,0,0,0,.523-.147.447.447,0,0,0,.193-.37.369.369,0,0,0-.2-.343,2.969,2.969,0,0,0-.635-.22,4.559,4.559,0,0,1-.635-.206,1.138,1.138,0,0,1-.423-.315.811.811,0,0,1-.177-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.453-.355,1.657,1.657,0,0,1,.673-.131,1.431,1.431,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.81.81,0,0,0,.282.179c.114.044.27.095.471.15a5.339,5.339,0,0,1,.614.2,1.067,1.067,0,0,1,.407.3.8.8,0,0,1,.176.517.9.9,0,0,1-.16.519,1.066,1.066,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.787,1.787,0,0,1,50.254,25.218Zm-12.971,0a1.2,1.2,0,0,1-.505-.384,1.014,1.014,0,0,1-.2-.567h.6a.591.591,0,0,0,.247.43.942.942,0,0,0,.579.166.833.833,0,0,0,.523-.147.447.447,0,0,0,.193-.37.366.366,0,0,0-.2-.343,2.929,2.929,0,0,0-.635-.22,4.65,4.65,0,0,1-.635-.206,1.154,1.154,0,0,1-.423-.315.81.81,0,0,1-.176-.546.834.834,0,0,1,.158-.494,1.1,1.1,0,0,1,.455-.355,1.641,1.641,0,0,1,.671-.131,1.427,1.427,0,0,1,.94.3,1.057,1.057,0,0,1,.384.8h-.583a.6.6,0,0,0-.22-.44.98.98,0,0,0-1.04-.033.414.414,0,0,0-.185.351.386.386,0,0,0,.112.284.81.81,0,0,0,.282.179c.114.044.27.095.471.15a5.217,5.217,0,0,1,.614.2,1.066,1.066,0,0,1,.407.3.8.8,0,0,1,.176.517.894.894,0,0,1-.16.519,1.065,1.065,0,0,1-.45.36,1.624,1.624,0,0,1-.67.131A1.786,1.786,0,0,1,37.282,25.218Zm-19.238-.093a1.611,1.611,0,0,1-.6-.646,2.02,2.02,0,0,1-.218-.948,1.98,1.98,0,0,1,.218-.943,1.576,1.576,0,0,1,.6-.629,1.648,1.648,0,0,1,.849-.224,1.538,1.538,0,0,1,.8.2,1.317,1.317,0,0,1,.505.5v-.639h.589v3.5H20.2v-.652a1.385,1.385,0,0,1-.515.509,1.546,1.546,0,0,1-.8.2A1.569,1.569,0,0,1,18.044,25.125Zm.369-2.729a1.1,1.1,0,0,0-.428.447,1.429,1.429,0,0,0-.16.691,1.455,1.455,0,0,0,.16.7,1.123,1.123,0,0,0,.428.455,1.168,1.168,0,0,0,.6.156,1.184,1.184,0,0,0,.6-.156,1.13,1.13,0,0,0,.432-.455,1.441,1.441,0,0,0,.158-.693,1.425,1.425,0,0,0-.158-.691,1.15,1.15,0,0,0-.432-.452,1.184,1.184,0,0,0-.6-.156A1.166,1.166,0,0,0,18.412,22.4Zm-7.82,2.822a1.217,1.217,0,0,1-.507-.384,1.028,1.028,0,0,1-.2-.567h.6a.6.6,0,0,0,.245.43.942.942,0,0,0,.579.166.838.838,0,0,0,.525-.147.452.452,0,0,0,.193-.37A.367.367,0,0,0,11.818,24a2.944,2.944,0,0,0-.633-.22,4.684,4.684,0,0,1-.637-.206,1.154,1.154,0,0,1-.423-.315.821.821,0,0,1-.176-.546.836.836,0,0,1,.16-.494,1.1,1.1,0,0,1,.453-.355,1.658,1.658,0,0,1,.673-.131,1.434,1.434,0,0,1,.94.3,1.055,1.055,0,0,1,.382.8h-.581a.6.6,0,0,0-.222-.44.812.812,0,0,0-.54-.167.822.822,0,0,0-.5.133.414.414,0,0,0-.185.351.379.379,0,0,0,.112.284.793.793,0,0,0,.282.179,4.9,4.9,0,0,0,.471.15,5.343,5.343,0,0,1,.614.2,1.066,1.066,0,0,1,.407.3.806.806,0,0,1,.176.517.894.894,0,0,1-.16.519,1.06,1.06,0,0,1-.451.36,1.615,1.615,0,0,1-.668.131A1.786,1.786,0,0,1,10.593,25.218Zm22.75-.038a1.224,1.224,0,0,1-.515-.51,1.67,1.67,0,0,1-.189-.824V21.793h.575v1.976a1.118,1.118,0,0,0,.262.8.936.936,0,0,0,.716.278.96.96,0,0,0,.737-.287,1.182,1.182,0,0,0,.268-.838V21.793h.583V25.3H35.2V24.78a1.124,1.124,0,0,1-.463.418,1.43,1.43,0,0,1-.656.151A1.565,1.565,0,0,1,33.342,25.18Zm10.9.12V23.316a1.122,1.122,0,0,0-.262-.8.933.933,0,0,0-.716-.278.963.963,0,0,0-.733.288,1.183,1.183,0,0,0-.27.837V25.3h-.583V21.793h.583v.5a1.153,1.153,0,0,1,.469-.415,1.452,1.452,0,0,1,.656-.146,1.424,1.424,0,0,1,1.036.386,1.492,1.492,0,0,1,.4,1.117V25.3Zm-4.137,0V21.793h.583V25.3Zm-14.8,0L23.927,23.75V25.3h-.583V20.564h.583v2.782l1.349-1.553h.814L24.438,23.54,26.1,25.3Zm-3.531,0V20.564h.583V25.3Zm-5.551,0a1.051,1.051,0,0,1-.729-.224.967.967,0,0,1-.243-.737V22.271h-.455v-.478h.455V20.91h.583v.884h.915v.478h-.915v2.067a.482.482,0,0,0,.108.36.527.527,0,0,0,.376.106h.43V25.3Zm-8.393,0a1.045,1.045,0,0,1-.727-.224.967.967,0,0,1-.245-.737V22.271H6.4v-.478h.453V20.91h.583v.884h.915v.478H7.438v2.067a.482.482,0,0,0,.11.36.523.523,0,0,0,.376.106h.428V25.3ZM0,25.3V20.84H.583v3.986H2.142V25.3ZM56.551,24l-.091-3.151H57L56.9,24Zm-47.68-2.52-.083-1.273h.563l-.077,1.273Zm31.251-.373a.4.4,0,0,1,.282-.677.358.358,0,0,1,.27.114.41.41,0,0,1,0,.563.359.359,0,0,1-.27.116A.378.378,0,0,1,40.122,21.108Zm11.411-3.349-4.81-6.444-1.781,2v4.44H40.226V0h4.716V7.382L51.461,0h5.244l-6.88,7.865,7.241,9.894ZM19.1,8.88C19.1,3.757,23.128,0,28.594,0s9.491,3.756,9.491,8.879-4.027,8.879-9.491,8.879S19.1,14,19.1,8.88Zm4.881,0a4.619,4.619,0,1,0,9.223,0,4.619,4.619,0,1,0-9.223,0ZM7.816,17.759V3.983H2.568V0H17.876V3.985H12.651V17.759Z"
-          transform="translate(514.198 830.966)" fill="#333"></path>
-      </g>
-    </svg>
-
-  </div>
-
-  <div class="w-full max-w-4xl mx-auto p-3">
-    <div class="bg-white rounded-lg shadow-sm border border-slate-200">
-
-      <!-- Header -->
-      <div class="border-b border-slate-200 px-4 py-3">
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-zotoks-100 rounded-lg flex items-center justify-center">
-            <svg class="w-4 h-4 text-zotoks-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-            </svg>
-          </div>
-          <div>
-            <h1 class="text-lg font-semibold text-slate-900">Import Data</h1>
-            <p class="text-xs text-slate-600 mt-0.5">Select data source and import options</p>
-          </div>
-          <div class="ml-auto relative">
-            <div class="relative inline-block">
-              <button onclick="toggleSettingsDropdown()" id="settingsBtn"
-                class="px-3 py-1.5 text-xs bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors border border-slate-300 flex items-center gap-2">
-                ⚙️ Settings
-                <svg class="w-3 h-3 transition-transform" id="settingsArrow" fill="none" stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                </svg>
-              </button>
-
-              <!-- Settings Dropdown -->
-              <div id="settingsDropdown"
-                class="hidden absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
-                <div class="py-2">
-                  <button onclick="handleSettingsAction('credentials')"
-                    class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-3a1 1 0 011-1h2.586l6.243-6.243A6 6 0 0121 9z">
-                      </path>
-                    </svg>
-                    Manage Credentials
-                  </button>
-
-                  <button onclick="handleSettingsAction('mappings')"
-                    class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                      </path>
-                    </svg>
-                    Manage Mappings
-                  </button>
-
-                  <button onclick="handleSettingsAction('clearMappings')"
-                    class="w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                      </path>
-                    </svg>
-                    Clear All Mappings
-                  </button>
-
-                  <hr class="my-2 border-slate-200">
-
-                  <button onclick="handleSettingsAction('clearCredentials')"
-                    class="w-full px-3 py-1.5 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
-                      </path>
-                    </svg>
-                    Clear Credentials
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Content -->
-      <div class="p-4">
-
-
-        <!-- Data Source Selection - FIXED LAYOUT -->
-        <div class="mb-8 p-4 bg-gradient-to-r from-zotoks-50 to-blue-50 rounded-lg border border-zotoks-200">
-          <div class="flex items-start gap-2">
-            <div class="w-8 h-8 bg-zotoks-200 rounded-lg flex items-center justify-center flex-shrink-0">
-              <svg class="w-4 h-4 text-zotoks-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2-2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10">
-                </path>
-              </svg>
-            </div>
-            <div class="flex-1 min-w-0">
-              <h3 class="font-semibold text-zotoks-900 mb-2">Manual Data Import</h3>
-
-              <!-- Controls Container - Fixed Width -->
-              <div class="controls-container">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div class="min-w-0">
-                    <label for="dataSourceSelect" class="block text-sm font-medium text-slate-700 mb-2">
-                      Zötok Data Source
-                    </label>
-                    <div class="dropdown-wrapper">
-                      <select id="dataSourceSelect" class="dropdown-select">
-                        <option value="">Select data source...</option>
-                        <!-- Options populated dynamically -->
-                      </select>
-                      <svg class="dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div class="min-w-0">
-                    <label for="periodSelect" class="block text-sm font-medium text-slate-700 mb-2">
-                      Time Period (days)
-                    </label>
-                    <div class="dropdown-wrapper">
-                      <select id="periodSelect" class="dropdown-select">
-                        <option value="7">Last 14 days</option>
-                        <option value="30">Last 30 days</option>
-                        <option value="60">Last 60 days</option>
-                        <option value="90" selected>Last 90 days</option>
-                        <option value="180">Last 6 months</option>
-                        <option value="365">Last year</option>
-                      </select>
-                      <svg class="dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-1">Note: Some periods may have limited data availability</p>
-                  </div>
-
-                  <div class="min-w-0">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                      Data Preview
-                    </label>
-                    <button onclick="loadDataPreview()" id="previewBtn" disabled
-                      class="w-full px-4 py-2 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z">
-                        </path>
-                      </svg>
-                      Preview Data
-                    </button>
-                    <p class="text-xs text-slate-500 mt-1">Preview limited to 30 days max for performance</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Data Preview - Isolated Container -->
-              <div id="dataPreview" class="preview-container hidden">
-                <div class="bg-white rounded-md border border-slate-200 p-4">
-                  <h4 class="font-medium text-slate-700 mb-3">Data Preview</h4>
-                  <div id="previewContent" class="text-sm">
-                    <!-- Preview content will be populated here -->
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Import Options -->
-        <div class="space-y-6">
-          <h2 class="text-lg font-semibold text-slate-900 mb-4">Import Options</h2>
-
-          <!-- New Sheet Option -->
-          <div class="border border-slate-200 rounded-lg overflow-hidden">
-            <label class="option-card cursor-pointer block" onclick="selectOption('new')" id="newOptionContainer">
-              <div class="p-5 hover:bg-slate-50 transition-colors">
-                <div class="flex items-start gap-4">
-                  <div class="flex items-center h-6 mt-1">
-                    <input type="radio" name="importChoice" value="new" id="newOption"
-                      class="w-4 h-4 text-zotoks-600 focus:ring-zotoks-500 border-slate-300">
-                  </div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-2">
-                      <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
-                      </div>
-                      <h3 class="font-semibold text-slate-900">Create New Sheet</h3>
-                    </div>
-                    <p class="text-sm text-slate-600 leading-relaxed">
-                      Create a fresh sheet with the selected Zötok data. Perfect for new datasets or one-time imports.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </label>
-
-            <!-- New Sheet Expanded Section -->
-            <div class="expandable-section collapsed" id="newSheetSection">
-              <div class="border-t border-slate-200 bg-slate-50 p-5">
-                <div class="space-y-4">
-                  <div>
-                    <label for="sheetNameInput" class="block text-sm font-medium text-slate-700 mb-2">
-                      Sheet Name
-                    </label>
-                    <input type="text" id="sheetNameInput" placeholder="Enter sheet name..." maxlength="100"
-                      class="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-zotoks-500 focus:border-zotoks-500 transition-colors">
-                    <p class="text-xs text-slate-500 mt-1">Choose a descriptive name for your new sheet</p>
-                    <div class="validation-message mt-2 hidden" id="validationMessage"></div>
-                  </div>
-
-                  <div class="bg-white rounded-md border border-slate-200 p-4">
-                    <p class="text-sm font-medium text-slate-700 mb-3">Quick suggestions:</p>
-                    <div class="flex flex-wrap gap-2">
-                      <button type="button" onclick="applySuggestion('Zotoks_Data_' + getCurrentDate())"
-                        class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200">
-                        Zotoks_Data_[Today]
-                      </button>
-                      <button type="button" onclick="applySuggestion(getDataSourceName() + '_Data')"
-                        class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200">
-                        [DataSource]_Data
-                      </button>
-                      <button type="button" onclick="applySuggestion('Import_' + getCurrentTime())"
-                        class="suggestion-btn px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded-md hover:bg-zotoks-100 hover:text-zotoks-700 transition-colors border border-slate-200">
-                        Import_[Time]
-                      </button>
-                    </div>
-                  </div>
-
-                  <div class="flex justify-end">
-                    <button onclick="createAndImport()" id="createImportBtn" disabled
-                      class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                      </svg>
-                      Create & Import
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Existing Sheet Option -->
-          <div class="border border-slate-200 rounded-lg overflow-hidden">
-            <label class="option-card cursor-pointer block" onclick="selectOption('existing')"
-              id="existingOptionContainer">
-              <div class="p-5 hover:bg-slate-50 transition-colors">
-                <div class="flex items-start gap-4">
-                  <div class="flex items-center h-6 mt-1">
-                    <input type="radio" name="importChoice" value="existing" id="existingOption"
-                      class="w-4 h-4 text-zotoks-600 focus:ring-zotoks-500 border-slate-300">
-                  </div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-2">
-                      <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
-                          </path>
-                        </svg>
-                      </div>
-                      <h3 class="font-semibold text-slate-900">Import to Existing Sheet</h3>
-                    </div>
-                    <p class="text-sm text-slate-600 leading-relaxed">
-                      Add data to an existing sheet with intelligent column mapping. Great for updating existing
-                      datasets.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </label>
-
-            <!-- Existing Sheet Expanded Section -->
-            <div class="expandable-section collapsed" id="existingSheetSection">
-              <div class="border-t border-slate-200 bg-slate-50 p-5">
-                <div class="space-y-4">
-                  <div>
-                    <label for="existingSheetSelect" class="block text-sm font-medium text-slate-700 mb-2">
-                      Select Sheet
-                    </label>
-                    <div class="dropdown-wrapper">
-                      <select id="existingSheetSelect" class="dropdown-select">
-                        <option value="">Loading sheets...</option>
-                      </select>
-                      <svg class="dropdown-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                      </svg>
-                    </div>
-                    <p class="text-xs text-slate-500 mt-1">Choose which sheet to import the data to</p>
-                  </div>
-
-
-                  <div class="flex justify-end">
-                    <button onclick="proceedToMapping()" id="proceedBtn" disabled
-                      class="px-4 py-1.5 bg-zotoks-600 text-white rounded-md font-medium hover:bg-zotoks-700 transition-colors disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                      </svg>
-                      Proceed to Import
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Import Loading Overlay (similar to pricelist) -->
-        <div class="loading-overlay hidden" id="importLoadingOverlay">
-          <div class="text-center">
-            <div class="w-5 h-5 border-2 border-slate-300 border-t-zotoks-600 rounded-full animate-spin mx-auto mb-2"></div>
-            <p class="text-slate-600 font-medium text-sm" id="importLoadingText">Processing...</p>
-            <p class="text-xs text-slate-500 mt-0.5" id="importLoadingSubtext">Please wait</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
-        <div class="flex justify-between items-center">
-          <div class="text-xs text-slate-500">
-            Connected to Zötok's API • Credentials stored securely
-          </div>
-          <button onclick="closeDialog()"
-            class="px-4 py-1.5 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-white transition-colors">
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Custom Confirmation Modal -->
-  <div id="confirmModal"
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full">
-      <!-- Modal Header -->
-      <div class="bg-gradient-to-r from-red-500 to-red-600 px-4 py-3">
-        <div class="flex items-center gap-2">
-          <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z">
-              </path>
-            </svg>
-          </div>
-          <h3 class="text-lg font-semibold text-white" id="confirmModalTitle">Confirm Action</h3>
-        </div>
-      </div>
-
-      <!-- Modal Content -->
-      <div class="p-4">
-        <p class="text-slate-700 leading-relaxed" id="confirmModalMessage">
-          Are you sure you want to proceed with this action?
-        </p>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="border-t border-slate-200 px-4 py-3 bg-slate-50">
-        <div class="flex justify-end gap-2">
-          <button onclick="closeConfirmModal()"
-            class="px-4 py-1.5 border border-slate-300 text-slate-700 rounded-md font-medium hover:bg-slate-50 transition-colors">
-            Cancel
-          </button>
-          <button onclick="confirmAction()" id="confirmActionBtn"
-            class="px-4 py-1.5 bg-red-600 text-white rounded-md font-medium hover:bg-red-700 transition-colors">
-            Confirm
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // ==========================================
-    // CUSTOM MODAL FUNCTIONS
-    // ==========================================
-
-    let confirmCallback = null;
-
-    // Confirmation modal functions
-    function showConfirmModal(title, message, onConfirm, confirmText = 'Confirm', confirmStyle = 'red') {
-      document.getElementById('confirmModalTitle').textContent = title;
-      document.getElementById('confirmModalMessage').textContent = message;
-
-      const confirmBtn = document.getElementById('confirmActionBtn');
-      confirmBtn.textContent = confirmText;
-
-      // Update button style based on action type
-      confirmBtn.className = `px-4 py-1.5 rounded-md font-medium transition-colors ${confirmStyle === 'red'
-          ? 'bg-red-600 text-white hover:bg-red-700'
-          : 'bg-zotoks-600 text-white hover:bg-zotoks-700'
-        }`;
-
-      confirmCallback = onConfirm;
-      document.getElementById('confirmModal').classList.remove('hidden');
-
-      // Focus on cancel button by default for safety
-      setTimeout(() => {
-        document.querySelector('#confirmModal button').focus();
-      }, 100);
-    }
-
-    function closeConfirmModal() {
-      document.getElementById('confirmModal').classList.add('hidden');
-      confirmCallback = null;
-    }
-
-    function confirmAction() {
-      if (confirmCallback) {
-        confirmCallback();
-      }
-      closeConfirmModal();
-    }
-
-    // Close modals on escape key
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') {
-        if (!document.getElementById('confirmModal').classList.contains('hidden')) {
-          closeConfirmModal();
-        }
-      }
-    });
-
-    document.getElementById('confirmModal').addEventListener('click', function (e) {
-      if (e.target === this) {
-        closeConfirmModal();
-      }
-    });
-
-    // ==========================================
-    // DROPDOWN ARROW MANAGER
-    // ==========================================
-
-    class DropdownArrowManager {
-      constructor(selectElement) {
-        this.select = selectElement;
-        this.wrapper = selectElement.closest('.dropdown-wrapper');
-        this.arrow = this.wrapper?.querySelector('.dropdown-arrow');
-
-        if (!this.wrapper || !this.arrow) {
-          console.warn('Dropdown wrapper or arrow not found for', selectElement);
+      function populateDataSourceDropdown(preSelectedEndpoint) {
+        // Prevent multiple population
+        if (dropdownPopulated) {
           return;
         }
 
-        this.isOpen = false;
-        this.init();
-      }
+        const select = document.getElementById("dataSourceSelect");
 
-      init() {
-        // Use mousedown to catch the interaction before focus changes
-        this.select.addEventListener('mousedown', this.handleMouseDown.bind(this));
-        this.select.addEventListener('blur', this.handleBlur.bind(this));
-        this.select.addEventListener('keydown', this.handleKeydown.bind(this));
-
-        // Handle change event to close dropdown
-        this.select.addEventListener('change', this.handleChange.bind(this));
-      }
-
-      handleMouseDown(e) {
-        // Toggle state on mousedown (before focus event)
-        this.toggle();
-      }
-
-      handleBlur() {
-        // Always close on blur
-        this.close();
-      }
-
-      handleKeydown(e) {
-        if (e.key === 'Escape') {
-          this.close();
-          this.select.blur();
-        } else if (e.key === 'Enter' || e.key === ' ') {
-          // Toggle on Enter/Space
-          this.toggle();
+        if (!select) {
+          console.error("Data source select element not found");
+          return;
         }
-      }
 
-      handleChange() {
-        // Close dropdown when option is selected
-        this.close();
-      }
+        // Clear existing options except the first one
+        while (select.children.length > 1) {
+          select.removeChild(select.lastChild);
+        }
 
-      toggle() {
-        if (this.isOpen) {
-          this.close();
+        // Add options in the order received from server
+        if (Array.isArray(endpointsConfig)) {
+          // New array format - preserves order from Config.gs
+          endpointsConfig.forEach((endpoint) => {
+            const option = document.createElement("option");
+            option.value = endpoint.key;
+            option.textContent = endpoint.label;
+            select.appendChild(option);
+          });
         } else {
-          this.open();
+          // Fallback object format
+          Object.keys(endpointsConfig).forEach((endpointKey) => {
+            const config = endpointsConfig[endpointKey];
+            const option = document.createElement("option");
+            option.value = endpointKey;
+            option.textContent = config.label;
+            select.appendChild(option);
+          });
         }
-      }
 
-      open() {
-        this.isOpen = true;
-        this.wrapper.classList.add('dropdown-open');
-      }
+        dropdownPopulated = true;
 
-      close() {
-        this.isOpen = false;
-        this.wrapper.classList.remove('dropdown-open');
-      }
-    }
+        // Apply pre-selection if provided
+        if (preSelectedEndpoint && preSelectedEndpoint.trim() !== "") {
+          const optionExists = select.querySelector(
+            `option[value="${preSelectedEndpoint}"]`,
+          );
 
-    // Global function to initialize all dropdowns
-    function initializeAllDropdowns() {
-      const dropdowns = document.querySelectorAll('.dropdown-select');
-      dropdowns.forEach(select => {
-        new DropdownArrowManager(select);
-      });
-    }
+          if (optionExists) {
+            select.value = preSelectedEndpoint;
 
-    // ==========================================
-    // DYNAMIC DROPDOWN POPULATION
-    // ==========================================
-
-    // Load endpoints configuration directly from server
-    let endpointsConfig = {};
-    let dropdownPopulated = false;
-
-    // Load endpoints when dialog opens
-    loadEndpointsFromServer();
-
-    function loadEndpointsFromServer() {
-      // Load endpoints and pre-selected endpoint in parallel
-      let endpointsLoaded = false;
-      let preSelectedLoaded = false;
-      let preSelectedEndpoint = '';
-
-      // Load endpoints
-      google.script.run
-        .withSuccessHandler(function(result) {
-          if (result.success && result.endpoints) {
-            endpointsConfig = result.endpoints;
-          } else {
-            useFallbackEndpoints();
+            // Trigger change event to update period dropdown and enable preview
+            const changeEvent = new Event("change", { bubbles: true });
+            select.dispatchEvent(changeEvent);
           }
-          endpointsLoaded = true;
-          checkAndPopulate();
-        })
-        .withFailureHandler(function(error) {
-          console.error('Failed to load endpoints:', error);
-          useFallbackEndpoints();
-          endpointsLoaded = true;
-          checkAndPopulate();
-        })
-        .dispatch('getEndpointsConfiguration');
-
-      // Load pre-selected endpoint
-      google.script.run
-        .withSuccessHandler(function(endpoint) {
-          preSelectedEndpoint = endpoint || '';
-          preSelectedLoaded = true;
-          checkAndPopulate();
-        })
-        .withFailureHandler(function(error) {
-          console.error('Failed to load pre-selected endpoint:', error);
-          preSelectedLoaded = true;
-          checkAndPopulate();
-        })
-        .dispatch('getPreSelectedEndpoint');
-
-      // Populate dropdown only after both calls complete
-      function checkAndPopulate() {
-        if (endpointsLoaded && preSelectedLoaded) {
-          populateDataSourceDropdown(preSelectedEndpoint);
         }
       }
-    }
 
-    function useFallbackEndpoints() {
-      endpointsConfig = [
-        { key: "customers", label: "Customers", supportsTimePeriod: false, allowedTimePeriods: [] },
-        { key: "products", label: "Products", supportsTimePeriod: false, allowedTimePeriods: [] },
-        { key: "orders", label: "Orders", supportsTimePeriod: true, allowedTimePeriods: ["7", "30", "90"] },
-        { key: "trips", label: "Trips", supportsTimePeriod: true, allowedTimePeriods: ["7", "30", "90"] },
-        { key: "supply-tracker", label: "Supply Tracker", supportsTimePeriod: true, allowedTimePeriods: ["7", "30", "90"] }
-      ];
-    }
+      function updatePeriodDropdownForEndpoint(endpoint) {
+        const periodSelect = document.getElementById("periodSelect");
+        const periodContainer = periodSelect.parentElement.parentElement;
 
-    function populateDataSourceDropdown(preSelectedEndpoint) {
-      // Prevent multiple population
-      if (dropdownPopulated) {
-        return;
-      }
+        if (!endpoint) {
+          periodContainer.style.display = "none";
+          return;
+        }
 
-      const select = document.getElementById('dataSourceSelect');
+        // Find config for the endpoint
+        let config = null;
+        if (Array.isArray(endpointsConfig)) {
+          config = endpointsConfig.find((ep) => ep.key === endpoint);
+        } else {
+          config = endpointsConfig[endpoint];
+        }
 
-      if (!select) {
-        console.error('Data source select element not found');
-        return;
-      }
+        if (!config) {
+          periodContainer.style.display = "none";
+          return;
+        }
 
-      // Clear existing options except the first one
-      while (select.children.length > 1) {
-        select.removeChild(select.lastChild);
-      }
+        if (config.supportsTimePeriod && config.allowedTimePeriods.length > 0) {
+          // Show period dropdown
+          periodContainer.style.display = "block";
 
-      // Add options in the order received from server
-      if (Array.isArray(endpointsConfig)) {
-        // New array format - preserves order from Config.gs
-        endpointsConfig.forEach(endpoint => {
-          const option = document.createElement('option');
-          option.value = endpoint.key;
-          option.textContent = endpoint.label;
-          select.appendChild(option);
-        });
-      } else {
-        // Fallback object format
-        Object.keys(endpointsConfig).forEach(endpointKey => {
-          const config = endpointsConfig[endpointKey];
-          const option = document.createElement('option');
-          option.value = endpointKey;
-          option.textContent = config.label;
-          select.appendChild(option);
-        });
-      }
+          // Clear and populate period options
+          periodSelect.innerHTML =
+            '<option value="">Select time period...</option>';
 
-      dropdownPopulated = true;
+          config.allowedTimePeriods.forEach((period) => {
+            const option = document.createElement("option");
+            option.value = period;
+            option.textContent = `${period} days`;
+            periodSelect.appendChild(option);
+          });
 
-      // Apply pre-selection if provided
-      if (preSelectedEndpoint && preSelectedEndpoint.trim() !== '') {
-        const optionExists = select.querySelector(`option[value="${preSelectedEndpoint}"]`);
-
-        if (optionExists) {
-          select.value = preSelectedEndpoint;
-
-          // Trigger change event to update period dropdown and enable preview
-          const changeEvent = new Event('change', { bubbles: true });
-          select.dispatchEvent(changeEvent);
+          // Set default to 90 days if available, otherwise first available period
+          if (config.allowedTimePeriods.length > 0) {
+            const preferred = config.allowedTimePeriods.includes("90")
+              ? "90"
+              : config.allowedTimePeriods[0];
+            periodSelect.value = preferred;
+          }
+        } else {
+          // Hide period dropdown for endpoints that don't support time periods
+          periodContainer.style.display = "none";
+          periodSelect.value = "";
         }
       }
-    }
 
-    function updatePeriodDropdownForEndpoint(endpoint) {
-      const periodSelect = document.getElementById('periodSelect');
-      const periodContainer = periodSelect.parentElement.parentElement;
+      // ==========================================
+      // MAIN APPLICATION LOGIC
+      // ==========================================
 
-      if (!endpoint) {
-        periodContainer.style.display = 'none';
-        return;
-      }
+      let selectedChoice = null;
+      let sheetNames = [];
+      let cachedPreviewData = null;
 
-      // Find config for the endpoint
-      let config = null;
-      if (Array.isArray(endpointsConfig)) {
-        config = endpointsConfig.find(ep => ep.key === endpoint);
-      } else {
-        config = endpointsConfig[endpoint];
-      }
+      // Define selectOption function first to avoid reference errors
+      function selectOption(choice) {
+        console.log("Selecting option:", choice);
 
-      if (!config) {
-        periodContainer.style.display = 'none';
-        return;
-      }
-
-      if (config.supportsTimePeriod && config.allowedTimePeriods.length > 0) {
-        // Show period dropdown
-        periodContainer.style.display = 'block';
-
-        // Clear and populate period options
-        periodSelect.innerHTML = '<option value="">Select time period...</option>';
-
-        config.allowedTimePeriods.forEach(period => {
-          const option = document.createElement('option');
-          option.value = period;
-          option.textContent = `${period} days`;
-          periodSelect.appendChild(option);
+        // Reset all selections
+        document.querySelectorAll(".option-card").forEach((card) => {
+          card.classList.remove("bg-zotoks-50", "border-zotoks-200");
+        });
+        document.querySelectorAll(".expandable-section").forEach((section) => {
+          section.classList.remove("expanded");
+          section.classList.add("collapsed");
         });
 
-        // Set default to 90 days if available, otherwise first available period
-        if (config.allowedTimePeriods.length > 0) {
-          const preferred = config.allowedTimePeriods.includes('90') ? '90' : config.allowedTimePeriods[0];
-          periodSelect.value = preferred;
-        }
-      } else {
-        // Hide period dropdown for endpoints that don't support time periods
-        periodContainer.style.display = 'none';
-        periodSelect.value = '';
-      }
-    }
+        // Select new option
+        const optionCard = document.getElementById(choice + "OptionContainer");
+        optionCard.classList.add("bg-zotoks-50", "border-zotoks-200");
+        document.getElementById(choice + "Option").checked = true;
 
-    // ==========================================
-    // MAIN APPLICATION LOGIC
-    // ==========================================
+        // Show corresponding section
+        const sectionElement = document.getElementById(choice + "SheetSection");
+        console.log("Section element:", sectionElement);
 
-    let selectedChoice = null;
-    let sheetNames = [];
-    let cachedPreviewData = null;
-
-    // Define selectOption function first to avoid reference errors
-    function selectOption(choice) {
-      console.log('Selecting option:', choice);
-
-      // Reset all selections
-      document.querySelectorAll('.option-card').forEach(card => {
-        card.classList.remove('bg-zotoks-50', 'border-zotoks-200');
-      });
-      document.querySelectorAll('.expandable-section').forEach(section => {
-        section.classList.remove('expanded');
-        section.classList.add('collapsed');
-      });
-
-      // Select new option
-      const optionCard = document.getElementById(choice + 'OptionContainer');
-      optionCard.classList.add('bg-zotoks-50', 'border-zotoks-200');
-      document.getElementById(choice + 'Option').checked = true;
-
-      // Show corresponding section
-      const sectionElement = document.getElementById(choice + 'SheetSection');
-      console.log('Section element:', sectionElement);
-
-      setTimeout(() => {
-        sectionElement.classList.remove('collapsed');
-        sectionElement.classList.add('expanded');
-        console.log('Section expanded');
-      }, 100);
-
-      selectedChoice = choice;
-
-      if (choice === 'new') {
         setTimeout(() => {
-          document.getElementById('sheetNameInput').focus();
-          validateSheetName();
-        }, 400);
-      } else {
-        updateProceedButton();
-      }
-    }
+          sectionElement.classList.remove("collapsed");
+          sectionElement.classList.add("expanded");
+          console.log("Section expanded");
+        }, 100);
 
-    // Define other functions called by onclick handlers
-    function applySuggestion(name) {
-      document.getElementById('sheetNameInput').value = name;
-      validateSheetName();
-    }
+        selectedChoice = choice;
 
-    function createAndImport() {
-      const name = document.getElementById('sheetNameInput').value.trim();
-      const dataSource = document.getElementById('dataSourceSelect').value;
-      const period = document.getElementById('periodSelect').value;
-
-      if (!name || !dataSource) {
-        showToast("Please enter a sheet name and select a data source.", 'error');
-        return;
+        if (choice === "new") {
+          setTimeout(() => {
+            document.getElementById("sheetNameInput").focus();
+            validateSheetName();
+          }, 400);
+        } else {
+          updateProceedButton();
+        }
       }
 
-      showImportLoading(true, 'Creating sheet and importing data...', 'This may take a few moments');
-
-      // Check if endpoint supports time period
-      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
-      if (endpointConfig && !endpointConfig.supportsTimePeriod) {
-        google.script.run
-          .withSuccessHandler(handleImportResult)
-          .withFailureHandler(handleError)
-          .dispatch('importToNewSheet', { sheetName: name, endpoint: dataSource });
-      } else {
-        google.script.run
-          .withSuccessHandler(handleImportResult)
-          .withFailureHandler(handleError)
-          .dispatch('importToNewSheet', { sheetName: name, endpoint: dataSource, period: parseInt(period) });
-      }
-    }
-
-    function proceedToMapping() {
-      const selectedSheet = document.getElementById('existingSheetSelect').value;
-      const dataSource = document.getElementById('dataSourceSelect').value;
-      const period = document.getElementById('periodSelect').value;
-
-      if (!selectedSheet || !dataSource) {
-        showToast('Please select a sheet and data source.', 'error');
-        return;
+      // Define other functions called by onclick handlers
+      function applySuggestion(name) {
+        document.getElementById("sheetNameInput").value = name;
+        validateSheetName();
       }
 
-      showImportLoading(true, 'Preparing import...', 'Checking mappings and importing data');
+      function createAndImport() {
+        const name = document.getElementById("sheetNameInput").value.trim();
+        const dataSource = document.getElementById("dataSourceSelect").value;
+        const period = document.getElementById("periodSelect").value;
 
-      // Check if endpoint supports time period
-      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
-      if (endpointConfig && !endpointConfig.supportsTimePeriod) {
-        google.script.run
-          .withSuccessHandler(handleImportResult)
-          .withFailureHandler(handleError)
-          .dispatch('prepareImportToExistingSheet', { targetSheetName: selectedSheet, endpoint: dataSource });
-      } else {
-        google.script.run
-          .withSuccessHandler(handleImportResult)
-          .withFailureHandler(handleError)
-          .dispatch('prepareImportToExistingSheet', { targetSheetName: selectedSheet, endpoint: dataSource, period: parseInt(period) });
+        if (!name || !dataSource) {
+          showToast(
+            "Please enter a sheet name and select a data source.",
+            "error",
+          );
+          return;
+        }
+
+        showImportLoading(
+          true,
+          "Creating sheet and importing data...",
+          "This may take a few moments",
+        );
+
+        // Check if endpoint supports time period
+        const endpointConfig = endpointsConfig.find(
+          (e) => e.key === dataSource,
+        );
+        if (endpointConfig && !endpointConfig.supportsTimePeriod) {
+          google.script.run
+            .withSuccessHandler(handleImportResult)
+            .withFailureHandler(handleError)
+            .dispatch("importToNewSheet", {
+              sheetName: name,
+              endpoint: dataSource,
+            });
+        } else {
+          google.script.run
+            .withSuccessHandler(handleImportResult)
+            .withFailureHandler(handleError)
+            .dispatch("importToNewSheet", {
+              sheetName: name,
+              endpoint: dataSource,
+              period: parseInt(period),
+            });
+        }
       }
-    }
 
-    function loadDataPreview() {
-      const button = document.getElementById('previewBtn');
-      const dataSource = document.getElementById('dataSourceSelect').value;
-      const period = document.getElementById('periodSelect').value;
+      function proceedToMapping() {
+        const selectedSheet = document.getElementById(
+          "existingSheetSelect",
+        ).value;
+        const dataSource = document.getElementById("dataSourceSelect").value;
+        const period = document.getElementById("periodSelect").value;
 
-      if (!dataSource) {
-        showToast('Please select a data source first', 'error');
-        return;
+        if (!selectedSheet || !dataSource) {
+          showToast("Please select a sheet and data source.", "error");
+          return;
+        }
+
+        showImportLoading(
+          true,
+          "Preparing import...",
+          "Checking mappings and importing data",
+        );
+
+        // Check if endpoint supports time period
+        const endpointConfig = endpointsConfig.find(
+          (e) => e.key === dataSource,
+        );
+        if (endpointConfig && !endpointConfig.supportsTimePeriod) {
+          google.script.run
+            .withSuccessHandler(handleImportResult)
+            .withFailureHandler(handleError)
+            .dispatch("prepareImportToExistingSheet", {
+              targetSheetName: selectedSheet,
+              endpoint: dataSource,
+            });
+        } else {
+          google.script.run
+            .withSuccessHandler(handleImportResult)
+            .withFailureHandler(handleError)
+            .dispatch("prepareImportToExistingSheet", {
+              targetSheetName: selectedSheet,
+              endpoint: dataSource,
+              period: parseInt(period),
+            });
+        }
       }
 
-      // Check if endpoint supports time period
-      const endpointConfig = endpointsConfig.find(e => e.key === dataSource);
-      const supportsTimePeriod = endpointConfig ? endpointConfig.supportsTimePeriod : true;
+      function loadDataPreview() {
+        const button = document.getElementById("previewBtn");
+        const dataSource = document.getElementById("dataSourceSelect").value;
+        const period = document.getElementById("periodSelect").value;
 
-      // Immediate UI feedback
-      button.disabled = true;
-      const originalContent = button.innerHTML;
-      button.innerHTML = `
+        if (!dataSource) {
+          showToast("Please select a data source first", "error");
+          return;
+        }
+
+        // Check if endpoint supports time period
+        const endpointConfig = endpointsConfig.find(
+          (e) => e.key === dataSource,
+        );
+        const supportsTimePeriod = endpointConfig
+          ? endpointConfig.supportsTimePeriod
+          : true;
+
+        // Immediate UI feedback
+        button.disabled = true;
+        const originalContent = button.innerHTML;
+        button.innerHTML = `
         <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle>
           <path fill="currentColor" class="opacity-75" d="m4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -1042,329 +1430,361 @@
         Loading...
       `;
 
-      // Helper function to restore button
-      window.restorePreviewButton = () => {
-        button.disabled = false;
-        button.innerHTML = originalContent;
+        // Helper function to restore button
+        window.restorePreviewButton = () => {
+          button.disabled = false;
+          button.innerHTML = originalContent;
+        };
+
+        // Limit preview to max 30 days for better performance and API compatibility
+        const previewPeriod = Math.min(parseInt(period), 30);
+        const isLimited = parseInt(period) > 30;
+
+        // Create appropriate loading message based on endpoint configuration
+        let loadingMessage;
+        if (supportsTimePeriod) {
+          loadingMessage = `Fetching preview for ${endpointConfig.label} (${previewPeriod} days)${isLimited ? " - limited for preview" : ""}...`;
+        } else {
+          loadingMessage = `Fetching preview for ${endpointConfig.label}...`;
+        }
+
+        showLoading(true, loadingMessage);
+
+        // Show info if we're limiting the preview period
+        if (isLimited) {
+          showToast(
+            `Preview limited to ${previewPeriod} days for performance. Full import will use ${period} days.`,
+            "info",
+          );
+        }
+
+        // Use optimized preview function (fetches only 3 rows for paginated endpoints)
+        google.script.run
+          .withSuccessHandler(handlePreviewResult)
+          .withFailureHandler(handlePreviewError)
+          .dispatch("fetchPreview", {
+            endpoint: dataSource,
+            period: previewPeriod,
+          });
+      }
+
+      function showCredentialsDialog() {
+        console.log("🔄 Opening credentials dialog...");
+
+        // Immediate transition without loading states or delays
+        google.script.run
+          .withSuccessHandler(() => {
+            // Close this dialog immediately when credentials dialog opens
+            google.script.host.close();
+          })
+          .withFailureHandler(handleError)
+          .showZotoksCredentialsDialog();
+      }
+
+      // ==========================================
+      // REMOVED: Data import sync functionality
+      // Note: Price list sync functions are preserved in separate files
+      // ==========================================
+
+      function closeDialog() {
+        google.script.host.close();
+      }
+
+      // Settings dropdown functions
+      function toggleSettingsDropdown() {
+        const dropdown = document.getElementById("settingsDropdown");
+        const arrow = document.getElementById("settingsArrow");
+
+        if (dropdown.classList.contains("hidden")) {
+          dropdown.classList.remove("hidden");
+          arrow.style.transform = "rotate(180deg)";
+        } else {
+          dropdown.classList.add("hidden");
+          arrow.style.transform = "rotate(0deg)";
+        }
+      }
+
+      function handleSettingsAction(action) {
+        // Close dropdown
+        document.getElementById("settingsDropdown").classList.add("hidden");
+        document.getElementById("settingsArrow").style.transform =
+          "rotate(0deg)";
+
+        switch (action) {
+          case "credentials":
+            showCredentialsDialog();
+            break;
+
+          case "mappings":
+            showMappingManagerDialog();
+            break;
+
+          case "clearMappings":
+            showConfirmModal(
+              "Clear All Mappings",
+              "Are you sure you want to clear all stored column mappings? This action cannot be undone.",
+              () => {
+                google.script.run
+                  .withSuccessHandler((result) => {
+                    if (result && result.success) {
+                      showToast("All mappings cleared successfully", "success");
+                      // Sync functionality removed - no status refresh needed
+                    } else {
+                      showToast("Failed to clear mappings", "error");
+                    }
+                  })
+                  .withFailureHandler(handleError)
+                  .dispatch("clearAllMappings");
+              },
+              "Clear All",
+              "red",
+            );
+            break;
+
+          case "clearCredentials":
+            showConfirmModal(
+              "Clear Credentials",
+              "Are you sure you want to clear your Zotoks credentials? You will need to reconfigure them to use the import feature.",
+              () => {
+                google.script.run
+                  .withSuccessHandler((result) => {
+                    if (result && result.success) {
+                      showToast("Credentials cleared successfully", "success");
+                      setTimeout(() => {
+                        closeDialog();
+                      }, 1500);
+                    } else {
+                      showToast("Failed to clear credentials", "error");
+                    }
+                  })
+                  .withFailureHandler(handleError)
+                  .dispatch("clearCredentials");
+              },
+              "Clear Credentials",
+              "red",
+            );
+            break;
+
+          default:
+            showToast("Unknown action: " + action, "error");
+        }
+      }
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", function (event) {
+        const dropdown = document.getElementById("settingsDropdown");
+        const button = document.getElementById("settingsBtn");
+
+        if (
+          dropdown &&
+          button &&
+          !button.contains(event.target) &&
+          !dropdown.contains(event.target)
+        ) {
+          dropdown.classList.add("hidden");
+          document.getElementById("settingsArrow").style.transform =
+            "rotate(0deg)";
+        }
+      });
+
+      // ==========================================
+      // MAPPING MANAGER DIALOG
+      // ==========================================
+
+      function showMappingManagerDialog() {
+        google.script.run
+          .withSuccessHandler(function () {
+            // Dialog opened successfully
+            console.log("Mapping Manager dialog opened");
+          })
+          .withFailureHandler(function (error) {
+            showToast(
+              "Failed to open Mapping Manager: " + error.message,
+              "error",
+            );
+          })
+          .dispatch("showMappingManagerDialog");
+      }
+
+      // ==========================================
+      // OPTIMIZED INITIALIZATION - TASK 2
+      // ==========================================
+
+      // Load sheet names and initialize - OPTIMIZED
+      window.onload = function () {
+        console.log("🚀 Import dialog initializing...");
+
+        // Start critical operations immediately
+        loadSheetData();
+        initializeEventListeners();
+
+        // Endpoints are loaded automatically on dialog open via loadEndpointsFromServer()
+
+        // Defer sync compatibility check to prevent blocking
+        // Sync functionality removed - no compatibility check needed
+
+        console.log("✅ Import dialog initialized");
       };
 
-      // Limit preview to max 30 days for better performance and API compatibility
-      const previewPeriod = Math.min(parseInt(period), 30);
-      const isLimited = parseInt(period) > 30;
+      function initializeEventListeners() {
+        // Initialize all dropdowns with consistent arrow behavior
+        initializeAllDropdowns();
 
-      // Create appropriate loading message based on endpoint configuration
-      let loadingMessage;
-      if (supportsTimePeriod) {
-        loadingMessage = `Fetching preview for ${endpointConfig.label} (${previewPeriod} days)${isLimited ? ' - limited for preview' : ''}...`;
-      } else {
-        loadingMessage = `Fetching preview for ${endpointConfig.label}...`;
-      }
+        // Data source change
+        document
+          .getElementById("dataSourceSelect")
+          .addEventListener("change", function () {
+            const previewBtn = document.getElementById("previewBtn");
+            previewBtn.disabled = !this.value;
 
-      showLoading(true, loadingMessage);
+            // Update period dropdown based on selected endpoint
+            updatePeriodDropdownForEndpoint(this.value);
 
-      // Show info if we're limiting the preview period
-      if (isLimited) {
-        showToast(`Preview limited to ${previewPeriod} days for performance. Full import will use ${period} days.`, 'info');
-      }
+            if (this.value) {
+              updateSuggestions();
+            }
 
-      // Use optimized preview function (fetches only 3 rows for paginated endpoints)
-      google.script.run
-        .withSuccessHandler(handlePreviewResult)
-        .withFailureHandler(handlePreviewError)
-        .dispatch('fetchPreview', { endpoint: dataSource, period: previewPeriod });
-    }
+            // Hide preview when data source changes
+            const preview = document.getElementById("dataPreview");
+            preview.classList.add("hidden");
+            cachedPreviewData = null;
 
-    function showCredentialsDialog() {
-      console.log('🔄 Opening credentials dialog...');
+            // Update buttons based on current selection
+            updateProceedButton();
+            validateSheetName();
+          });
 
-      // Immediate transition without loading states or delays
-      google.script.run
-        .withSuccessHandler(() => {
-          // Close this dialog immediately when credentials dialog opens
-          google.script.host.close();
-        })
-        .withFailureHandler(handleError)
-        .showZotoksCredentialsDialog();
-    }
-
-
-
-    // ==========================================
-    // REMOVED: Data import sync functionality
-    // Note: Price list sync functions are preserved in separate files
-    // ==========================================
-
-    function closeDialog() {
-      google.script.host.close();
-    }
-
-    // Settings dropdown functions
-    function toggleSettingsDropdown() {
-      const dropdown = document.getElementById('settingsDropdown');
-      const arrow = document.getElementById('settingsArrow');
-
-      if (dropdown.classList.contains('hidden')) {
-        dropdown.classList.remove('hidden');
-        arrow.style.transform = 'rotate(180deg)';
-      } else {
-        dropdown.classList.add('hidden');
-        arrow.style.transform = 'rotate(0deg)';
-      }
-    }
-
-    function handleSettingsAction(action) {
-      // Close dropdown
-      document.getElementById('settingsDropdown').classList.add('hidden');
-      document.getElementById('settingsArrow').style.transform = 'rotate(0deg)';
-
-      switch (action) {
-        case 'credentials':
-          showCredentialsDialog();
-          break;
-
-        case 'mappings':
-          showMappingManagerDialog();
-          break;
-
-        case 'clearMappings':
-          showConfirmModal(
-            'Clear All Mappings',
-            'Are you sure you want to clear all stored column mappings? This action cannot be undone.',
-            () => {
-              google.script.run
-                .withSuccessHandler((result) => {
-                  if (result && result.success) {
-                    showToast('All mappings cleared successfully', 'success');
-                    // Sync functionality removed - no status refresh needed
-                  } else {
-                    showToast('Failed to clear mappings', 'error');
-                  }
-                })
-                .withFailureHandler(handleError)
-                .dispatch('clearAllMappings');
-            },
-            'Clear All',
-            'red'
-          );
-          break;
-
-        case 'clearCredentials':
-          showConfirmModal(
-            'Clear Credentials',
-            'Are you sure you want to clear your Zotoks credentials? You will need to reconfigure them to use the import feature.',
-            () => {
-              google.script.run
-                .withSuccessHandler((result) => {
-                  if (result && result.success) {
-                    showToast('Credentials cleared successfully', 'success');
-                    setTimeout(() => {
-                      closeDialog();
-                    }, 1500);
-                  } else {
-                    showToast('Failed to clear credentials', 'error');
-                  }
-                })
-                .withFailureHandler(handleError)
-                .clearZotoksCredentials();
-            },
-            'Clear Credentials',
-            'red'
-          );
-          break;
-
-        default:
-          showToast('Unknown action: ' + action, 'error');
-      }
-    }
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function (event) {
-      const dropdown = document.getElementById('settingsDropdown');
-      const button = document.getElementById('settingsBtn');
-
-      if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
-        dropdown.classList.add('hidden');
-        document.getElementById('settingsArrow').style.transform = 'rotate(0deg)';
-      }
-    });
-
-    // ==========================================
-    // MAPPING MANAGER DIALOG
-    // ==========================================
-
-    function showMappingManagerDialog() {
-      google.script.run
-        .withSuccessHandler(function() {
-          // Dialog opened successfully
-          console.log('Mapping Manager dialog opened');
-        })
-        .withFailureHandler(function(error) {
-          showToast('Failed to open Mapping Manager: ' + error.message, 'error');
-        })
-        .dispatch('showMappingManagerDialog');
-    }
-
-    // ==========================================
-    // OPTIMIZED INITIALIZATION - TASK 2
-    // ==========================================
-
-    // Load sheet names and initialize - OPTIMIZED
-    window.onload = function () {
-      console.log('🚀 Import dialog initializing...');
-
-      // Start critical operations immediately
-      loadSheetData();
-      initializeEventListeners();
-
-      // Endpoints are loaded automatically on dialog open via loadEndpointsFromServer()
-
-      // Defer sync compatibility check to prevent blocking
-      // Sync functionality removed - no compatibility check needed
-
-      console.log('✅ Import dialog initialized');
-    };
-
-    function initializeEventListeners() {
-      // Initialize all dropdowns with consistent arrow behavior
-      initializeAllDropdowns();
-
-      // Data source change
-      document.getElementById('dataSourceSelect').addEventListener('change', function () {
-        const previewBtn = document.getElementById('previewBtn');
-        previewBtn.disabled = !this.value;
-
-        // Update period dropdown based on selected endpoint
-        updatePeriodDropdownForEndpoint(this.value);
-
-        if (this.value) {
-          updateSuggestions();
-        }
-
-        // Hide preview when data source changes
-        const preview = document.getElementById('dataPreview');
-        preview.classList.add('hidden');
-        cachedPreviewData = null;
-
-        // Update buttons based on current selection
-        updateProceedButton();
-        validateSheetName();
-      });
-
-      // Sheet name input validation
-      const sheetNameInput = document.getElementById('sheetNameInput');
-      sheetNameInput.addEventListener('input', validateSheetName);
-      sheetNameInput.addEventListener('keypress', function (e) {
-        if (e.key === 'Enter' && !document.getElementById('createImportBtn').disabled) {
-          createAndImport();
-        }
-      });
-
-      // Existing sheet selection
-      document.getElementById('existingSheetSelect').addEventListener('change', function () {
-        updateProceedButton();
-        checkStoredMappings();
-      });
-    }
-
-    function loadSheetData() {
-      google.script.run
-        .withSuccessHandler(handleSheetDataLoaded)
-        .withFailureHandler(handleSheetDataError)
-        .dispatch('getSheetDataForDialog');
-    }
-
-    function handleSheetDataLoaded(result) {
-      if (result && result.success) {
-        sheetNames = result.sheetNames;
-        const select = document.getElementById('existingSheetSelect');
-        select.innerHTML = '<option value="">-- Select a sheet --</option>';
-
-        result.sheetNames.forEach(name => {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name;
-          select.appendChild(option);
+        // Sheet name input validation
+        const sheetNameInput = document.getElementById("sheetNameInput");
+        sheetNameInput.addEventListener("input", validateSheetName);
+        sheetNameInput.addEventListener("keypress", function (e) {
+          if (
+            e.key === "Enter" &&
+            !document.getElementById("createImportBtn").disabled
+          ) {
+            createAndImport();
+          }
         });
 
-        // Set active sheet as selected
-        setActiveSheet({ success: true, sheetName: result.activeSheetName });
-        console.log('✅ Sheet data loaded:', result.sheetNames.length, 'sheets');
-      } else {
-        console.error('❌ Failed to load sheet data:', result ? result.message : 'No result');
-        showToast('Failed to load sheet names', 'error');
+        // Existing sheet selection
+        document
+          .getElementById("existingSheetSelect")
+          .addEventListener("change", function () {
+            updateProceedButton();
+            checkStoredMappings();
+          });
       }
-    }
 
-    function handleSheetDataError(error) {
-      console.error('❌ Error loading sheet data:', error);
-      showToast('Error loading sheet names: ' + error.message, 'error');
-    }
+      function loadSheetData() {
+        google.script.run
+          .withSuccessHandler(handleSheetDataLoaded)
+          .withFailureHandler(handleSheetDataError)
+          .dispatch("getSheetDataForDialog");
+      }
 
-    function setActiveSheet(result) {
-      if (result.success && result.sheetName) {
-        const select = document.getElementById('existingSheetSelect');
-        const activeSheetName = result.sheetName;
+      function handleSheetDataLoaded(result) {
+        if (result && result.success) {
+          sheetNames = result.sheetNames;
+          const select = document.getElementById("existingSheetSelect");
+          select.innerHTML = '<option value="">-- Select a sheet --</option>';
 
-        // Check if the active sheet exists in our options
-        const optionExists = Array.from(select.options).some(option => option.value === activeSheetName);
+          result.sheetNames.forEach((name) => {
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
 
-        if (optionExists) {
-          select.value = activeSheetName;
-          console.log(`Auto-selected active sheet: ${activeSheetName}`);
-
-          // Trigger the change event to update proceed button and check mappings
-          updateProceedButton();
-          checkStoredMappings();
-
-          // Show auto-selection notification
-          showToast(`Current sheet "${activeSheetName}" auto-selected`, 'info');
+          // Set active sheet as selected
+          setActiveSheet({ success: true, sheetName: result.activeSheetName });
+          console.log(
+            "✅ Sheet data loaded:",
+            result.sheetNames.length,
+            "sheets",
+          );
+        } else {
+          console.error(
+            "❌ Failed to load sheet data:",
+            result ? result.message : "No result",
+          );
+          showToast("Failed to load sheet names", "error");
         }
       }
-    }
 
-
-
-
-
-    function handlePreviewResult(result) {
-      showLoading(false);
-      window.restorePreviewButton();
-
-      if (result.success) {
-        cachedPreviewData = result;
-        showDataPreview(result);
-        // Only show notification for preview if there are actual results to show
-        if (result.recordCount > 0) {
-          showToast(`Preview loaded: ${result.recordCount} records`, 'success');
-        }
-      } else {
-        showToast('Preview failed: ' + result.message, 'error');
-        // Removed duplicate error message handling that was causing multiple toasts
+      function handleSheetDataError(error) {
+        console.error("❌ Error loading sheet data:", error);
+        showToast("Error loading sheet names: " + error.message, "error");
       }
-    }
 
-    function handlePreviewError(error) {
-      showLoading(false);
-      window.restorePreviewButton();
-      showToast('Preview error: ' + error.message, 'error');
-    }
+      function setActiveSheet(result) {
+        if (result.success && result.sheetName) {
+          const select = document.getElementById("existingSheetSelect");
+          const activeSheetName = result.sheetName;
 
-    function showDataPreview(result) {
-      const preview = document.getElementById('dataPreview');
-      const content = document.getElementById('previewContent');
+          // Check if the active sheet exists in our options
+          const optionExists = Array.from(select.options).some(
+            (option) => option.value === activeSheetName,
+          );
 
-      if (result.recordCount === 0) {
-        content.innerHTML = `
+          if (optionExists) {
+            select.value = activeSheetName;
+            console.log(`Auto-selected active sheet: ${activeSheetName}`);
+
+            // Trigger the change event to update proceed button and check mappings
+            updateProceedButton();
+            checkStoredMappings();
+
+            // Show auto-selection notification
+            showToast(
+              `Current sheet "${activeSheetName}" auto-selected`,
+              "info",
+            );
+          }
+        }
+      }
+
+      function handlePreviewResult(result) {
+        showLoading(false);
+        window.restorePreviewButton();
+
+        if (result.success) {
+          cachedPreviewData = result;
+          showDataPreview(result);
+          // Only show notification for preview if there are actual results to show
+          if (result.recordCount > 0) {
+            showToast(
+              `Preview loaded: ${result.recordCount} records`,
+              "success",
+            );
+          }
+        } else {
+          showToast("Preview failed: " + result.message, "error");
+          // Removed duplicate error message handling that was causing multiple toasts
+        }
+      }
+
+      function handlePreviewError(error) {
+        showLoading(false);
+        window.restorePreviewButton();
+        showToast("Preview error: " + error.message, "error");
+      }
+
+      function showDataPreview(result) {
+        const preview = document.getElementById("dataPreview");
+        const content = document.getElementById("previewContent");
+
+        if (result.recordCount === 0) {
+          content.innerHTML = `
             <div class="text-center py-4 text-slate-500">
               <p>No ${result.endpoint} data found for the selected period.</p>
               <p class="text-xs mt-1">Try selecting a longer time period.</p>
             </div>
           `;
-      } else {
-        const sample = result.data.slice(0, 3);
-        const columns = Object.keys(sample[0] || {});
+        } else {
+          const sample = result.data.slice(0, 3);
+          const columns = Object.keys(sample[0] || {});
 
-        content.innerHTML = `
+          content.innerHTML = `
             <div class="mb-3 text-sm">
               <span class="font-medium text-green-600">${result.recordCount} records found</span>
               <span class="text-slate-500 mx-2">•</span>
@@ -1372,233 +1792,274 @@
               <span class="text-slate-500 mx-2">•</span>
               <span class="text-slate-600">${result.endpoint} data</span>
             </div>
-            ${columns.length > 6 ? '<p class="text-xs text-slate-500 mb-2">💡 Scroll horizontally to see all columns</p>' : ''}
+            ${columns.length > 6 ? '<p class="text-xs text-slate-500 mb-2">💡 Scroll horizontally to see all columns</p>' : ""}
             <div class="preview-table-wrapper">
               <table style="width: ${Math.max(500, columns.length * 120)}px; font-size: 12px; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin: 0 auto;">
                 <thead style="background-color: #f8fafc; position: sticky; top: 0; z-index: 10;">
                   <tr>
-                    ${columns.map(col => `
+                    ${columns
+                      .map(
+                        (col) => `
                       <th style="padding: 4px 8px; text-align: left; font-weight: 600; color: #374151; border-right: 1px solid #e5e7eb; white-space: nowrap; width: 120px; min-width: 120px; max-width: 120px;">
                         <div style="overflow: hidden; text-overflow: ellipsis;" title="${col}">${col}</div>
                       </th>
-                    `).join('')}
+                    `,
+                      )
+                      .join("")}
                   </tr>
                 </thead>
                 <tbody>
-                  ${sample.map((row, rowIndex) => `
-                    <tr style="background-color: ${rowIndex % 2 === 0 ? '#ffffff' : '#f9fafb'}; border-top: 1px solid #f3f4f6;">
-                      ${columns.map(col => `
-                        <td style="padding: 4px 8px; color: #4b5563; border-right: 1px solid #f3f4f6; white-space: nowrap; width: 120px; min-width: 120px; max-width: 120px;" title="${row[col] || ''}">
+                  ${sample
+                    .map(
+                      (row, rowIndex) => `
+                    <tr style="background-color: ${rowIndex % 2 === 0 ? "#ffffff" : "#f9fafb"}; border-top: 1px solid #f3f4f6;">
+                      ${columns
+                        .map(
+                          (col) => `
+                        <td style="padding: 4px 8px; color: #4b5563; border-right: 1px solid #f3f4f6; white-space: nowrap; width: 120px; min-width: 120px; max-width: 120px;" title="${row[col] || ""}">
                           <div style="overflow: hidden; text-overflow: ellipsis;">
                             ${row[col] || '<span style="color: #9ca3af; font-style: italic;">—</span>'}
                           </div>
                         </td>
-                      `).join('')}
+                      `,
+                        )
+                        .join("")}
                     </tr>
-                  `).join('')}
+                  `,
+                    )
+                    .join("")}
                 </tbody>
               </table>
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; color: #6b7280;">
               <span>Showing 3 of ${result.recordCount} records</span>
-              ${columns.length > 6 ? '<span style="color: #0ea5e9;">← → Scroll to see all data</span>' : ''}
+              ${columns.length > 6 ? '<span style="color: #0ea5e9;">← → Scroll to see all data</span>' : ""}
             </div>
           `;
-      }
-
-      preview.classList.remove('hidden');
-    }
-
-    function getCurrentDate() {
-      const now = new Date();
-      return now.getFullYear() + '-' +
-        String(now.getMonth() + 1).padStart(2, '0') + '-' +
-        String(now.getDate()).padStart(2, '0');
-    }
-
-    function getCurrentTime() {
-      const now = new Date();
-      return String(now.getHours()).padStart(2, '0') + '' +
-        String(now.getMinutes()).padStart(2, '0');
-    }
-
-    function getDataSourceName() {
-      const select = document.getElementById('dataSourceSelect');
-      const value = select.value;
-      if (!value) return 'Data';
-
-      return value.split('-').map(word =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join('_');
-    }
-
-    function updateSuggestions() {
-      // Update suggestion buttons based on selected data source
-      const buttons = document.querySelectorAll('.suggestion-btn');
-      buttons.forEach(btn => {
-        if (btn.textContent.includes('[DataSource]')) {
-          btn.onclick = () => applySuggestion(getDataSourceName() + '_Data');
         }
-      });
-    }
 
-    function validateSheetName() {
-      const name = document.getElementById('sheetNameInput').value.trim();
-      const dataSource = document.getElementById('dataSourceSelect').value;
-      const submitBtn = document.getElementById('createImportBtn');
-      const validationMessage = document.getElementById('validationMessage');
-
-      // Reset validation display
-      validationMessage.classList.add('hidden');
-
-      if (!dataSource) {
-        submitBtn.disabled = true;
-        showValidation('Please select a data source first', 'error');
-        return;
+        preview.classList.remove("hidden");
       }
 
-      if (!name) {
-        submitBtn.disabled = true;
-        return;
+      function getCurrentDate() {
+        const now = new Date();
+        return (
+          now.getFullYear() +
+          "-" +
+          String(now.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(now.getDate()).padStart(2, "0")
+        );
       }
 
-      // Check for invalid characters
-      const invalidChars = /[\/\\\?*\[\]]/;
-      if (invalidChars.test(name)) {
-        showValidation('Sheet names cannot contain: / \\ ? * [ ]', 'error');
-        submitBtn.disabled = true;
-        return;
+      function getCurrentTime() {
+        const now = new Date();
+        return (
+          String(now.getHours()).padStart(2, "0") +
+          "" +
+          String(now.getMinutes()).padStart(2, "0")
+        );
       }
 
-      // Check length
-      if (name.length > 100) {
-        showValidation('Sheet name is too long (max 100 characters)', 'error');
-        submitBtn.disabled = true;
-        return;
+      function getDataSourceName() {
+        const select = document.getElementById("dataSourceSelect");
+        const value = select.value;
+        if (!value) return "Data";
+
+        return value
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join("_");
       }
 
-      // Check if name already exists
-      if (sheetNames.includes(name)) {
-        showValidation('Sheet name already exists', 'error');
-        submitBtn.disabled = true;
-        return;
-      }
-
-      // Valid name
-      showValidation('✓ Sheet name is valid', 'success');
-      submitBtn.disabled = false;
-    }
-
-    function updateProceedButton() {
-      const select = document.getElementById('existingSheetSelect');
-      const dataSource = document.getElementById('dataSourceSelect').value;
-      const proceedBtn = document.getElementById('proceedBtn');
-      proceedBtn.disabled = !select.value || !dataSource;
-
-      // Mapping validation removed - direct import/column mapping decision happens in backend
-    }
-
-
-
-    function handleImportResult(result) {
-      showImportLoading(false);
-
-      if (result.success) {
-        if (result.needsMapping) {
-          // Check if mappings were automatically cleared due to being outdated
-          if (result.mappingsCleared) {
-            showToast(`Outdated mappings detected and cleared automatically. Reason: ${result.reason}`, 'info');
-            setTimeout(() => {
-              showToast('Opening column mapping dialog for fresh mapping...', 'info');
-            }, 1500);
-
-            // Keep dialog open - column mapping will handle the flow
-          } else {
-            // Standard mapping dialog opening (no mappings existed)
-            // Keep dialog open - column mapping will handle the flow
+      function updateSuggestions() {
+        // Update suggestion buttons based on selected data source
+        const buttons = document.querySelectorAll(".suggestion-btn");
+        buttons.forEach((btn) => {
+          if (btn.textContent.includes("[DataSource]")) {
+            btn.onclick = () => applySuggestion(getDataSourceName() + "_Data");
           }
-        } else if (result.usedStoredMappings) {
-          // Successfully imported using existing valid mappings
-          showToast(`Import completed successfully using saved mappings! ${result.rowCount} rows imported.`, 'success');
-          // Keep dialog open for user to review or do another import
-        } else if (result.exactMatch) {
-          // Successfully imported with exact column match
-          showToast(`Import completed successfully with exact column match! ${result.rowCount} rows imported.`, 'success');
-          // Keep dialog open for user to review or do another import
-        } else {
-          // General success message
-          showToast('Import completed successfully!', 'success');
-          // Keep dialog open for user to review or do another import
+        });
+      }
+
+      function validateSheetName() {
+        const name = document.getElementById("sheetNameInput").value.trim();
+        const dataSource = document.getElementById("dataSourceSelect").value;
+        const submitBtn = document.getElementById("createImportBtn");
+        const validationMessage = document.getElementById("validationMessage");
+
+        // Reset validation display
+        validationMessage.classList.add("hidden");
+
+        if (!dataSource) {
+          submitBtn.disabled = true;
+          showValidation("Please select a data source first", "error");
+          return;
         }
-      } else {
-        // Handle errors
-        showToast('Error: ' + result.message, 'error');
-      }
-    }
 
-    function showValidation(message, type) {
-      const validationMessage = document.getElementById('validationMessage');
-      validationMessage.textContent = message;
-      validationMessage.className = `validation-message mt-2 p-3 rounded-md text-sm font-medium ${type === 'error'
-          ? 'bg-red-50 text-red-700 border border-red-200'
-          : 'bg-green-50 text-green-700 border border-green-200'
+        if (!name) {
+          submitBtn.disabled = true;
+          return;
+        }
+
+        // Check for invalid characters
+        const invalidChars = /[\/\\\?*\[\]]/;
+        if (invalidChars.test(name)) {
+          showValidation("Sheet names cannot contain: / \\ ? * [ ]", "error");
+          submitBtn.disabled = true;
+          return;
+        }
+
+        // Check length
+        if (name.length > 100) {
+          showValidation(
+            "Sheet name is too long (max 100 characters)",
+            "error",
+          );
+          submitBtn.disabled = true;
+          return;
+        }
+
+        // Check if name already exists
+        if (sheetNames.includes(name)) {
+          showValidation("Sheet name already exists", "error");
+          submitBtn.disabled = true;
+          return;
+        }
+
+        // Valid name
+        showValidation("✓ Sheet name is valid", "success");
+        submitBtn.disabled = false;
+      }
+
+      function updateProceedButton() {
+        const select = document.getElementById("existingSheetSelect");
+        const dataSource = document.getElementById("dataSourceSelect").value;
+        const proceedBtn = document.getElementById("proceedBtn");
+        proceedBtn.disabled = !select.value || !dataSource;
+
+        // Mapping validation removed - direct import/column mapping decision happens in backend
+      }
+
+      function handleImportResult(result) {
+        showImportLoading(false);
+
+        if (result.success) {
+          if (result.needsMapping) {
+            // Check if mappings were automatically cleared due to being outdated
+            if (result.mappingsCleared) {
+              showToast(
+                `Outdated mappings detected and cleared automatically. Reason: ${result.reason}`,
+                "info",
+              );
+              setTimeout(() => {
+                showToast(
+                  "Opening column mapping dialog for fresh mapping...",
+                  "info",
+                );
+              }, 1500);
+
+              // Keep dialog open - column mapping will handle the flow
+            } else {
+              // Standard mapping dialog opening (no mappings existed)
+              // Keep dialog open - column mapping will handle the flow
+            }
+          } else if (result.usedStoredMappings) {
+            // Successfully imported using existing valid mappings
+            showToast(
+              `Import completed successfully using saved mappings! ${result.rowCount} rows imported.`,
+              "success",
+            );
+            // Keep dialog open for user to review or do another import
+          } else if (result.exactMatch) {
+            // Successfully imported with exact column match
+            showToast(
+              `Import completed successfully with exact column match! ${result.rowCount} rows imported.`,
+              "success",
+            );
+            // Keep dialog open for user to review or do another import
+          } else {
+            // General success message
+            showToast("Import completed successfully!", "success");
+            // Keep dialog open for user to review or do another import
+          }
+        } else {
+          // Handle errors
+          showToast("Error: " + result.message, "error");
+        }
+      }
+
+      function showValidation(message, type) {
+        const validationMessage = document.getElementById("validationMessage");
+        validationMessage.textContent = message;
+        validationMessage.className = `validation-message mt-2 p-3 rounded-md text-sm font-medium ${
+          type === "error"
+            ? "bg-red-50 text-red-700 border border-red-200"
+            : "bg-green-50 text-green-700 border border-green-200"
         }`;
-      validationMessage.classList.remove('hidden');
-    }
-
-    // New function for import operations (uses overlay)
-    function showImportLoading(show, text = 'Processing...', subtext = 'Please wait') {
-      const overlay = document.getElementById('importLoadingOverlay');
-      const loadingText = document.getElementById('importLoadingText');
-      const loadingSubtext = document.getElementById('importLoadingSubtext');
-
-      if (show) {
-        loadingText.textContent = text;
-        loadingSubtext.textContent = subtext;
-        overlay.classList.remove('hidden');
-      } else {
-        overlay.classList.add('hidden');
+        validationMessage.classList.remove("hidden");
       }
-    }
 
-    // Updated function for preview and other minor operations (uses toast)
-    function showLoading(show, text = 'Processing...') {
-      if (show) {
-        // Use toast for non-import operations
-        showToast(text, 'info');
+      // New function for import operations (uses overlay)
+      function showImportLoading(
+        show,
+        text = "Processing...",
+        subtext = "Please wait",
+      ) {
+        const overlay = document.getElementById("importLoadingOverlay");
+        const loadingText = document.getElementById("importLoadingText");
+        const loadingSubtext = document.getElementById("importLoadingSubtext");
+
+        if (show) {
+          loadingText.textContent = text;
+          loadingSubtext.textContent = subtext;
+          overlay.classList.remove("hidden");
+        } else {
+          overlay.classList.add("hidden");
+        }
       }
-      // For previews, we'll just use toast notifications instead of blocking UI
-    }
 
-    function showToast(message, type) {
-      const toast = document.createElement('div');
-      toast.className = `fixed top-4 right-4 px-6 py-3 rounded-md font-medium z-50 transition-all shadow-lg max-w-sm transform translate-x-full opacity-0 ${type === 'success' ? 'bg-green-600 text-white' :
-          type === 'info' ? 'bg-blue-600 text-white' :
-            type === 'error' ? 'bg-red-600 text-white' : 'bg-slate-600 text-white'
+      // Updated function for preview and other minor operations (uses toast)
+      function showLoading(show, text = "Processing...") {
+        if (show) {
+          // Use toast for non-import operations
+          showToast(text, "info");
+        }
+        // For previews, we'll just use toast notifications instead of blocking UI
+      }
+
+      function showToast(message, type) {
+        const toast = document.createElement("div");
+        toast.className = `fixed top-4 right-4 px-6 py-3 rounded-md font-medium z-50 transition-all shadow-lg max-w-sm transform translate-x-full opacity-0 ${
+          type === "success"
+            ? "bg-green-600 text-white"
+            : type === "info"
+              ? "bg-blue-600 text-white"
+              : type === "error"
+                ? "bg-red-600 text-white"
+                : "bg-slate-600 text-white"
         }`;
-      toast.textContent = message;
-      document.body.appendChild(toast);
+        toast.textContent = message;
+        document.body.appendChild(toast);
 
-      // Animate in
-      setTimeout(() => {
-        toast.style.transform = 'translateX(0)';
-        toast.style.opacity = '1';
-      }, 100);
+        // Animate in
+        setTimeout(() => {
+          toast.style.transform = "translateX(0)";
+          toast.style.opacity = "1";
+        }, 100);
 
-      // Animate out
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
+        // Animate out
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          toast.style.transform = "translateX(100%)";
+          setTimeout(() => toast.remove(), 300);
+        }, 4000);
+      }
 
-    function handleError(error) {
-      console.error('Error:', error);
-      showToast('Error: ' + error.message, 'error');
-    }
-
-  </script>
-</body>
-
+      function handleError(error) {
+        console.error("Error:", error);
+        showToast("Error: " + error.message, "error");
+      }
+    </script>
+  </body>
 </html>
