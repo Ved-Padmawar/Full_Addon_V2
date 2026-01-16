@@ -16,7 +16,7 @@ const ImportDialog = {
     // Handle null/undefined
     if (value === null || value === undefined) return "";
 
-    // Handle primitives
+    // Handle primitives (including BigInt)
     if (typeof value !== "object") return String(value);
 
     // Handle arrays
@@ -32,13 +32,23 @@ const ImportDialog = {
         // Simple array → comma-separated (e.g., routes, segments, tags)
         return value.filter((v) => v !== null && v !== undefined).join(", ");
       } else {
-        // Complex array → JSON (e.g., cfaDivisions)
-        return JSON.stringify(value);
+        // Complex array → JSON (with error handling)
+        try {
+          return JSON.stringify(value);
+        } catch (e) {
+          Logger.log(`flattenForCell: Array stringify error - ${e.message}`);
+          return "[Complex Array - Stringify Error]";
+        }
       }
     }
 
-    // Handle objects → JSON
-    return JSON.stringify(value);
+    // Handle objects → JSON (with error handling for circular refs, etc.)
+    try {
+      return JSON.stringify(value);
+    } catch (e) {
+      Logger.log(`flattenForCell: Object stringify error - ${e.message}`);
+      return "[Object - Stringify Error]";
+    }
   },
 
   /**
