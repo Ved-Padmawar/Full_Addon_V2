@@ -21,35 +21,40 @@ function onOpen(e) {
     const ui = SpreadsheetApp.getUi();
     const mode = (e && e.authMode) || ScriptApp.AuthMode.NONE;
 
-    const priceListSubmenu = ui.createMenu('💰 Price List')
-      .addItem('📥 Import', 'showZotoksPriceListDialog')
-      .addItem('⬆️ Upload', 'syncCurrentPriceListSheet');
+    const priceListSubmenu = ui
+      .createMenu("💰 Price List")
+      .addItem("📥 Import", "showZotoksPriceListDialog")
+      .addItem("⬆️ Upload", "syncCurrentPriceListSheet");
 
-    const customerSubmenu = ui.createMenu('👥 Customers')
-      .addItem('📥 Import', 'showCustomerImportDialog')
-      .addItem('⬆️ Upload', 'exportCustomers');
+    const customerSubmenu = ui
+      .createMenu("👥 Customers")
+      .addItem("📥 Import", "showCustomerImportDialog")
+      .addItem("⬆️ Upload", "exportCustomers");
 
-    const productSubmenu = ui.createMenu('📦 Products')
-      .addItem('📥 Import', 'showProductImportDialog')
-      .addItem('⬆️ Upload', 'exportProducts');
+    const productSubmenu = ui
+      .createMenu("📦 Products")
+      .addItem("📥 Import", "showProductImportDialog")
+      .addItem("⬆️ Upload", "exportProducts");
 
-    const orderSubmenu = ui.createMenu('📝 Orders')
-      .addItem('📥 Import', 'showOrderImportDialog');
+    const orderSubmenu = ui
+      .createMenu("📝 Orders")
+      .addItem("📥 Import", "showOrderImportDialog");
 
-    const menu = ui.createAddonMenu()
+    const menu = ui
+      .createAddonMenu()
       .addSubMenu(priceListSubmenu)
       .addSubMenu(customerSubmenu)
       .addSubMenu(productSubmenu)
       .addSubMenu(orderSubmenu)
       .addSeparator()
-      .addItem('📥 All Entities', 'showZotoksImportDialog')
+      .addItem("📥 All Entities", "showZotoksImportDialog")
       .addSeparator()
-      .addItem('🔐 Manage Credentials', 'showZotoksCredentialsDialog');
+      .addItem("🔐 Manage Credentials", "showZotoksCredentialsDialog");
 
     menu.addToUi();
-    Logger.log('Zotok menu created (auth mode: ' + mode + ')');
+    Logger.log("Zotok menu created (auth mode: " + mode + ")");
   } catch (err) {
-    Logger.log('Error in onOpen: ' + err);
+    Logger.log("Error in onOpen: " + err);
   }
 }
 
@@ -63,7 +68,7 @@ function onInstall(e) {
  */
 function onFileScopeGranted() {
   try {
-    Logger.log('File scope granted for Zotoks Data Import add-on');
+    Logger.log("File scope granted for Zotoks Data Import add-on");
 
     // Show the import dialog after permissions are granted
     return showZotoksImportDialog();
@@ -71,7 +76,7 @@ function onFileScopeGranted() {
     Logger.log(`Error in onFileScopeGranted: ${error.message}`);
     return {
       success: false,
-      message: 'Error initializing add-on: ' + error.message
+      message: "Error initializing add-on: " + error.message,
     };
   }
 }
@@ -83,32 +88,38 @@ function createZotoksMenuSafely() {
   try {
     const ui = SpreadsheetApp.getUi();
 
-    const priceListSubmenu = ui.createMenu('💰 Price List')
-      .addItem('📥 Import', 'showZotoksPriceListDialog')
-      .addItem('⬆️ Upload', 'syncCurrentPriceListSheet');
+    const priceListSubmenu = ui
+      .createMenu("💰 Price List")
+      .addItem("📥 Import", "showZotoksPriceListDialog")
+      .addItem("⬆️ Upload", "syncCurrentPriceListSheet");
 
-    const customerSubmenu = ui.createMenu('👥 Customers')
-      .addItem('📥 Import', 'showCustomerImportDialog')
-      .addItem('⬆️ Upload', 'exportCustomers');
+    const customerSubmenu = ui
+      .createMenu("👥 Customers")
+      .addItem("📥 Import", "showCustomerImportDialog")
+      .addItem("⬆️ Upload", "exportCustomers");
 
-    const productSubmenu = ui.createMenu('📦 Products')
-      .addItem('📥 Import', 'showProductImportDialog')
-      .addItem('⬆️ Upload', 'exportProducts');
+    const productSubmenu = ui
+      .createMenu("📦 Products")
+      .addItem("📥 Import", "showProductImportDialog")
+      .addItem("⬆️ Upload", "exportProducts");
 
-    const orderSubmenu = ui.createMenu('📝 Orders')
-      .addItem('📥 Import', 'showOrderImportDialog');
+    const orderSubmenu = ui
+      .createMenu("📝 Orders")
+      .addItem("📥 Import", "showOrderImportDialog");
 
-    ui.createMenu('Zötok')
+    ui.createMenu("Zötok")
       .addSubMenu(priceListSubmenu)
       .addSubMenu(customerSubmenu)
       .addSubMenu(productSubmenu)
       .addSubMenu(orderSubmenu)
       .addSeparator()
-      .addItem('📥 All Entities', 'showZotoksImportDialog')
+      .addItem("📥 All Entities", "showZotoksImportDialog")
       .addSeparator()
-      .addItem('Manage Credentials', 'showZotoksCredentialsDialog')
+      .addItem("Manage Credentials", "showZotoksCredentialsDialog")
       .addToUi();
-    Logger.log('Zotoks menu created successfully with Price List, Customer, and Order submenus');
+    Logger.log(
+      "Zotoks menu created successfully with Price List, Customer, and Order submenus",
+    );
   } catch (error) {
     Logger.log(`Error creating menu: ${error.message}`);
     // Don't throw error - menu creation is not critical
@@ -147,15 +158,14 @@ function showZotoksImportDialog() {
 
     // Show main import dialog
     UIManager.showImportDialog();
-
   } catch (error) {
     Logger.log(`Error showing import dialog: ${error.message}`);
     // Provide user feedback for actual errors
     try {
       SpreadsheetApp.getUi().alert(
-        'Zotoks Import Error',
-        'Error initializing Zotoks import: ' + error.message,
-        SpreadsheetApp.getUi().ButtonSet.OK
+        "Zotoks Import Error",
+        "Error initializing Zotoks import: " + error.message,
+        SpreadsheetApp.getUi().ButtonSet.OK,
       );
     } catch (uiError) {
       // Fallback if UI isn't available
@@ -168,21 +178,21 @@ function showZotoksImportDialog() {
  * Show customer import dialog with customers API pre-selected
  */
 function showCustomerImportDialog() {
-  UIManager.showImportDialog('customers');
+  UIManager.showImportDialog("customers");
 }
 
 /**
  * Show product import dialog with products API pre-selected
  */
 function showProductImportDialog() {
-  UIManager.showImportDialog('products');
+  UIManager.showImportDialog("products");
 }
 
 /**
  * Show order import dialog with orders API pre-selected
  */
 function showOrderImportDialog() {
-  UIManager.showImportDialog('orders');
+  UIManager.showImportDialog("orders");
 }
 
 /**
@@ -210,14 +220,13 @@ function showZotoksPriceListDialog() {
 
     // Show price list dialog
     UIManager.showPriceListDialog();
-
   } catch (error) {
     Logger.log(`Error showing price list dialog: ${error.message}`);
     try {
       SpreadsheetApp.getUi().alert(
-        'Zotoks Price List Error',
-        'Error initializing Price List management: ' + error.message,
-        SpreadsheetApp.getUi().ButtonSet.OK
+        "Zotoks Price List Error",
+        "Error initializing Price List management: " + error.message,
+        SpreadsheetApp.getUi().ButtonSet.OK,
       );
     } catch (uiError) {
       Logger.log(`UI error: ${uiError.message}`);
@@ -250,81 +259,17 @@ function showZotoksCredentialsDialog() {
 }
 
 /**
- * Export customers from current sheet with credential validation
+ * Export customers from current sheet - routes through dispatcher
  */
 function exportCustomers() {
-  try {
-    // Check if credentials are configured
-    if (!AuthManager.hasCredentials()) {
-      UIManager.showCredentialsDialog();
-      return;
-    }
-
-    // Validate token
-    const connectionTest = AuthManager.authenticateRequest();
-    if (!connectionTest.success) {
-      if (connectionTest.needsCredentials) {
-        UIManager.showCredentialsDialog();
-        return;
-      } else {
-        SpreadsheetApp.getUi().alert(
-          'Connection Error',
-          connectionTest.message,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-    }
-
-    // Proceed with export
-    ImportDialog.exportCustomers();
-  } catch (error) {
-    Logger.log(`Error in exportCustomers: ${error.message}`);
-    SpreadsheetApp.getUi().alert(
-      'Error',
-      'Error exporting customers: ' + error.message,
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-  }
+  return dispatch("exportEntity", { endpoint: "customers" });
 }
 
 /**
- * Export products from current sheet with credential validation
+ * Export products from current sheet - routes through dispatcher
  */
 function exportProducts() {
-  try {
-    // Check if credentials are configured
-    if (!AuthManager.hasCredentials()) {
-      UIManager.showCredentialsDialog();
-      return;
-    }
-
-    // Validate token
-    const connectionTest = AuthManager.authenticateRequest();
-    if (!connectionTest.success) {
-      if (connectionTest.needsCredentials) {
-        UIManager.showCredentialsDialog();
-        return;
-      } else {
-        SpreadsheetApp.getUi().alert(
-          'Connection Error',
-          connectionTest.message,
-          SpreadsheetApp.getUi().ButtonSet.OK
-        );
-        return;
-      }
-    }
-
-    // Proceed with export
-    ImportDialog.exportProducts();
-  } catch (error) {
-    Logger.log(`Error in exportProducts: ${error.message}`);
-    SpreadsheetApp.getUi().alert(
-      'Error',
-      'Error exporting products: ' + error.message,
-      SpreadsheetApp.getUi().ButtonSet.OK
-    );
-  }
+  return dispatch("exportEntity", { endpoint: "products" });
 }
 
 /**
@@ -346,9 +291,9 @@ function syncCurrentPriceListSheet() {
         return;
       } else {
         SpreadsheetApp.getUi().alert(
-          'Connection Error',
+          "Connection Error",
           connectionTest.message,
-          SpreadsheetApp.getUi().ButtonSet.OK
+          SpreadsheetApp.getUi().ButtonSet.OK,
         );
         return;
       }
@@ -359,9 +304,9 @@ function syncCurrentPriceListSheet() {
   } catch (error) {
     Logger.log(`Error in syncCurrentPriceListSheet: ${error.message}`);
     SpreadsheetApp.getUi().alert(
-      'Error',
-      'Error syncing price list: ' + error.message,
-      SpreadsheetApp.getUi().ButtonSet.OK
+      "Error",
+      "Error syncing price list: " + error.message,
+      SpreadsheetApp.getUi().ButtonSet.OK,
     );
   }
 }
@@ -380,7 +325,10 @@ function syncCurrentPriceListSheet() {
  */
 function dispatch(action, payload) {
   try {
-    Logger.log(`Dispatcher: ${action} called with payload:`, JSON.stringify(payload));
+    Logger.log(
+      `Dispatcher: ${action} called with payload:`,
+      JSON.stringify(payload),
+    );
 
     // Normalize payload - handle cases where it might be wrapped
     const params = payload || {};
@@ -389,181 +337,216 @@ function dispatch(action, payload) {
       // ==========================================
       // SHEET MANAGEMENT ACTIONS
       // ==========================================
-      case 'getSheetNames':
+      case "getSheetNames":
         return SheetManager.getSheetNames();
 
-      case 'getActiveSheetName':
+      case "getActiveSheetName":
         return SheetManager.getActiveSheetName();
 
-      case 'getSheetDataForDialog':
+      case "getSheetDataForDialog":
         return SheetManager.getSheetDataForDialog();
 
-      case 'getPriceListSheets':
+      case "getPriceListSheets":
         return SheetManager.getPriceListSheets();
 
-      case 'importToNewSheet':
+      case "importToNewSheet":
         return SheetManager.importToNewSheet(
           params.sheetName,
           params.endpoint,
-          params.period || 30
+          params.period || 30,
         );
 
-      case 'prepareImportToExistingSheet':
+      case "prepareImportToExistingSheet":
         return SheetManager.prepareImportToExistingSheet(
           params.targetSheetName,
           params.endpoint,
-          params.period || 30
+          params.period || 30,
         );
 
-      case 'importWithMappings':
+      case "importWithMappings":
         return SheetManager.importWithMappings(
           params.targetSheetName,
           params.endpoint,
           params.period,
-          params.mappings
+          params.mappings,
         );
 
-      case 'createPriceListSheets':
-        return SheetManager.createPriceListSheets(params.priceListsData || params);
+      case "createPriceListSheets":
+        return SheetManager.createPriceListSheets(
+          params.priceListsData || params,
+        );
 
       // ==========================================
       // CREDENTIAL MANAGEMENT ACTIONS
       // ==========================================
-      case 'storeCredentials':
+      case "storeCredentials":
         return AuthManager.storeCredentials(
           params.workspaceId,
           params.clientId,
-          params.clientSecret
+          params.clientSecret,
         );
 
-      case 'getCredentials':
+      case "getCredentials":
         return AuthManager.getCredentials();
 
-      case 'clearCredentials':
+      case "clearCredentials":
         return AuthManager.clearCredentials();
 
       // ==========================================
       // DATA FETCHING ACTIONS
       // ==========================================
-      case 'fetchData':
-        return ImportDialog.fetchData(
-          params.endpoint,
-          params.period || 30
-        );
+      case "fetchData":
+        return ImportDialog.fetchData(params.endpoint, params.period || 30);
 
-      case 'fetchPreview':
-        return ImportDialog.fetchPreview(
-          params.endpoint,
-          params.period || 30
-        );
+      case "fetchPreview":
+        return ImportDialog.fetchPreview(params.endpoint, params.period || 30);
 
-      case 'testConnection':
+      case "testConnection":
         return ImportDialog.testConnection();
 
       // ==========================================
       // PRICE LIST ACTIONS
       // ==========================================
-      case 'fetchPriceLists':
+      case "fetchPriceLists":
         return PricelistDialog.getPriceLists();
 
-      case 'fetchPriceListItems':
+      case "fetchPriceListItems":
         return PricelistDialog.getPriceListItems(params.priceListId || params);
 
       // ==========================================
       // COLUMN MAPPING ACTIONS
       // ==========================================
-      case 'getColumnMappings':
+      case "getColumnMappings":
         // Convert sheet name to ID if needed
         if (params.sheetName) {
-          const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(params.sheetName);
+          const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(
+            params.sheetName,
+          );
           if (!sheet) {
-            return { success: false, message: `Sheet "${params.sheetName}" not found` };
+            return {
+              success: false,
+              message: `Sheet "${params.sheetName}" not found`,
+            };
           }
           return MappingManager.getMappings(sheet.getSheetId());
         }
         return MappingManager.getMappings(params);
 
-      case 'clearAllMappings':
+      case "clearAllMappings":
         return MappingManager.clearAllMappings();
 
-      case 'checkImportMappingCompatibility':
+      case "checkImportMappingCompatibility":
         return checkImportMappingCompatibility(
           params.sheetName,
-          params.endpoint
+          params.endpoint,
         );
 
       // ==========================================
-      // EXPORT ACTIONS
+      // EXPORT ACTIONS (with auth validation)
       // ==========================================
-      case 'exportCustomersWithMappings':
-        return ImportDialog.exportCustomers(params.mappings || params);
+      case "exportEntity":
+      case "exportCustomersWithMappings":
+      case "exportProductsWithMappings": {
+        // Unified auth check for all export actions
+        if (!AuthManager.hasCredentials()) {
+          UIManager.showCredentialsDialog();
+          return {
+            success: false,
+            message: "Credentials required",
+            needsCredentials: true,
+          };
+        }
 
-      case 'exportProductsWithMappings':
-        return ImportDialog.exportProducts(params.mappings || params);
+        const authResult = AuthManager.authenticateRequest();
+        if (!authResult.success) {
+          if (authResult.needsCredentials) {
+            UIManager.showCredentialsDialog();
+          } else {
+            SpreadsheetApp.getUi().alert(
+              "Connection Error",
+              authResult.message,
+              SpreadsheetApp.getUi().ButtonSet.OK,
+            );
+          }
+          return { success: false, message: authResult.message };
+        }
+
+        // Route to exportEntity with correct endpoint
+        let endpoint = params.endpoint;
+        if (action === "exportCustomersWithMappings") endpoint = "customers";
+        if (action === "exportProductsWithMappings") endpoint = "products";
+
+        return ImportDialog.exportEntity(endpoint, params.mappings || null);
+      }
 
       // ==========================================
       // DIALOG MANAGEMENT ACTIONS
       // ==========================================
-      case 'showColumnMappingDialog':
+      case "showColumnMappingDialog":
         return UIManager.showColumnMappingDialog(
           params.targetSheetName,
           params.endpoint,
           params.period,
           params.sourceColumns,
           params.targetColumns,
-          params.sampleData
+          params.sampleData,
         );
 
-      case 'showMappingManagerDialog':
+      case "showMappingManagerDialog":
         return UIManager.showMappingManagerDialog();
 
       // ==========================================
       // CONFIGURATION & UTILITY ACTIONS
       // ==========================================
-      case 'getEndpointsConfiguration':
+      case "getEndpointsConfiguration":
         return Utils.getEndpointsConfiguration();
 
-      case 'getPreSelectedEndpoint':
-        const preSelected = PropertiesService.getUserProperties().getProperty('TEMP_PRESELECT_ENDPOINT');
+      case "getPreSelectedEndpoint":
+        const preSelected = PropertiesService.getUserProperties().getProperty(
+          "TEMP_PRESELECT_ENDPOINT",
+        );
         if (preSelected) {
-          PropertiesService.getUserProperties().deleteProperty('TEMP_PRESELECT_ENDPOINT');
+          PropertiesService.getUserProperties().deleteProperty(
+            "TEMP_PRESELECT_ENDPOINT",
+          );
         }
-        return preSelected || '';
+        return preSelected || "";
 
-      case 'getMappingManagerData':
+      case "getMappingManagerData":
         return Utils.getMappingManagerData();
 
-      case 'deleteMapping':
+      case "deleteMapping":
         return Utils.deleteMapping(params.sheetId);
 
-      case 'scanAndDeleteOrphanedMappings':
+      case "scanAndDeleteOrphanedMappings":
         return Utils.scanAndDeleteOrphanedMappings();
 
       // ==========================================
       // DEBUG & MAINTENANCE ACTIONS
       // ==========================================
-      case 'manuallyRefreshToken':
+      case "manuallyRefreshToken":
         return Debug.manuallyRefreshToken();
 
-      case 'clearTokenCache':
+      case "clearTokenCache":
         return Debug.clearTokenCache();
 
-      case 'runPerformanceDiagnostics':
+      case "runPerformanceDiagnostics":
         return Debug.runPerformanceDiagnostics();
 
       // ==========================================
       // UNKNOWN ACTION
       // ==========================================
       default:
-        throw new Error(`Unknown action: "${action}". Please check the action name and try again.`);
+        throw new Error(
+          `Unknown action: "${action}". Please check the action name and try again.`,
+        );
     }
-
   } catch (error) {
     Logger.log(`Dispatcher error for action "${action}": ${error.message}`);
     return {
       success: false,
       message: error.message,
-      action: action
+      action: action,
     };
   }
 }
@@ -579,11 +562,12 @@ function dispatch(action, payload) {
 function checkImportMappingCompatibility(sheetName, endpoint) {
   try {
     // Convert sheet name to ID
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    const sheet =
+      SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
     if (!sheet) {
       return {
         success: false,
-        message: `Sheet "${sheetName}" not found`
+        message: `Sheet "${sheetName}" not found`,
       };
     }
     const sheetId = sheet.getSheetId();
@@ -591,7 +575,11 @@ function checkImportMappingCompatibility(sheetName, endpoint) {
     // Get stored mappings (only when called)
     const mappingResult = MappingManager.getMappings(sheetId);
 
-    if (!mappingResult.success || !mappingResult.mappings || mappingResult.mappings.length === 0) {
+    if (
+      !mappingResult.success ||
+      !mappingResult.mappings ||
+      mappingResult.mappings.length === 0
+    ) {
       return {
         success: true,
         hasMappings: false,
@@ -612,7 +600,10 @@ function checkImportMappingCompatibility(sheetName, endpoint) {
     }
 
     // Check if mappings are outdated
-    const outdatedCheck = MappingManager.checkIfMappingsOutdated(sheetId, mappingResult);
+    const outdatedCheck = MappingManager.checkIfMappingsOutdated(
+      sheetId,
+      mappingResult,
+    );
 
     return {
       success: true,
