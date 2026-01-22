@@ -1022,7 +1022,19 @@ const SheetManager = {
    */
   storePriceListMetadata(sheetName, priceListInfo, itemsData) {
     try {
-      const metadataKey = Config.getPriceListMetadataKey(sheetName);
+      // Get sheet object to retrieve sheet ID
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(sheetName);
+
+      if (!sheet) {
+        return {
+          success: false,
+          message: `Sheet "${sheetName}" not found`
+        };
+      }
+
+      const sheetId = sheet.getSheetId();
+      const metadataKey = Config.getPriceListMetadataKeyById(sheetId);
 
       // Check if metadata already exists to preserve creation date
       const documentProperties = PropertiesService.getDocumentProperties();
@@ -1043,7 +1055,8 @@ const SheetManager = {
 
       // Extract metadata from the original price list info and items data
       const metadata = {
-        sheetName: sheetName,
+        sheetId: sheetId, // Store sheet ID for ID-based lookup
+        sheetName: sheetName, // Store for reference only
         priceListId: priceListInfo.priceListId || priceListInfo.id,
         priceListName: priceListInfo.name,
         priceListCode: priceListInfo.code,
@@ -1053,7 +1066,7 @@ const SheetManager = {
         endDate: priceListInfo.endDate,
         createdAt: createdAt, // Original creation time
         lastUpdated: new Date().toISOString(), // When it was last updated
-        version: "1.1", // Increment version to indicate update support
+        version: "2.0", // ID-based storage with migration
       };
 
       // Store updated metadata
@@ -1078,13 +1091,36 @@ const SheetManager = {
 
   /**
    * Get price list metadata for a sheet
+   * Uses sheet ID with automatic migration from old name-based format
    */
   getPriceListMetadata(sheetName) {
     try {
-      const metadataKey = Config.getPriceListMetadataKey(sheetName);
+      // Get sheet object to retrieve sheet ID
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = spreadsheet.getSheetByName(sheetName);
 
+      if (!sheet) {
+        return {
+          success: false,
+          message: `Sheet "${sheetName}" not found`,
+        };
+      }
+
+      const sheetId = sheet.getSheetId();
       const documentProperties = PropertiesService.getDocumentProperties();
-      const storedData = documentProperties.getProperty(metadataKey);
+      const newMetadataKey = Config.getPriceListMetadataKeyById(sheetId);
+
+      // Try to get new format (ID-based)
+      let storedData = documentProperties.getProperty(newMetadataKey);
+
+      // If not found, try migration from old format (name-based)
+      if (!storedData) {
+        const migrationResult = this._migratePriceListMetadata(sheet, documentProperties);
+        if (migrationResult.success) {
+          Logger.log(`✅ Migrated price list metadata for sheet "${sheetName}" to ID-based format`);
+          storedData = documentProperties.getProperty(newMetadataKey);
+        }
+      }
 
       if (!storedData) {
         return {
@@ -1110,22 +1146,79 @@ const SheetManager = {
 
   /**
    * Get all sheets that are price list sheets
+   * Returns ALL price list metadata (including orphaned and old name-based) with isOrphaned flag
    */
   getPriceListSheets() {
     try {
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const currentSheets = spreadsheet.getSheets();
+
+      // Create map of existing sheet IDs and names
+      const existingSheetIds = new Set(currentSheets.map(sheet => sheet.getSheetId()));
+      const sheetNameToId = {};
+      currentSheets.forEach(sheet => {
+        sheetNameToId[sheet.getName()] = sheet.getSheetId();
+      });
+
       const documentProperties = PropertiesService.getDocumentProperties();
       const allProperties = documentProperties.getProperties();
 
       const priceListSheets = [];
+      const processedSheetIds = new Set(); // Track which sheets we've already added
 
-      // Filter properties for price list metadata
-      const metadataPrefix = Config.getPriceListMetadataKey("");
+      // STEP 1: Process ID-based price list metadata (new format)
+      const idBasedPrefix = 'zotoks_pricelist_meta_id_';
       Object.keys(allProperties).forEach((key) => {
-        if (key.startsWith(metadataPrefix)) {
-          const sheetName = key.replace(metadataPrefix, "");
+        if (key.startsWith(idBasedPrefix)) {
+          const sheetId = parseInt(key.replace(idBasedPrefix, ''));
           try {
             const metadata = JSON.parse(allProperties[key]);
+
+            const isOrphaned = !existingSheetIds.has(sheetId);
+            const sheet = isOrphaned ? null : spreadsheet.getSheetById(sheetId);
+
             priceListSheets.push({
+              sheetId: sheetId,
+              sheetName: sheet ? sheet.getName() : (metadata.sheetName || 'Unknown'),
+              priceListName: metadata.priceListName,
+              priceListId: metadata.priceListId,
+              priceListCode: metadata.priceListCode,
+              startDate: metadata.startDate,
+              endDate: metadata.endDate,
+              createdAt: metadata.createdAt,
+              lastUpdated: metadata.lastUpdated,
+              version: metadata.version || '2.0',
+              isOrphaned: isOrphaned
+            });
+
+            processedSheetIds.add(sheetId);
+          } catch (parseError) {
+            Logger.log(
+              `Error parsing ID-based metadata for sheet ID ${sheetId}: ${parseError.message}`,
+            );
+          }
+        }
+      });
+
+      // STEP 2: Process old name-based price list metadata (legacy format)
+      const nameBasedPrefix = Config.getPriceListMetadataKey('');
+      Object.keys(allProperties).forEach((key) => {
+        if (key.startsWith(nameBasedPrefix) && !key.includes('_id_')) {
+          const sheetName = key.replace(nameBasedPrefix, '');
+          try {
+            const metadata = JSON.parse(allProperties[key]);
+
+            // Check if sheet exists by name
+            const sheetId = sheetNameToId[sheetName];
+            const isOrphaned = !sheetId;
+
+            // Skip if we already processed this sheet via ID-based key
+            if (sheetId && processedSheetIds.has(sheetId)) {
+              return;
+            }
+
+            priceListSheets.push({
+              sheetId: sheetId || 0, // Use 0 for orphaned old format
               sheetName: sheetName,
               priceListName: metadata.priceListName,
               priceListId: metadata.priceListId,
@@ -1134,14 +1227,23 @@ const SheetManager = {
               endDate: metadata.endDate,
               createdAt: metadata.createdAt,
               lastUpdated: metadata.lastUpdated,
+              version: metadata.version || '1.0',
+              isOrphaned: isOrphaned,
+              isLegacyFormat: true // Flag to indicate old format
             });
+
+            if (sheetId) {
+              processedSheetIds.add(sheetId);
+            }
           } catch (parseError) {
             Logger.log(
-              `Error parsing metadata for ${sheetName}: ${parseError.message}`,
+              `Error parsing name-based metadata for sheet "${sheetName}": ${parseError.message}`,
             );
           }
         }
       });
+
+      Logger.log(`Retrieved ${priceListSheets.length} price list sheets (${priceListSheets.filter(s => s.isLegacyFormat).length} legacy format)`);
 
       return {
         success: true,
@@ -1622,4 +1724,54 @@ const SheetManager = {
       fallbackRange.setValues(batch);
     }
   },
+
+  // ==========================================
+  // PRICE LIST METADATA MIGRATION
+  // ==========================================
+
+  /**
+   * Migrate old name-based price list metadata to new ID-based format
+   * @private
+   */
+  _migratePriceListMetadata(sheet, documentProperties) {
+    try {
+      const sheetName = sheet.getName();
+      const oldKey = Config.getPriceListMetadataKey(sheetName);
+      const oldData = documentProperties.getProperty(oldKey);
+
+      if (!oldData) {
+        return { success: false, message: 'No old metadata found' };
+      }
+
+      // Parse old data
+      const oldMetadata = JSON.parse(oldData);
+
+      // Create new ID-based key
+      const sheetId = sheet.getSheetId();
+      const newKey = Config.getPriceListMetadataKeyById(sheetId);
+
+      // Migrate data to new format
+      const newMetadata = {
+        ...oldMetadata,
+        sheetId: sheetId,
+        sheetName: sheetName,
+        version: '2.0',
+        migratedAt: new Date().toISOString()
+      };
+
+      // Save to new key
+      documentProperties.setProperty(newKey, JSON.stringify(newMetadata));
+
+      // Delete old key
+      documentProperties.deleteProperty(oldKey);
+
+      Logger.log(`🔄 Migrated price list metadata from "${oldKey}" to "${newKey}"`);
+
+      return { success: true, message: 'Migration successful' };
+
+    } catch (error) {
+      Logger.log(`❌ Price list migration failed: ${error.message}`);
+      return { success: false, message: error.message };
+    }
+  }
 };

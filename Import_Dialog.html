@@ -1903,9 +1903,9 @@
         }
 
         // Check for invalid characters
-        const invalidChars = /[\/\\\?*\[\]]/;
+        const invalidChars = /[\/\\\?\*\[\]<>:]/;
         if (invalidChars.test(name)) {
-          showValidation("Sheet names cannot contain: / \\ ? * [ ]", "error");
+          showValidation("Sheet names cannot contain: / \\ ? * [ ] < > :", "error");
           submitBtn.disabled = true;
           return;
         }

@@ -516,7 +516,7 @@ function dispatch(action, payload) {
         return Utils.getMappingManagerData();
 
       case "deleteMapping":
-        return Utils.deleteMapping(params.sheetId);
+        return Utils.deleteMapping(params.sheetId, params.type, params.sheetName);
 
       case "scanAndDeleteOrphanedMappings":
         return Utils.scanAndDeleteOrphanedMappings();

@@ -210,36 +210,24 @@ const Config = {
 
   /**
    * Sanitize price list sheet name
+   * Delegates to Utils.sanitizeSheetName for production-grade sanitization
    */
   sanitizePriceListSheetName(name) {
-    if (!name) return 'Unnamed Price List';
-    
-    // Remove HTML/script tags and invalid characters for sheet names
-    const invalidChars = /[\/\\\?\*\[\]<>]/g;
-    let sanitized = String(name).replace(invalidChars, '_');
-    
-    // Remove any remaining HTML tags
-    sanitized = sanitized.replace(/<[^>]*>/g, '');
-    
-    // Limit length
-    const maxLength = ZOTOKS_CONFIG.PRICE_LIST.MAX_SHEET_NAME_LENGTH;
-    if (sanitized.length > maxLength) {
-      sanitized = sanitized.substring(0, maxLength - 3) + '...';
-    }
-    
-    // Ensure it's not empty after sanitization
-    if (sanitized.trim().length === 0) {
-      sanitized = 'Price List ' + Date.now();
-    }
-    
-    return sanitized.trim();
+    return Utils.sanitizeSheetName(name, 'Price List');
   },
 
   /**
-   * Get price list metadata key
+   * Get price list metadata key (name-based - legacy)
    */
   getPriceListMetadataKey(sheetName) {
     return ZOTOKS_CONFIG.PRICE_LIST.METADATA_KEY_PREFIX + sheetName;
+  },
+
+  /**
+   * Get price list metadata key by sheet ID (new format)
+   */
+  getPriceListMetadataKeyById(sheetId) {
+    return `zotoks_pricelist_meta_id_${sheetId}`;
   },
 
   /**
