@@ -1,0 +1,1493 @@
+<!doctype html>
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>API Test Runner</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+              "surface-dark": "#1e293b",
+              "border-dark": "#232f48",
+              "text-secondary": "#92a4c9",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111722;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #324467;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4b628b;
+      }
+      [x-cloak] {
+        display: none !important;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+      }
+      button {
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display h-screen flex flex-col overflow-hidden"
+  >
+    <div
+      x-data="testRunner()"
+      x-init="init()"
+      x-cloak
+      class="h-full flex flex-col"
+    >
+      <!-- Header -->
+      <header
+        class="flex-none h-16 border-b border-border-dark bg-[#111722] flex items-center justify-between px-4 z-20 shadow-md"
+      >
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-2xl"
+              >terminal</span
+            >
+            <h1 class="text-base font-bold tracking-tight whitespace-nowrap">Zotok API Tester</h1>
+          </div>
+          <div class="h-6 w-px bg-border-dark"></div>
+          <!-- Navigation Tabs -->
+          <div class="flex items-center gap-2">
+            <a
+              href="/"
+              class="px-3 py-1.5 bg-[#192233] border border-border-dark text-white rounded-md text-xs font-medium hover:border-[#324467] transition-colors flex items-center gap-1.5"
+            >
+              <span class="material-symbols-outlined text-base">explore</span>
+              Explorer
+            </a>
+            <a
+              href="/test-runner.html"
+              class="px-3 py-1.5 bg-primary text-white rounded-md text-xs font-medium flex items-center gap-1.5"
+            >
+              <span class="material-symbols-outlined text-base">rule</span>
+              Tests
+            </a>
+          </div>
+          <!-- Test Mode Badge -->
+          <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border border-orange-500/30 rounded-md">
+            <span class="material-symbols-outlined text-orange-400 text-base">science</span>
+            <span class="text-xs font-medium text-orange-400">TEST MODE</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main class="flex-1 overflow-hidden flex">
+        <!-- Left Panel: Test List & Management -->
+        <div class="w-1/3 border-r border-border-dark bg-[#111722] flex flex-col">
+          <!-- Test List Header -->
+          <div class="p-4 border-b border-border-dark">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-sm font-semibold text-text-secondary uppercase tracking-wide">Test Definitions</h2>
+              <button
+                @click="createNewTest()"
+                class="px-3 py-1.5 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-1"
+              >
+                <span class="material-symbols-outlined text-lg">add</span>
+                New Test
+              </button>
+            </div>
+            <!-- Test Count -->
+            <div class="text-xs text-text-secondary">
+              <span x-text="tests.length"></span> test<span x-show="tests.length !== 1">s</span> defined
+            </div>
+          </div>
+
+          <!-- Test List -->
+          <div class="flex-1 overflow-y-auto p-4 space-y-2">
+            <template x-if="tests.length === 0">
+              <div class="text-center py-12 text-text-secondary">
+                <span class="material-symbols-outlined text-4xl mb-2 block">inbox</span>
+                <p class="text-sm">No tests defined yet</p>
+                <p class="text-xs mt-1">Click "New Test" to get started</p>
+              </div>
+            </template>
+
+            <template x-for="test in tests" :key="test.id">
+              <div
+                @click="selectTest(test)"
+                :class="selectedTest?.id === test.id ? 'bg-[#192233] border-primary' : 'bg-[#1a2332] border-border-dark hover:border-[#324467]'"
+                class="p-3 border rounded-md cursor-pointer transition-colors"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                      <span
+                        :class="test.method === 'GET' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'"
+                        class="px-2 py-0.5 rounded text-xs font-mono font-semibold"
+                        x-text="test.method"
+                      ></span>
+                      <span class="text-xs text-text-secondary" x-text="test.endpoint"></span>
+                    </div>
+                    <p class="text-sm font-medium truncate" x-text="test.name"></p>
+                    <p class="text-xs text-text-secondary mt-1" x-text="test.environment"></p>
+                  </div>
+                  <button
+                    @click.stop="deleteTest(test.id)"
+                    class="material-symbols-outlined text-lg text-text-secondary hover:text-red-400 transition-colors"
+                  >delete</button>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Import/Export -->
+          <div class="p-4 border-t border-border-dark flex gap-2">
+            <button
+              @click="importTests()"
+              class="flex-1 px-3 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-sm font-medium hover:border-[#324467] transition-colors flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined text-lg">upload_file</span>
+              Import
+            </button>
+            <button
+              @click="exportTests()"
+              class="flex-1 px-3 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-sm font-medium hover:border-[#324467] transition-colors flex items-center justify-center gap-2"
+            >
+              <span class="material-symbols-outlined text-lg">download</span>
+              Export
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Panel: Test Editor/Results -->
+        <div class="flex-1 bg-background-dark flex flex-col">
+          <template x-if="!selectedTest">
+            <div class="flex-1 flex items-center justify-center text-text-secondary">
+              <div class="text-center">
+                <span class="material-symbols-outlined text-6xl mb-4 block">description</span>
+                <p class="text-lg">Select a test to view details</p>
+                <p class="text-sm mt-2">or create a new test to get started</p>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="selectedTest">
+            <div class="flex-1 flex flex-col overflow-hidden">
+              <!-- Test Editor Header -->
+              <div class="p-4 border-b border-border-dark">
+                <h3 class="text-lg font-semibold mb-4">Test Editor</h3>
+
+                <!-- Test Name -->
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-2">Test Name</label>
+                  <input
+                    x-model="selectedTest.name"
+                    @input="saveTests()"
+                    type="text"
+                    class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary outline-none"
+                    placeholder="e.g., Customer GET - Basic Pagination"
+                  />
+                </div>
+
+                <!-- Environment & Endpoint -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                  <div x-data="{ envDropdownOpen: false }" @click.away="envDropdownOpen = false">
+                    <label class="block text-sm font-medium mb-2">Environment</label>
+                    <div class="relative">
+                      <button
+                        @click="envDropdownOpen = !envDropdownOpen"
+                        class="w-full px-3 py-2 pr-8 bg-[#192233] border border-border-dark rounded-md text-sm text-white text-left focus:border-primary outline-none hover:border-[#324467] transition-colors"
+                      >
+                        <span x-text="selectedTest.environment === 'qa' ? 'QA' : 'Production'"></span>
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg transition-transform" :class="envDropdownOpen ? 'rotate-180' : ''">expand_more</span>
+                      </button>
+                      <div
+                        x-show="envDropdownOpen"
+                        x-cloak
+                        x-transition
+                        class="absolute top-full mt-1 w-full bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden"
+                      >
+                        <button
+                          @click="selectedTest.environment = 'qa'; saveTests(); envDropdownOpen = false"
+                          class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                          :class="selectedTest.environment === 'qa' ? 'bg-[#232f48]' : ''"
+                        >QA</button>
+                        <button
+                          @click="selectedTest.environment = 'prod'; saveTests(); envDropdownOpen = false"
+                          class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                          :class="selectedTest.environment === 'prod' ? 'bg-[#232f48]' : ''"
+                        >Production</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div x-data="{ endpointDropdownOpen: false }" @click.away="endpointDropdownOpen = false">
+                    <label class="block text-sm font-medium mb-2">Endpoint</label>
+                    <div class="relative">
+                      <button
+                        @click="endpointDropdownOpen = !endpointDropdownOpen"
+                        class="w-full px-3 py-2 pr-8 bg-[#192233] border border-border-dark rounded-md text-sm text-white text-left focus:border-primary outline-none hover:border-[#324467] transition-colors"
+                      >
+                        <span x-text="selectedTest.endpoint"></span>
+                        <span class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg transition-transform" :class="endpointDropdownOpen ? 'rotate-180' : ''">expand_more</span>
+                      </button>
+                      <div
+                        x-show="endpointDropdownOpen"
+                        x-cloak
+                        x-transition
+                        class="absolute top-full mt-1 w-full bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto"
+                      >
+                        <template x-for="ep in availableEndpoints" :key="ep">
+                          <button
+                            @click="selectedTest.endpoint = ep; onEndpointChange(); endpointDropdownOpen = false"
+                            class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                            :class="selectedTest.endpoint === ep ? 'bg-[#232f48]' : ''"
+                            x-text="ep"
+                          ></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Method -->
+                <div class="mb-4">
+                  <label class="block text-sm font-medium mb-2">Method</label>
+                  <div class="flex gap-2">
+                    <button
+                      @click="selectedTest.method = 'GET'; onMethodChange()"
+                      :class="selectedTest.method === 'GET' ? 'bg-blue-500 text-white' : 'bg-[#192233] text-white border border-border-dark'"
+                      class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                    >GET</button>
+                    <button
+                      @click="selectedTest.method = 'POST'; onMethodChange()"
+                      :class="selectedTest.method === 'POST' ? 'bg-orange-500 text-white' : 'bg-[#192233] text-white border border-border-dark'"
+                      class="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                    >POST</button>
+                  </div>
+                </div>
+
+                <!-- Mutation Warning for POST -->
+                <template x-if="selectedTest.method === 'POST'">
+                  <div class="mb-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-md flex items-start gap-2">
+                    <span class="material-symbols-outlined text-orange-400 text-lg">warning</span>
+                    <div class="flex-1 text-sm text-orange-400">
+                      <p class="font-medium">POST operations modify data</p>
+                      <p class="text-xs mt-1">Ensure you understand the impact before running this test</p>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Scrollable Content Area -->
+              <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                <!-- GET Parameters -->
+                <template x-if="selectedTest.method === 'GET'">
+                  <div>
+                    <h4 class="text-sm font-semibold mb-3">Request Parameters</h4>
+                    <div class="space-y-3">
+                      <!-- Pagination -->
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="block text-xs text-text-secondary mb-1">Page Size</label>
+                          <input
+                            x-model.number="selectedTest.params.pageSize"
+                            @input="saveTests()"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label class="block text-xs text-text-secondary mb-1">Page Number</label>
+                          <input
+                            x-model.number="selectedTest.params.pageNo"
+                            @input="saveTests()"
+                            type="text"
+                            inputmode="numeric"
+                            pattern="[0-9]*"
+                            class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary outline-none"
+                          />
+                        </div>
+                      </div>
+                      <!-- Period -->
+                      <div x-data="{ periodDropdownOpen: false }" @click.away="periodDropdownOpen = false">
+                        <label class="block text-xs text-text-secondary mb-1">Period (days)</label>
+                        <div class="relative">
+                          <button
+                            type="button"
+                            @click="periodDropdownOpen = !periodDropdownOpen"
+                            class="relative w-full px-3 py-2 pr-8 bg-[#192233] border border-border-dark rounded-md text-sm text-white text-left focus:border-primary outline-none hover:border-[#324467] transition-colors"
+                          >
+                            <span x-text="selectedTest.params.period === null ? 'None' : selectedTest.params.period + ' days'"></span>
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg transition-transform" :class="periodDropdownOpen ? 'rotate-180' : ''">expand_more</span>
+                          </button>
+                          <div
+                            x-show="periodDropdownOpen"
+                            x-cloak
+                            x-transition
+                            class="absolute top-full mt-1 w-full bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden"
+                          >
+                            <button
+                              @click="selectedTest.params.period = null; saveTests(); periodDropdownOpen = false"
+                              class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                              :class="selectedTest.params.period === null ? 'bg-[#232f48]' : ''"
+                            >None</button>
+                            <button
+                              @click="selectedTest.params.period = 7; saveTests(); periodDropdownOpen = false"
+                              class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                              :class="selectedTest.params.period === 7 ? 'bg-[#232f48]' : ''"
+                            >7 days</button>
+                            <button
+                              @click="selectedTest.params.period = 30; saveTests(); periodDropdownOpen = false"
+                              class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                              :class="selectedTest.params.period === 30 ? 'bg-[#232f48]' : ''"
+                            >30 days</button>
+                            <button
+                              @click="selectedTest.params.period = 90; saveTests(); periodDropdownOpen = false"
+                              class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors"
+                              :class="selectedTest.params.period === 90 ? 'bg-[#232f48]' : ''"
+                            >90 days</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- POST Payload -->
+                <template x-if="selectedTest.method === 'POST'">
+                  <div>
+                    <h4 class="text-sm font-semibold mb-3">Request Payload</h4>
+                    <textarea
+                      x-model="selectedTest.payloadJson"
+                      @input="saveTests()"
+                      rows="10"
+                      class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white font-mono focus:border-primary outline-none resize-none"
+                      placeholder='{"customers": []}'
+                    ></textarea>
+                  </div>
+                </template>
+
+                <!-- Assertions -->
+                <div>
+                  <h4 class="text-sm font-semibold mb-3">Assertions</h4>
+                  <div class="space-y-3">
+                    <!-- Status Code -->
+                    <div>
+                      <label class="block text-xs text-text-secondary mb-1">Expected Status Code</label>
+                      <input
+                        x-model.number="selectedTest.assertions.statusCode"
+                        @input="saveTests()"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary outline-none"
+                        placeholder="200"
+                      />
+                    </div>
+                    <!-- Response Time -->
+                    <div>
+                      <label class="block text-xs text-text-secondary mb-1">Max Response Time (ms)</label>
+                      <input
+                        x-model.number="selectedTest.assertions.responseTime.max"
+                        @input="saveTests()"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        class="w-full px-3 py-2 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary outline-none"
+                        placeholder="3000"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Allow Mutation -->
+                <template x-if="selectedTest.method === 'POST'">
+                  <div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                      <input
+                        x-model="selectedTest.allowMutation"
+                        @change="saveTests()"
+                        type="checkbox"
+                        class="w-4 h-4"
+                      />
+                      <span class="text-sm">Allow Mutation (required for POST)</span>
+                    </label>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="p-4 border-t border-border-dark flex gap-2">
+                <button
+                  @click="validateTest()"
+                  class="flex-1 px-4 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-sm font-medium hover:border-[#324467] transition-colors"
+                >
+                  Validate Test
+                </button>
+                <button
+                  @click="runSingleTest()"
+                  class="flex-1 px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  Run Test
+                </button>
+                <button
+                  @click="showResultsPanel = !showResultsPanel"
+                  :class="showResultsPanel ? 'bg-green-500 hover:bg-green-600' : 'bg-[#192233] border border-border-dark hover:border-[#324467]'"
+                  class="px-4 py-2 text-white rounded-md text-sm font-medium transition-colors flex items-center gap-2"
+                >
+                  <span class="material-symbols-outlined text-lg">analytics</span>
+                  Results
+                  <span x-show="testResults.length > 0" class="px-2 py-0.5 bg-white/20 rounded-full text-xs" x-text="testResults.length"></span>
+                </button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </main>
+
+      <!-- Results Panel Slider -->
+      <div
+        x-show="showResultsPanel"
+        x-cloak
+        @click.self="showResultsPanel = false"
+        class="fixed inset-0 bg-black/50 z-40"
+      >
+        <div
+          x-show="showResultsPanel"
+          x-transition:enter="transition ease-out duration-300"
+          x-transition:enter-start="translate-x-full"
+          x-transition:enter-end="translate-x-0"
+          x-transition:leave="transition ease-in duration-200"
+          x-transition:leave-start="translate-x-0"
+          x-transition:leave-end="translate-x-full"
+          class="absolute right-0 top-0 bottom-0 w-2/3 bg-[#111722] border-l border-border-dark shadow-2xl flex"
+        >
+          <!-- Results List (Master) - Left Side -->
+          <div class="w-1/3 flex-shrink-0 border-r border-border-dark flex flex-col">
+            <!-- Results Header -->
+            <div class="px-4 pt-3">
+              <div class="flex items-center justify-between pb-2">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-primary text-xl">analytics</span>
+                  <h3 class="text-base font-semibold">Results</h3>
+                </div>
+                <button
+                  @click="showResultsPanel = false"
+                  class="material-symbols-outlined text-text-secondary hover:text-white transition-colors text-xl"
+                >close</button>
+              </div>
+              <div class="py-3 flex items-center border-b border-border-dark">
+                <p class="text-xs text-text-secondary">
+                  <span x-text="testResults.length"></span> result<span x-show="testResults.length !== 1">s</span>
+                  <template x-if="testResults.length > 0">
+                    <span>
+                      - <span class="text-green-400" x-text="testResults.filter(r => r.passed).length"></span> passed,
+                      <span class="text-red-400" x-text="testResults.filter(r => !r.passed).length"></span> failed
+                    </span>
+                  </template>
+                </p>
+              </div>
+            </div>
+            <!-- Compact Results List -->
+            <div class="flex-1 overflow-y-auto p-3">
+              <template x-if="testResults.length === 0">
+                <div class="text-center py-12 text-text-secondary">
+                  <span class="material-symbols-outlined text-4xl mb-2 block">inbox</span>
+                  <p class="text-sm">No test results yet</p>
+                  <p class="text-xs mt-1">Run a test to see results here</p>
+                </div>
+              </template>
+
+              <div class="space-y-2">
+                <template x-for="result in testResults" :key="result.timestamp">
+                  <div
+                    @click="selectedResult = result"
+                    :class="{
+                      'border-green-500/50 bg-green-500/10': result.passed && selectedResult?.timestamp === result.timestamp,
+                      'border-green-500/30 bg-green-500/5': result.passed && selectedResult?.timestamp !== result.timestamp,
+                      'border-red-500/50 bg-red-500/10': !result.passed && selectedResult?.timestamp === result.timestamp,
+                      'border-red-500/30 bg-red-500/5': !result.passed && selectedResult?.timestamp !== result.timestamp
+                    }"
+                    class="border rounded-lg cursor-pointer transition-all p-3 hover:border-opacity-70"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="flex items-center gap-2 flex-1 min-w-0">
+                        <span
+                          :class="result.passed ? 'text-green-400' : 'text-red-400'"
+                          class="material-symbols-outlined text-lg flex-shrink-0"
+                          x-text="result.passed ? 'check_circle' : 'cancel'"
+                        ></span>
+                        <div class="flex-1 min-w-0">
+                          <p class="text-xs font-semibold truncate" x-text="result.testName"></p>
+                          <p class="text-[10px] text-text-secondary" x-text="new Date(result.timestamp).toLocaleTimeString()"></p>
+                        </div>
+                      </div>
+                      <div class="text-right flex-shrink-0">
+                        <div
+                          :class="result.statusCode >= 200 && result.statusCode < 300 ? 'text-green-400' : 'text-red-400'"
+                          class="text-xs font-mono font-semibold"
+                          x-text="result.statusCode"
+                        ></div>
+                        <div class="text-[10px] text-text-secondary" x-text="result.responseTime?.toFixed(0) + 'ms'"></div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Results Footer -->
+            <div class="p-3 border-t border-border-dark flex gap-2">
+              <button
+                @click="clearResults()"
+                :disabled="testResults.length === 0"
+                :class="testResults.length > 0 ? 'hover:border-red-500 hover:text-red-400' : 'opacity-50 cursor-not-allowed'"
+                class="flex-1 px-3 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-xs font-medium transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                @click="exportResults()"
+                :disabled="testResults.length === 0"
+                :class="testResults.length > 0 ? 'hover:border-primary hover:text-primary' : 'opacity-50 cursor-not-allowed'"
+                class="flex-1 px-3 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-xs font-medium transition-colors"
+              >
+                Export
+              </button>
+            </div>
+          </div>
+
+          <!-- Detail Panel (Detail) - Right Side -->
+          <div class="flex-1 min-w-0 flex flex-col bg-background-dark" x-data="{ activeTab: 'overview' }">
+            <template x-if="!selectedResult">
+              <div class="flex-1 flex items-center justify-center text-text-secondary">
+                <div class="text-center">
+                  <span class="material-symbols-outlined text-6xl mb-4 block">analytics</span>
+                  <p class="text-lg">Select a result to view details</p>
+                </div>
+              </div>
+            </template>
+
+            <template x-if="selectedResult">
+              <div class="flex-1 flex flex-col overflow-hidden">
+                <!-- Detail Header -->
+                <div class="px-4 pt-3 pb-2">
+                  <div class="flex items-center gap-2">
+                    <span
+                      :class="selectedResult.passed ? 'text-green-400' : 'text-red-400'"
+                      class="material-symbols-outlined text-2xl"
+                      x-text="selectedResult.passed ? 'check_circle' : 'cancel'"
+                    ></span>
+                    <h3 class="text-base font-semibold" x-text="selectedResult.testName"></h3>
+                  </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex gap-1 px-4 pb-3 border-b border-border-dark">
+                  <button
+                    @click="activeTab = 'overview'"
+                    :class="activeTab === 'overview' ? 'bg-primary text-white' : 'bg-[#192233] text-text-secondary hover:text-white'"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  >Overview</button>
+                  <button
+                    @click="activeTab = 'request'"
+                    :class="activeTab === 'request' ? 'bg-primary text-white' : 'bg-[#192233] text-text-secondary hover:text-white'"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  >Request</button>
+                  <button
+                    @click="activeTab = 'response'"
+                    :class="activeTab === 'response' ? 'bg-primary text-white' : 'bg-[#192233] text-text-secondary hover:text-white'"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  >Response</button>
+                  <button
+                    @click="activeTab = 'assertions'"
+                    :class="activeTab === 'assertions' ? 'bg-primary text-white' : 'bg-[#192233] text-text-secondary hover:text-white'"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  >Assertions</button>
+                  <button
+                    @click="activeTab = 'curl'"
+                    :class="activeTab === 'curl' ? 'bg-primary text-white' : 'bg-[#192233] text-text-secondary hover:text-white'"
+                    class="px-3 py-1.5 rounded text-xs font-medium transition-colors"
+                  >cURL</button>
+                </div>
+
+                <!-- Tab Content -->
+                <div class="flex-1 overflow-y-auto p-4">
+                  <!-- Overview Tab -->
+                  <div x-show="activeTab === 'overview'" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="p-3 bg-[#192233] border border-border-dark rounded">
+                        <p class="text-xs text-text-secondary mb-1">Status</p>
+                        <p :class="selectedResult.passed ? 'text-green-400' : 'text-red-400'" class="text-sm font-semibold" x-text="selectedResult.passed ? 'PASSED' : 'FAILED'"></p>
+                      </div>
+                      <div class="p-3 bg-[#192233] border border-border-dark rounded">
+                        <p class="text-xs text-text-secondary mb-1">HTTP Status</p>
+                        <p :class="selectedResult.statusCode >= 200 && selectedResult.statusCode < 300 ? 'text-green-400' : 'text-red-400'" class="text-sm font-mono font-semibold" x-text="selectedResult.statusCode"></p>
+                      </div>
+                      <div class="p-3 bg-[#192233] border border-border-dark rounded">
+                        <p class="text-xs text-text-secondary mb-1">Response Time</p>
+                        <p class="text-sm font-semibold" x-text="selectedResult.responseTime?.toFixed(0) + ' ms'"></p>
+                      </div>
+                      <div class="p-3 bg-[#192233] border border-border-dark rounded">
+                        <p class="text-xs text-text-secondary mb-1">Timestamp</p>
+                        <p class="text-xs" x-text="new Date(selectedResult.timestamp).toLocaleString()"></p>
+                      </div>
+                    </div>
+
+                    <div x-show="selectedResult.failureReason" class="p-3 bg-red-500/10 border border-red-500/30 rounded">
+                      <p class="text-xs font-semibold text-red-400 mb-1">Failure Reason</p>
+                      <p class="text-xs text-red-400" x-text="selectedResult.failureReason"></p>
+                    </div>
+
+                    <div class="p-3 bg-[#192233] border border-border-dark rounded">
+                      <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs font-semibold text-text-secondary">Assertion Summary</p>
+                        <p class="text-xs">
+                          <span class="text-green-400" x-text="selectedResult.assertionResults.filter(a => a.passed).length"></span> /
+                          <span x-text="selectedResult.assertionResults.length"></span> passed
+                        </p>
+                      </div>
+                      <div class="space-y-1">
+                        <template x-for="assertion in selectedResult.assertionResults.slice(0, 3)" :key="assertion.assertion_type">
+                          <div class="flex items-center gap-2 text-xs">
+                            <span :class="assertion.passed ? 'text-green-400' : 'text-red-400'" class="material-symbols-outlined text-sm" x-text="assertion.passed ? 'check' : 'close'"></span>
+                            <span :class="assertion.passed ? 'text-text-secondary' : 'text-red-400'" x-text="assertion.assertion_type"></span>
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Request Tab -->
+                  <div x-show="activeTab === 'request'">
+                    <div class="flex justify-end mb-2">
+                      <button
+                        @click="copyToClipboard(JSON.stringify(selectedResult.request, null, 2))"
+                        class="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                      >
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+                    <pre class="text-xs font-mono bg-[#0a0e1a] border border-border-dark rounded p-3 overflow-auto max-w-full" x-text="JSON.stringify(selectedResult.request, null, 2)"></pre>
+                  </div>
+
+                  <!-- Response Tab -->
+                  <div x-show="activeTab === 'response'">
+                    <div class="flex justify-end mb-2">
+                      <button
+                        @click="copyToClipboard(JSON.stringify(selectedResult.response, null, 2))"
+                        class="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                      >
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+                    <pre class="text-xs font-mono bg-[#0a0e1a] border border-border-dark rounded p-3 overflow-auto max-w-full" x-text="JSON.stringify(selectedResult.response, null, 2)"></pre>
+                  </div>
+
+                  <!-- Assertions Tab -->
+                  <div x-show="activeTab === 'assertions'" class="space-y-2">
+                    <template x-for="assertion in selectedResult.assertionResults" :key="assertion.assertion_type">
+                      <div :class="assertion.passed ? 'bg-green-500/5 border-green-500/30' : 'bg-red-500/5 border-red-500/30'" class="p-3 border rounded">
+                        <div class="flex items-start gap-2">
+                          <span :class="assertion.passed ? 'text-green-400' : 'text-red-400'" class="material-symbols-outlined text-lg" x-text="assertion.passed ? 'check_circle' : 'cancel'"></span>
+                          <div class="flex-1">
+                            <p class="text-xs font-semibold mb-1" x-text="assertion.assertion_type"></p>
+                            <p :class="assertion.passed ? 'text-text-secondary' : 'text-red-400'" class="text-xs" x-text="assertion.message"></p>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <!-- cURL Tab -->
+                  <div x-show="activeTab === 'curl'">
+                    <div class="flex justify-end mb-2">
+                      <button
+                        @click="copyToClipboard(selectedResult.curlCommand)"
+                        class="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+                      >
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+                    <pre class="text-xs font-mono bg-[#0a0e1a] border border-border-dark rounded p-3 overflow-auto max-w-full whitespace-pre-wrap" x-text="selectedResult.curlCommand"></pre>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mutation Confirmation Modal -->
+      <div
+        x-show="showMutationConfirmation"
+        x-cloak
+        class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        @click.self="cancelMutation()"
+      >
+        <div
+          class="bg-[#1a2332] border border-border-dark rounded-lg shadow-xl max-w-2xl w-full mx-4"
+          x-show="showMutationConfirmation"
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100"
+        >
+          <!-- Modal Header -->
+          <div class="p-6 border-b border-border-dark">
+            <div class="flex items-start gap-4">
+              <div class="p-3 bg-orange-500/10 rounded-lg">
+                <span class="material-symbols-outlined text-orange-400 text-3xl">warning</span>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-xl font-semibold text-white mb-2">Confirm Mutation Operation</h3>
+                <p class="text-sm text-text-secondary">
+                  You are about to execute a POST operation that will modify data. Please review the details below.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Modal Content -->
+          <div class="p-6 space-y-4" x-show="mutationConfirmationData">
+            <!-- Operation Details -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs text-text-secondary mb-1">Endpoint</label>
+                <div class="px-3 py-2 bg-[#111722] border border-border-dark rounded-md text-sm font-mono" x-text="mutationConfirmationData?.endpoint"></div>
+              </div>
+              <div>
+                <label class="block text-xs text-text-secondary mb-1">Environment</label>
+                <div class="px-3 py-2 bg-[#111722] border border-border-dark rounded-md text-sm font-mono">
+                  <span
+                    :class="mutationConfirmationData?.environment === 'PROD' ? 'text-red-400' : 'text-blue-400'"
+                    x-text="mutationConfirmationData?.environment"
+                  ></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Item Count -->
+            <div>
+              <label class="block text-xs text-text-secondary mb-1">Items to Modify</label>
+              <div class="px-3 py-2 bg-[#111722] border border-border-dark rounded-md text-sm" x-text="mutationConfirmationData?.item_count + ' item(s)'"></div>
+            </div>
+
+            <!-- Warning Message -->
+            <div class="p-4 bg-orange-500/10 border border-orange-500/30 rounded-md">
+              <p class="text-sm text-orange-400" x-text="mutationConfirmationData?.warning"></p>
+            </div>
+
+            <!-- Preview Items -->
+            <div x-show="mutationConfirmationData?.preview_items?.length > 0">
+              <label class="block text-xs text-text-secondary mb-2">Preview (first 3 items)</label>
+              <div class="bg-[#111722] border border-border-dark rounded-md p-3 max-h-48 overflow-y-auto">
+                <pre class="text-xs font-mono text-text-secondary" x-text="JSON.stringify(mutationConfirmationData?.preview_items, null, 2)"></pre>
+              </div>
+            </div>
+
+            <!-- Confirmation Checkbox -->
+            <div class="pt-4 border-t border-border-dark">
+              <label class="flex items-start gap-3 cursor-pointer">
+                <input
+                  x-model="mutationConfirmed"
+                  type="checkbox"
+                  class="mt-1 w-4 h-4"
+                />
+                <span class="text-sm text-white">
+                  I understand this will modify data in <span :class="mutationConfirmationData?.environment === 'PROD' ? 'text-red-400 font-semibold' : 'text-blue-400 font-semibold'" x-text="mutationConfirmationData?.environment"></span> environment and want to proceed.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Modal Footer -->
+          <div class="p-6 border-t border-border-dark flex gap-3 justify-end">
+            <button
+              @click="cancelMutation()"
+              class="px-4 py-2 bg-[#192233] border border-border-dark text-white rounded-md text-sm font-medium hover:border-[#324467] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              @click="confirmAndExecuteMutation()"
+              :disabled="!mutationConfirmed"
+              :class="mutationConfirmed ? 'bg-orange-500 hover:bg-orange-600' : 'bg-gray-600 cursor-not-allowed'"
+              class="px-4 py-2 text-white rounded-md text-sm font-medium transition-colors"
+            >
+              Execute Mutation
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Notification -->
+      <div
+        x-show="toastVisible"
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-2"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-2"
+        class="fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-lg z-50 flex items-center gap-2"
+        :class="toastType === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'"
+      >
+        <span class="material-symbols-outlined text-lg" x-text="toastType === 'success' ? 'check_circle' : 'error'"></span>
+        <span x-text="toastMessage"></span>
+      </div>
+    </div>
+
+    <script>
+      function testRunner() {
+        return {
+          // State
+          tests: [],
+          selectedTest: null,
+          environment: 'qa',
+          availableEndpoints: ['customers', 'products', 'orders', 'trips', 'supply-tracker', 'salesman-attendance', 'pricelist'],
+
+          // Toast
+          toastVisible: false,
+          toastMessage: '',
+          toastType: 'success',
+
+          // Mutation confirmation modal
+          showMutationConfirmation: false,
+          mutationConfirmationData: null,
+          mutationConfirmed: false,
+
+          // Test results
+          testResults: [],
+          selectedResult: null,
+          showResultsPanel: false,
+
+          // Initialize
+          init() {
+            this.loadTests();
+            this.loadEnvironment();
+          },
+
+          // Load tests from localStorage
+          loadTests() {
+            const stored = localStorage.getItem('zotokApiTests');
+            if (stored) {
+              try {
+                this.tests = JSON.parse(stored);
+              } catch (e) {
+                console.error('Failed to parse stored tests:', e);
+                this.tests = [];
+              }
+            }
+          },
+
+          // Save tests to localStorage
+          saveTests() {
+            localStorage.setItem('zotokApiTests', JSON.stringify(this.tests));
+          },
+
+          // Load environment from explorer
+          loadEnvironment() {
+            const explorerData = localStorage.getItem('zotokApiTester');
+            if (explorerData) {
+              try {
+                const data = JSON.parse(explorerData);
+                this.environment = data.environment || 'qa';
+              } catch (e) {
+                console.error('Failed to load environment:', e);
+              }
+            }
+          },
+
+          // Get credentials from explorer
+          getCredentials() {
+            const explorerData = localStorage.getItem('zotokApiTester');
+            if (explorerData) {
+              try {
+                const data = JSON.parse(explorerData);
+                return {
+                  workspace_id: data.workspaceId,
+                  client_id: data.clientId,
+                  client_secret: data.clientSecret,
+                  environment: data.environment || 'qa'
+                };
+              } catch (e) {
+                console.error('Failed to load credentials:', e);
+                return null;
+              }
+            }
+            return null;
+          },
+
+          // Get token from explorer
+          getToken() {
+            const explorerData = localStorage.getItem('zotokApiTester');
+            if (explorerData) {
+              try {
+                const data = JSON.parse(explorerData);
+                const token = data.token;
+                const tokenExpiry = data.tokenExpiry;
+
+                // Check if token is expired
+                if (token && tokenExpiry) {
+                  const expiryTime = new Date(tokenExpiry).getTime();
+                  const now = new Date().getTime();
+
+                  if (now < expiryTime) {
+                    return token;
+                  }
+                }
+              } catch (e) {
+                console.error('Failed to load token:', e);
+              }
+            }
+            return null;
+          },
+
+          // Ensure valid token
+          async ensureValidToken() {
+            const token = this.getToken();
+            if (token) {
+              return token;
+            }
+
+            // Token expired or missing, need to authenticate
+            const credentials = this.getCredentials();
+            if (!credentials || !credentials.workspace_id || !credentials.client_id || !credentials.client_secret) {
+              throw new Error('Missing credentials. Please authenticate in Explorer mode first.');
+            }
+
+            // Generate new token
+            try {
+              const response = await axios.post('/api/generate-token', credentials);
+              if (response.data.token) {
+                // Update explorer storage with new token
+                const explorerData = JSON.parse(localStorage.getItem('zotokApiTester') || '{}');
+                explorerData.token = response.data.token;
+                explorerData.tokenExpiry = response.data.expires_at;
+                localStorage.setItem('zotokApiTester', JSON.stringify(explorerData));
+
+                return response.data.token;
+              } else {
+                throw new Error('Failed to generate token');
+              }
+            } catch (error) {
+              throw new Error('Authentication failed: ' + error.message);
+            }
+          },
+
+          // Create new test
+          createNewTest() {
+            const newTest = {
+              id: 'test-' + Date.now(),
+              name: 'New Test',
+              environment: this.environment,
+              endpoint: 'customers',
+              method: 'GET',
+              params: {
+                pageSize: 10,
+                pageNo: 1,
+                period: null
+              },
+              payload: null,
+              payloadJson: '',
+              assertions: {
+                statusCode: 200,
+                responseTime: {
+                  max: 3000
+                }
+              },
+              allowMutation: false
+            };
+            this.tests.push(newTest);
+            this.selectedTest = newTest;
+            this.saveTests();
+          },
+
+          // Select test
+          selectTest(test) {
+            this.selectedTest = test;
+
+            // Ensure params object exists for GET
+            if (test.method === 'GET' && !test.params) {
+              test.params = {
+                pageSize: 10,
+                pageNo: 1,
+                period: null
+              };
+            }
+
+            // Parse payload if POST
+            if (test.method === 'POST' && test.payload) {
+              test.payloadJson = JSON.stringify(test.payload, null, 2);
+            }
+          },
+
+          // Delete test
+          deleteTest(testId) {
+            if (confirm('Delete this test?')) {
+              this.tests = this.tests.filter(t => t.id !== testId);
+              if (this.selectedTest?.id === testId) {
+                this.selectedTest = null;
+              }
+              this.saveTests();
+              this.showToast('Test deleted', 'success');
+            }
+          },
+
+          // On endpoint change
+          onEndpointChange() {
+            this.saveTests();
+          },
+
+          // On method change
+          onMethodChange() {
+            if (this.selectedTest.method === 'GET') {
+              this.selectedTest.payload = null;
+              this.selectedTest.payloadJson = '';
+              this.selectedTest.allowMutation = false;
+            } else {
+              this.selectedTest.params = null;
+              this.selectedTest.payloadJson = JSON.stringify({ [this.selectedTest.endpoint]: [] }, null, 2);
+            }
+            this.saveTests();
+          },
+
+          // Validate test
+          async validateTest() {
+            try {
+              const testData = this.prepareTestData(this.selectedTest);
+              const response = await axios.post('/api/validate-test', testData);
+
+              if (response.data.success) {
+                this.showToast('Test is valid', 'success');
+              } else {
+                this.showToast(response.data.error, 'error');
+              }
+            } catch (error) {
+              this.showToast('Validation failed: ' + error.message, 'error');
+            }
+          },
+
+          // Prepare test data for API
+          prepareTestData(test) {
+            const data = {
+              id: test.id,
+              name: test.name,
+              environment: test.environment,
+              endpoint: test.endpoint,
+              method: test.method,
+              params: test.method === 'GET' ? test.params : null,
+              payload: test.method === 'POST' ? (test.payloadJson ? JSON.parse(test.payloadJson) : null) : null,
+              assertions: test.assertions,
+              allowMutation: test.allowMutation
+            };
+            return data;
+          },
+
+          // Run single test
+          async runSingleTest() {
+            try {
+              const testData = this.prepareTestData(this.selectedTest);
+
+              // Check mutation safety for POST operations
+              if (testData.method === 'POST') {
+                const safetyCheck = await this.checkMutationSafety(testData);
+
+                if (!safetyCheck.safe) {
+                  this.showToast(safetyCheck.error, 'error');
+                  return;
+                }
+
+                // Show confirmation dialog
+                this.mutationConfirmationData = safetyCheck.confirmation_data;
+                this.showMutationConfirmation = true;
+                this.mutationConfirmed = false;
+
+                // Wait for user confirmation (handled by modal)
+                return;
+              }
+
+              // For GET requests, execute directly
+              await this.executeTest(testData);
+
+            } catch (error) {
+              this.showToast('Failed to run test: ' + error.message, 'error');
+            }
+          },
+
+          // Execute test
+          async executeTest(testData) {
+            try {
+              // Ensure we have valid token
+              const token = await this.ensureValidToken();
+
+              // Get credentials for environment
+              const credentials = this.getCredentials();
+              if (!credentials) {
+                throw new Error('Missing credentials');
+              }
+
+              // Override environment from test
+              credentials.environment = testData.environment;
+
+              // Start timing
+              const startTime = performance.now();
+
+              let response;
+              let statusCode;
+              let responseData;
+
+              // Execute request based on method
+              if (testData.method === 'GET') {
+                const result = await axios.post('/api/fetch-endpoint', {
+                  credentials: credentials,
+                  endpoint_request: {
+                    endpoint: testData.endpoint,
+                    period: testData.params?.period,
+                    page_size: testData.params?.pageSize,
+                    page_no: testData.params?.pageNo
+                  }
+                });
+
+                responseData = result.data.data || result.data;
+                statusCode = result.data.success ? 200 : 400;
+
+              } else if (testData.method === 'POST') {
+                // Handle POST (pricelist has special endpoint)
+                const uploadEndpoint = testData.endpoint === 'pricelist' ? '/api/update-pricelist' : '/api/upload-entity';
+
+                const result = await axios.post(uploadEndpoint, {
+                  credentials: credentials,
+                  endpoint: testData.endpoint,
+                  payload: testData.payload
+                });
+
+                responseData = result.data.data || result.data;
+                statusCode = result.data.success ? 200 : 400;
+              }
+
+              // End timing
+              const endTime = performance.now();
+              const responseTime = endTime - startTime;
+
+              // Evaluate assertions
+              const assertionResponse = await axios.post('/api/evaluate-assertions', {
+                assertions: testData.assertions,
+                response_data: responseData,
+                status_code: statusCode,
+                response_time_ms: responseTime
+              });
+
+              const assertionResults = assertionResponse.data.assertion_results || [];
+              const passed = assertionResponse.data.passed;
+              const failureReason = assertionResponse.data.failure_reason;
+
+              // Create result
+              const result = this.createTestResult(
+                testData,
+                responseData,
+                statusCode,
+                responseTime,
+                assertionResults,
+                passed,
+                failureReason,
+                token
+              );
+
+              // Add to results
+              this.addTestResult(result);
+
+              // Show results panel
+              this.showResultsPanel = true;
+
+              // Show toast
+              if (passed) {
+                this.showToast('Test passed', 'success');
+              } else {
+                this.showToast('Test failed: ' + failureReason, 'error');
+              }
+
+            } catch (error) {
+              // Create failed result
+              const result = this.createTestResult(
+                testData,
+                { error: error.message },
+                0,
+                0,
+                [],
+                false,
+                'Execution error: ' + error.message
+              );
+
+              this.addTestResult(result);
+              this.showResultsPanel = true;
+              this.showToast('Test execution failed: ' + error.message, 'error');
+            }
+          },
+
+          // Check mutation safety
+          async checkMutationSafety(testData) {
+            try {
+              const response = await axios.post('/api/check-mutation-safety', {
+                endpoint: testData.endpoint,
+                method: testData.method,
+                environment: testData.environment,
+                payload: testData.payload,
+                allowMutation: testData.allowMutation
+              });
+
+              if (response.data.success) {
+                return {
+                  safe: response.data.safe,
+                  error: response.data.error,
+                  confirmation_data: response.data.confirmation_data
+                };
+              } else {
+                return {
+                  safe: false,
+                  error: response.data.error
+                };
+              }
+            } catch (error) {
+              return {
+                safe: false,
+                error: 'Safety check failed: ' + error.message
+              };
+            }
+          },
+
+          // Confirm mutation and execute
+          async confirmAndExecuteMutation() {
+            this.mutationConfirmed = true;
+            this.showMutationConfirmation = false;
+
+            try {
+              const testData = this.prepareTestData(this.selectedTest);
+              await this.executeTest(testData);
+            } catch (error) {
+              this.showToast('Failed to execute mutation: ' + error.message, 'error');
+            }
+          },
+
+          // Cancel mutation
+          cancelMutation() {
+            this.showMutationConfirmation = false;
+            this.mutationConfirmed = false;
+            this.showToast('Mutation cancelled', 'success');
+          },
+
+          // Add test result
+          addTestResult(result) {
+            this.testResults.unshift(result); // Add to beginning
+            // Keep only last 50 results
+            if (this.testResults.length > 50) {
+              this.testResults = this.testResults.slice(0, 50);
+            }
+          },
+
+          // Create test result object
+          createTestResult(testData, response, statusCode, responseTime, assertionResults, passed, failureReason, token) {
+            return {
+              testId: testData.id,
+              testName: testData.name,
+              passed: passed,
+              statusCode: statusCode,
+              responseTime: responseTime,
+              timestamp: new Date().toISOString(),
+              failureReason: failureReason,
+              assertionResults: assertionResults,
+              request: {
+                method: testData.method,
+                endpoint: testData.endpoint,
+                environment: testData.environment,
+                params: testData.params,
+                payload: testData.payload
+              },
+              response: response,
+              curlCommand: this.generateCurlCommand(testData, token)
+            };
+          },
+
+          // Generate cURL command
+          generateCurlCommand(testData, token) {
+            const env = testData.environment === 'qa' ? 'https://api-qa.zono.digital' : 'https://api-prod.zono.digital';
+            const endpoint = testData.endpoint;
+            let curl = `curl -X ${testData.method} \\\n`;
+            curl += `  '${env}/hub/mdm-integration/v1/api/${endpoint}`;
+
+            if (testData.method === 'GET' && testData.params) {
+              const params = [];
+              if (testData.params.pageSize) params.push(`pageSize=${testData.params.pageSize}`);
+              if (testData.params.pageNo) params.push(`pageNo=${testData.params.pageNo}`);
+              if (testData.params.period) params.push(`period=${testData.params.period}`);
+              if (params.length > 0) {
+                curl += '?' + params.join('&');
+              }
+            }
+
+            curl += `' \\\n`;
+            curl += `  -H 'Content-Type: application/json' \\\n`;
+            curl += `  -H 'Authorization: Bearer ${token || '<token>'}'`;
+
+            if (testData.method === 'POST' && testData.payload) {
+              curl += ` \\\n  -d '${JSON.stringify(testData.payload)}'`;
+            }
+
+            return curl;
+          },
+
+          // Copy to clipboard helper
+          copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+              this.showToast('Copied to clipboard', 'success');
+            }).catch(() => {
+              this.showToast('Failed to copy', 'error');
+            });
+          },
+
+          // Copy cURL command
+          copyCurl(curlCommand) {
+            navigator.clipboard.writeText(curlCommand).then(() => {
+              this.showToast('cURL copied to clipboard', 'success');
+            }).catch(() => {
+              this.showToast('Failed to copy cURL', 'error');
+            });
+          },
+
+          // Clear results
+          clearResults() {
+            if (confirm('Clear all test results?')) {
+              this.testResults = [];
+              this.selectedResult = null;
+              this.showToast('Results cleared', 'success');
+            }
+          },
+
+          // Export results
+          exportResults() {
+            const dataStr = JSON.stringify(this.testResults, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'zotok-test-results-' + Date.now() + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            this.showToast('Results exported', 'success');
+          },
+
+          // Import tests
+          importTests() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = (e) => {
+              const file = e.target.files[0];
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                try {
+                  const imported = JSON.parse(event.target.result);
+
+                  // Validate it's an array
+                  if (!Array.isArray(imported)) {
+                    this.showToast('Invalid test file: must be an array', 'error');
+                    return;
+                  }
+
+                  // Validate each test has required fields
+                  const isValid = imported.every(test =>
+                    test.id && test.name && test.endpoint && test.method
+                  );
+
+                  if (!isValid) {
+                    this.showToast('Invalid test file: missing required fields', 'error');
+                    return;
+                  }
+
+                  this.tests = imported;
+                  this.selectedTest = null;
+                  this.saveTests();
+                  this.showToast('Tests imported successfully', 'success');
+                } catch (error) {
+                  this.showToast('Failed to import tests: ' + error.message, 'error');
+                }
+              };
+              reader.readAsText(file);
+            };
+            input.click();
+          },
+
+          // Export tests
+          exportTests() {
+            const dataStr = JSON.stringify(this.tests, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'zotok-tests-' + Date.now() + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            this.showToast('Tests exported', 'success');
+          },
+
+          // Show toast
+          showToast(message, type = 'success') {
+            this.toastMessage = message;
+            this.toastType = type;
+            this.toastVisible = true;
+            setTimeout(() => {
+              this.toastVisible = false;
+            }, 3000);
+          }
+        };
+      }
+    </script>
+  </body>
+</html>
