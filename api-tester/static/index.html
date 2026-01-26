@@ -1,0 +1,2035 @@
+<!doctype html>
+<html class="dark" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>API Exploration Dashboard</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <!-- AG Grid Community -->
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/dist/ag-grid-community.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/styles/ag-grid.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.0.0/styles/ag-theme-alpine.min.css">
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#135bec",
+              "background-light": "#f6f6f8",
+              "background-dark": "#101622",
+              "surface-dark": "#1e293b",
+              "border-dark": "#232f48",
+              "text-secondary": "#92a4c9",
+            },
+            fontFamily: {
+              display: ["Inter", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111722;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #324467;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4b628b;
+      }
+      .syntax-key {
+        color: #facc15;
+      }
+      .syntax-string {
+        color: #4ade80;
+      }
+      .syntax-number {
+        color: #60a5fa;
+      }
+      .syntax-boolean {
+        color: #f472b6;
+      }
+      .syntax-null {
+        color: #94a3b8;
+      }
+      /* Custom dropdown styling */
+      select {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        background-image: none;
+      }
+      /* Remove native dropdown arrow */
+      select::-ms-expand {
+        display: none;
+      }
+      /* Remove arrows from number inputs */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+      }
+      [x-cloak] {
+        display: none !important;
+      }
+      /* AG Grid row borders */
+      .ag-theme-alpine-dark .ag-row {
+        border-bottom: 1px solid #2d3748 !important;
+      }
+      /* Smooth transitions for mode switching */
+      .mode-transition {
+        transition: all 0.2s ease-out;
+      }
+      /* Fade in animation */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-4px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.2s ease-out;
+      }
+      /* Pulse animation for loading states */
+      @keyframes pulse-soft {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+      .animate-pulse-soft {
+        animation: pulse-soft 1.5s ease-in-out infinite;
+      }
+      /* Focus ring for accessibility */
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+      }
+      /* Disable user select on buttons */
+      button {
+        user-select: none;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display h-screen flex flex-col overflow-hidden"
+  >
+    <div
+      x-data="apiTester()"
+      x-init="init()"
+      x-cloak
+      class="h-full flex flex-col"
+    >
+      <!-- Header -->
+      <header
+        class="flex-none h-16 border-b border-border-dark bg-[#111722] flex items-center justify-between px-6 z-20 shadow-md"
+      >
+        <div class="flex items-center gap-6">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-3xl"
+              >terminal</span
+            >
+            <h1 class="text-lg font-bold tracking-tight">Zotok API Explorer</h1>
+          </div>
+          <div class="h-6 w-px bg-border-dark mx-2"></div>
+          <!-- Environment Dropdown -->
+          <div x-data="{ envOpen: false }" @click.away="envOpen = false" class="relative">
+            <button
+              @click="envOpen = !envOpen"
+              class="pl-10 pr-8 py-1.5 bg-[#192233] border border-border-dark rounded-md text-sm text-white hover:border-[#324467] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap min-w-[180px]"
+            >
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg">dns</span>
+              <span x-text="environment === 'qa' ? 'QA Environment' : 'Production'"></span>
+              <span
+                class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg transition-transform"
+                :class="envOpen ? 'rotate-180' : ''"
+              >expand_more</span>
+            </button>
+            <div
+              x-show="envOpen"
+              x-cloak
+              x-transition:enter="transition ease-out duration-100"
+              x-transition:enter-start="opacity-0 scale-95"
+              x-transition:enter-end="opacity-100 scale-100"
+              x-transition:leave="transition ease-in duration-75"
+              x-transition:leave-start="opacity-100 scale-100"
+              x-transition:leave-end="opacity-0 scale-95"
+              class="absolute top-full mt-1 min-w-[180px] bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden"
+            >
+              <button
+                @click="environment = 'qa'; onCredentialChange(); envOpen = false"
+                class="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
+                :class="environment === 'qa' ? 'bg-[#232f48]' : ''"
+              >
+                <span class="material-symbols-outlined text-lg" x-show="environment === 'qa'">check</span>
+                <span :class="environment === 'qa' ? '' : 'ml-7'">QA Environment</span>
+              </button>
+              <button
+                @click="environment = 'prod'; onCredentialChange(); envOpen = false"
+                class="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
+                :class="environment === 'prod' ? 'bg-[#232f48]' : ''"
+              >
+                <span class="material-symbols-outlined text-lg" x-show="environment === 'prod'">check</span>
+                <span :class="environment === 'prod' ? '' : 'ml-7'">Production</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="group relative flex items-center">
+            <span
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
+              >workspaces</span
+            >
+            <input
+              x-model="workspaceId"
+              @input="onCredentialChange()"
+              type="text"
+              placeholder="Workspace ID"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+            />
+          </div>
+          <div class="group relative flex items-center">
+            <span
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
+              >key</span
+            >
+            <input
+              x-model="clientId"
+              @input="onCredentialChange()"
+              type="text"
+              placeholder="Client ID"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+            />
+          </div>
+          <div class="group relative flex items-center">
+            <span
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
+              >lock</span
+            >
+            <input
+              x-model="clientSecret"
+              @input="onCredentialChange()"
+              type="password"
+              placeholder="Client Secret"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+            />
+          </div>
+          <button
+            @click="authenticate()"
+            class="bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2"
+          >
+            <span>Authenticate</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-4">
+          <!-- Connection Status -->
+          <div
+            class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-2 pr-4 cursor-default"
+            :class="{
+                    'bg-gray-500/10 border border-gray-500/20': connectionStatus === 'disconnected',
+                    'bg-yellow-500/10 border border-yellow-500/20': connectionStatus === 'authenticating',
+                    'bg-green-500/10 border border-green-500/20': connectionStatus === 'connected',
+                    'bg-red-500/10 border border-red-500/20': connectionStatus === 'error'
+                }"
+            :title="connectionTooltip"
+          >
+            <span
+              class="material-symbols-outlined text-[20px]"
+              :class="{
+                        'text-gray-500': connectionStatus === 'disconnected',
+                        'text-yellow-500': connectionStatus === 'authenticating',
+                        'text-green-500': connectionStatus === 'connected',
+                        'text-red-500': connectionStatus === 'error'
+                    }"
+              x-text="connectionStatusIcon"
+            ></span>
+            <p
+              class="text-xs font-bold uppercase tracking-wide"
+              :class="{
+                        'text-gray-500': connectionStatus === 'disconnected',
+                        'text-yellow-500': connectionStatus === 'authenticating',
+                        'text-green-500': connectionStatus === 'connected',
+                        'text-red-500': connectionStatus === 'error'
+                    }"
+              x-text="connectionStatusText"
+            ></p>
+          </div>
+          <button
+            @click="copyToken()"
+            class="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center border border-primary/30 text-primary cursor-pointer hover:bg-primary/30 transition-colors"
+            title="Copy Token"
+          >
+            <span
+              class="material-symbols-outlined text-[20px]"
+              x-text="tokenCopyIcon"
+            ></span>
+          </button>
+          <button
+            @click="copyCurl()"
+            :disabled="!selectedEndpoint"
+            class="h-8 w-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30 text-emerald-400 cursor-pointer hover:bg-emerald-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Copy cURL Command"
+          >
+            <span
+              class="material-symbols-outlined text-[20px]"
+              x-text="curlCopyIcon"
+            ></span>
+          </button>
+          <button
+            @click="showClearDialog = true"
+            class="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30 text-red-400 cursor-pointer hover:bg-red-500/30 transition-colors"
+            title="Clear All Data & Reset"
+          >
+            <span class="material-symbols-outlined text-[20px]">delete</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside
+          class="w-[320px] flex flex-col border-r border-border-dark bg-[#111722] overflow-hidden flex-shrink-0 z-10"
+        >
+          <div class="flex-1 overflow-y-auto p-4 space-y-6">
+            <!-- Endpoint Selection -->
+            <div class="space-y-3">
+              <label class="text-xs font-semibold text-text-secondary uppercase tracking-wider">Endpoint</label>
+              <!-- Endpoint Dropdown -->
+              <div x-data="{ endpointOpen: false }" @click.away="endpointOpen = false" class="relative">
+                <button
+                  @click="endpointOpen = !endpointOpen"
+                  class="w-full pl-10 pr-8 h-12 bg-[#192233] border border-border-dark rounded-lg text-white text-sm hover:border-[#324467] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer transition-colors flex items-center font-mono"
+                >
+                  <span class="absolute left-3 top-3 material-symbols-outlined text-primary text-xl">api</span>
+                  <span x-text="selectedEndpoint ? ((mode === 'upload' && supportsUpload ? 'POST' : 'GET') + ' /v1/' + endpointsConfig[selectedEndpoint]?.api_name) : 'Select endpoint...'"></span>
+                  <span
+                    class="absolute right-3 top-3 material-symbols-outlined text-text-secondary transition-transform"
+                    :class="endpointOpen ? 'rotate-180' : ''"
+                  >expand_more</span>
+                </button>
+                <div
+                  x-show="endpointOpen"
+                  x-cloak
+                  x-transition:enter="transition ease-out duration-100"
+                  x-transition:enter-start="opacity-0 scale-95"
+                  x-transition:enter-end="opacity-100 scale-100"
+                  x-transition:leave="transition ease-in duration-75"
+                  x-transition:leave-start="opacity-100 scale-100"
+                  x-transition:leave-end="opacity-0 scale-95"
+                  class="absolute top-full mt-1 w-full bg-[#192233] border border-border-dark rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto"
+                >
+                  <template x-for="(config, key) in endpointsConfig" :key="key">
+                    <button
+                      @click="selectedEndpoint = key; onEndpointChange(); endpointOpen = false"
+                      class="w-full px-4 py-2.5 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 font-mono"
+                      :class="selectedEndpoint === key ? 'bg-[#232f48]' : ''"
+                    >
+                      <span class="material-symbols-outlined text-sm" x-show="selectedEndpoint === key">check</span>
+                      <span :class="selectedEndpoint === key ? '' : 'ml-6'" x-text="(mode === 'upload' && uploadSchemas[key] ? 'POST' : 'GET') + ' /v1/' + config.api_name"></span>
+                    </button>
+                  </template>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div
+              class="space-y-3"
+              x-show="selectedEndpoint && supportsUpload"
+              x-cloak
+            >
+              <label
+                class="text-xs font-semibold text-text-secondary uppercase tracking-wider"
+                >Mode</label
+              >
+              <div
+                class="flex rounded-lg overflow-hidden border border-border-dark bg-[#192233]"
+              >
+                <button
+                  @click="mode = 'import'"
+                  class="flex-1 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                  :class="mode === 'import' 
+                    ? 'bg-primary text-white' 
+                    : 'text-text-secondary hover:text-white hover:bg-[#232f48]'"
+                >
+                  <span class="material-symbols-outlined text-[18px]"
+                    >download</span
+                  >
+                  Import
+                </button>
+                <button
+                  @click="mode = 'upload'"
+                  class="flex-1 py-2.5 text-sm font-medium flex items-center justify-center gap-2 transition-all"
+                  :class="mode === 'upload' 
+                    ? 'bg-primary text-white' 
+                    : 'text-text-secondary hover:text-white hover:bg-[#232f48]'"
+                >
+                  <span class="material-symbols-outlined text-[18px]"
+                    >upload</span
+                  >
+                  Upload
+                </button>
+              </div>
+            </div>
+
+            <!-- Capabilities (Import Mode) -->
+            <div class="space-y-4" x-show="mode === 'import'">
+              <div
+                class="flex items-center justify-between pb-2 border-b border-border-dark"
+              >
+                <label
+                  class="text-xs font-semibold text-text-secondary uppercase tracking-wider"
+                  >Capabilities</label
+                >
+              </div>
+
+              <!-- Pagination -->
+              <div
+                class="p-3 bg-[#192233] rounded-lg border border-border-dark"
+              >
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-secondary"
+                      >format_list_numbered</span
+                    >
+                    <span class="text-sm font-medium text-white"
+                      >Pagination</span
+                    >
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      x-model="paginationEnabled"
+                      :disabled="!currentEndpointConfig?.supports_pagination"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"
+                    ></div>
+                  </label>
+                </div>
+                <div
+                  class="flex gap-2"
+                  :class="{ 'opacity-50 pointer-events-none': !paginationEnabled }"
+                >
+                  <div class="flex-1">
+                    <label class="text-[10px] text-text-secondary mb-1 block"
+                      >Page</label
+                    >
+                    <input
+                      type="number"
+                      x-model.number="pageNo"
+                      :disabled="!paginationEnabled"
+                      class="w-full bg-[#111722] border border-border-dark rounded px-2 py-1 text-sm text-white text-center focus:border-primary outline-none"
+                    />
+                  </div>
+                  <div class="flex-1">
+                    <label class="text-[10px] text-text-secondary mb-1 block"
+                      >Size</label
+                    >
+                    <input
+                      type="number"
+                      x-model.number="pageSize"
+                      :disabled="!paginationEnabled"
+                      class="w-full bg-[#111722] border border-border-dark rounded px-2 py-1 text-sm text-white text-center focus:border-primary outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Time Period -->
+              <div
+                class="p-3 bg-[#192233] rounded-lg border border-border-dark"
+              >
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-secondary"
+                      >date_range</span
+                    >
+                    <span class="text-sm font-medium text-white"
+                      >Time Period</span
+                    >
+                  </div>
+                  <label
+                    class="relative inline-flex items-center cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      x-model="timePeriodEnabled"
+                      :disabled="!currentEndpointConfig?.supports_time_period"
+                      class="sr-only peer"
+                    />
+                    <div
+                      class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"
+                    ></div>
+                  </label>
+                </div>
+                <div
+                  class="flex gap-2"
+                  :class="{ 'opacity-50 pointer-events-none': !timePeriodEnabled }"
+                >
+                  <!-- Period Dropdown -->
+                  <div x-data="{ periodOpen: false }" @click.away="periodOpen = false" class="relative w-full">
+                    <button
+                      @click="timePeriodEnabled && (periodOpen = !periodOpen)"
+                      :disabled="!timePeriodEnabled"
+                      class="w-full bg-[#111722] border border-border-dark rounded px-3 py-1 pr-8 text-sm text-white hover:border-[#324467] focus:border-primary outline-none cursor-pointer transition-colors text-left relative"
+                    >
+                      <span x-text="periodDays + ' days'"></span>
+                      <span
+                        class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm transition-transform"
+                        :class="periodOpen ? 'rotate-180' : ''"
+                      >expand_more</span>
+                    </button>
+                    <div
+                      x-show="periodOpen"
+                      x-cloak
+                      x-transition:enter="transition ease-out duration-100"
+                      x-transition:enter-start="opacity-0 scale-95"
+                      x-transition:enter-end="opacity-100 scale-100"
+                      x-transition:leave="transition ease-in duration-75"
+                      x-transition:leave-start="opacity-100 scale-100"
+                      x-transition:leave-end="opacity-0 scale-95"
+                      class="absolute top-full mt-1 w-full bg-[#111722] border border-border-dark rounded shadow-lg z-50 overflow-hidden"
+                    >
+                      <template x-for="period in ['7', '30', '90']" :key="period">
+                        <button
+                          @click="periodDays = period; periodOpen = false"
+                          class="w-full px-3 py-1.5 text-left text-sm text-white hover:bg-[#192233] transition-colors flex items-center gap-2"
+                          :class="periodDays === period ? 'bg-[#192233]' : ''"
+                        >
+                          <span class="material-symbols-outlined text-sm" x-show="periodDays === period">check</span>
+                          <span :class="periodDays === period ? '' : 'ml-6'" x-text="period + ' days'"></span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Mode Controls -->
+            <div class="space-y-4" x-show="mode === 'upload'" x-cloak>
+              <div
+                class="flex items-center justify-between pb-2 border-b border-border-dark"
+              >
+                <label
+                  class="text-xs font-semibold text-text-secondary uppercase tracking-wider"
+                  >Upload Options</label
+                >
+              </div>
+
+              <!-- Schema Info -->
+              <div
+                class="p-3 bg-[#192233] rounded-lg border border-border-dark"
+              >
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="material-symbols-outlined text-text-secondary"
+                    >description</span
+                  >
+                  <span class="text-sm font-medium text-white"
+                    >Schema Reference</span
+                  >
+                </div>
+                <div
+                  class="text-xs text-text-secondary space-y-1 max-h-48 overflow-y-auto"
+                >
+                  <template x-if="uploadSchemas[selectedEndpoint]">
+                    <div>
+                      <template
+                        x-for="(fieldConfig, fieldName) in uploadSchemas[selectedEndpoint].fields"
+                        :key="fieldName"
+                      >
+                        <div class="flex items-center gap-2 py-1">
+                          <span
+                            class="text-primary"
+                            x-text="fieldConfig.required ? '●' : '○'"
+                          ></span>
+                          <span
+                            class="font-mono text-white"
+                            x-text="fieldName"
+                          ></span>
+                          <span
+                            class="text-text-secondary/60"
+                            x-text="'(' + fieldConfig.type + ')'"
+                          ></span>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+                <div
+                  class="mt-2 pt-2 border-t border-border-dark/50 flex items-center gap-2 text-[10px] text-text-secondary"
+                >
+                  <span class="text-primary">●</span> Required
+                  <span class="text-text-secondary ml-2">○</span> Optional
+                </div>
+              </div>
+
+              <!-- Quick Actions section removed - Add Row button is now under the table -->
+            </div>
+          </div>
+
+          <!-- Execute Button -->
+          <div class="p-4 border-t border-border-dark bg-[#111722]">
+            <button
+              @click="executeRequest()"
+              :disabled="isLoading"
+              class="w-full bg-primary hover:bg-blue-600 active:scale-[0.98] transition-all text-white h-12 rounded-lg font-bold text-sm tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span
+                class="material-symbols-outlined"
+                x-text="executeButtonIcon"
+              ></span>
+              <span x-text="executeButtonText"></span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-w-0 bg-[#0d121c] relative">
+          <!-- Tabs -->
+          <div
+            class="flex-none h-12 border-b border-border-dark bg-[#111722] flex items-center justify-between pr-4"
+            x-show="mode !== 'upload'"
+          >
+            <div class="flex h-full">
+              <button
+                @click="activeTab = 'raw'"
+                class="h-full px-4 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors"
+                :class="activeTab === 'raw'
+                            ? 'text-white border-primary bg-[#192233]/50'
+                            : 'text-text-secondary hover:text-white border-transparent hover:bg-[#192233]/30'"
+              >
+                <span class="material-symbols-outlined text-base">code</span>
+                Raw JSON
+              </button>
+              <button
+                @click="activeTab = 'schema'"
+                class="h-full px-4 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors"
+                :class="activeTab === 'schema'
+                            ? 'text-white border-primary bg-[#192233]/50'
+                            : 'text-text-secondary hover:text-white border-transparent hover:bg-[#192233]/30'"
+              >
+                <span class="material-symbols-outlined text-base">schema</span>
+                Schema
+              </button>
+              <button
+                @click="activeTab = 'metadata'"
+                class="h-full px-4 text-sm font-medium border-b-2 flex items-center gap-2 transition-colors"
+                :class="activeTab === 'metadata'
+                            ? 'text-white border-primary bg-[#192233]/50'
+                            : 'text-text-secondary hover:text-white border-transparent hover:bg-[#192233]/30'"
+              >
+                <span class="material-symbols-outlined text-base">info</span>
+                Metadata
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button
+                @click="copyToClipboard()"
+                class="p-2 text-text-secondary hover:text-white rounded hover:bg-[#232f48]"
+                title="Copy to Clipboard"
+              >
+                <span
+                  class="material-symbols-outlined text-[18px]"
+                  x-text="clipboardCopyIcon"
+                ></span>
+              </button>
+              <button
+                @click="downloadJSON()"
+                class="p-2 text-text-secondary hover:text-white rounded hover:bg-[#232f48]"
+                title="Download JSON"
+              >
+                <span class="material-symbols-outlined text-[18px]"
+                  >download</span
+                >
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Bar -->
+          <div
+            class="flex-none px-4 py-2 bg-[#192233] border-b border-border-dark flex items-center gap-6 text-xs font-mono"
+          >
+            <div class="flex items-center gap-2" :class="statusCodeClass">
+              <span class="material-symbols-outlined text-[16px]">pending</span>
+              <span class="font-bold" x-html="statusCode"></span>
+            </div>
+            <div class="w-px h-3 bg-border-dark"></div>
+            <div class="flex items-center gap-2 text-text-secondary">
+              <span class="material-symbols-outlined text-[16px]"
+                >schedule</span
+              >
+              <span x-text="responseTime"></span>
+            </div>
+            <div class="w-px h-3 bg-border-dark"></div>
+            <div class="flex items-center gap-2 text-text-secondary">
+              <span class="material-symbols-outlined text-[16px]"
+                >cloud_download</span
+              >
+              <span x-text="responseSize"></span>
+            </div>
+          </div>
+
+          <!-- JSON Output / Editor Area -->
+          <div class="flex-1 overflow-hidden relative" :class="mode === 'upload' ? '' : 'flex'">
+            <!-- Upload Mode: Table Editor -->
+            <div
+              class="h-full flex flex-col overflow-hidden bg-[#0d121c] relative"
+              x-show="mode === 'upload'"
+              x-cloak
+            >
+              <!-- Loading Overlay -->
+              <div
+                x-show="isLoading"
+                class="absolute inset-0 bg-[#0d121c]/80 z-50 flex items-center justify-center"
+              >
+                <div class="flex flex-col items-center">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                  <p class="text-text-secondary">Uploading...</p>
+                </div>
+              </div>
+              <!-- Toolbar -->
+              <div class="p-3 border-b border-border-dark bg-[#111722] flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <button
+                    @click="addGridRow()"
+                    class="px-3 py-1.5 bg-[#192233] hover:bg-[#232f48] border border-border-dark rounded text-sm text-white flex items-center gap-2 transition-colors"
+                    title="Add new row (Ctrl+Enter)"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">add</span>
+                    Add Row
+                  </button>
+                  <button
+                    @click="showImportDialog = true"
+                    class="px-3 py-1.5 bg-primary hover:bg-blue-600 rounded text-sm text-white flex items-center gap-2 transition-colors"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                    Paste JSON
+                  </button>
+                </div>
+                <div class="text-xs text-text-secondary">
+                  <span x-text="gridRowCount"></span> rows
+                </div>
+              </div>
+
+              <!-- AG Grid Container -->
+              <div
+                x-ref="agGridContainer"
+                class="flex-1 ag-theme-alpine-dark"
+                style="width: 100%; height: 100%;"
+              ></div>
+            </div>
+
+            <!-- Import Mode: JSON Viewer -->
+            <div
+              class="flex-1 overflow-auto relative"
+              x-show="mode === 'import'"
+            >
+              <div
+                class="absolute left-0 top-0 bottom-0 w-10 bg-[#111722] border-r border-border-dark z-0"
+              ></div>
+              <div class="flex min-h-full">
+                <div
+                  class="w-10 flex-shrink-0 flex flex-col items-end pr-2 pt-4 text-right font-mono text-xs text-text-secondary/30 select-none z-10 leading-6"
+                >
+                  <template x-for="n in lineCount" :key="n">
+                    <span x-text="n"></span>
+                  </template>
+                </div>
+                <div
+                  class="flex-1 p-4 font-mono text-sm leading-6 whitespace-pre text-slate-300 z-10"
+                  x-html="displayContent"
+                ></div>
+              </div>
+            </div>
+
+            <!-- Upload Mode: Response Panel (shown after upload) -->
+            <div
+              class="w-1/2 border-l border-border-dark overflow-auto relative"
+              x-show="mode === 'upload' && currentResponse !== null"
+              x-cloak
+            >
+              <div
+                class="sticky top-0 px-4 py-2 bg-[#111722] border-b border-border-dark text-xs font-semibold text-text-secondary uppercase tracking-wider"
+              >
+                Response
+              </div>
+              <div
+                class="absolute left-0 top-8 bottom-0 w-10 bg-[#111722] border-r border-border-dark z-0"
+              ></div>
+              <div class="flex min-h-full pt-8">
+                <div
+                  class="w-10 flex-shrink-0 flex flex-col items-end pr-2 pt-4 text-right font-mono text-xs text-text-secondary/30 select-none z-10 leading-6"
+                >
+                  <template x-for="n in lineCount" :key="n">
+                    <span x-text="n"></span>
+                  </template>
+                </div>
+                <div
+                  class="flex-1 p-4 font-mono text-sm leading-6 whitespace-pre text-slate-300 z-10"
+                  x-html="displayContent"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- Confirm Dialog -->
+      <div
+        x-show="showClearDialog"
+        x-cloak
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+        @click.self="showClearDialog = false"
+      >
+        <div
+          class="bg-[#192233] border border-border-dark rounded-lg p-6 max-w-md mx-4 shadow-2xl"
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95"
+        >
+          <div class="flex items-start gap-4 mb-4">
+            <span class="material-symbols-outlined text-yellow-400 text-3xl"
+              >warning</span
+            >
+            <div class="flex-1">
+              <h3 class="text-white font-semibold text-lg mb-2">
+                Clear All Data?
+              </h3>
+              <p class="text-text-secondary text-sm">
+                Are you sure you want to clear all saved data and reset the
+                page? This action cannot be undone.
+              </p>
+            </div>
+          </div>
+          <div class="flex gap-3 justify-end">
+            <button
+              @click="showClearDialog = false"
+              class="px-4 py-2 bg-[#111722] hover:bg-[#1a2332] border border-border-dark rounded-md text-white text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              @click="clearStorage()"
+              class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white text-sm font-medium transition-colors"
+            >
+              Clear All Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import JSON Dialog -->
+      <div
+        x-show="showImportDialog"
+        x-cloak
+        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
+        @click.self="showImportDialog = false"
+      >
+        <div
+          class="bg-[#192233] border border-border-dark rounded-lg p-6 max-w-2xl w-full mx-4 shadow-2xl"
+          x-transition:enter="transition ease-out duration-200"
+          x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-150"
+          x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95"
+        >
+          <div class="flex items-start gap-4 mb-4">
+            <span class="material-symbols-outlined text-blue-400 text-3xl">upload_file</span>
+            <div class="flex-1">
+              <h3 class="text-white font-semibold text-lg mb-2">Import JSON</h3>
+              <p class="text-text-secondary text-sm mb-4">
+                Paste your JSON payload. Expected format: <code class="text-primary">{"<span x-text="selectedEndpoint === 'pricelist' ? 'priceList' : selectedEndpoint"></span>": [...]}</code>
+              </p>
+              <textarea
+                x-model="importJsonText"
+                class="w-full h-64 bg-[#111722] border border-border-dark rounded px-3 py-2 text-sm text-white font-mono focus:border-primary outline-none resize-none"
+                placeholder='{"customers": [{"firmName": "...", ...}]}'
+              ></textarea>
+            </div>
+          </div>
+          <div class="flex gap-3 justify-end">
+            <button
+              @click="showImportDialog = false; importJsonText = ''"
+              class="px-4 py-2 bg-[#111722] hover:bg-[#1a2332] border border-border-dark rounded-md text-white text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              @click="importFromJson()"
+              class="px-4 py-2 bg-primary hover:bg-blue-600 rounded-md text-white text-sm font-medium transition-colors"
+            >
+              Import
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toast Notification -->
+      <div
+        x-show="toastVisible"
+        x-cloak
+        x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0 translate-y-4"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-200"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-4"
+        class="fixed bottom-4 right-4 z-50 max-w-md"
+      >
+        <div
+          class="rounded-lg shadow-2xl border p-4 flex items-center gap-3"
+          :class="{
+            'bg-red-900/90 border-red-700': toastType === 'error',
+            'bg-green-900/90 border-green-700': toastType === 'success',
+            'bg-blue-900/90 border-blue-700': toastType === 'info'
+          }"
+        >
+          <span
+            class="material-symbols-outlined text-2xl flex-shrink-0"
+            :class="{
+              'text-red-400': toastType === 'error',
+              'text-green-400': toastType === 'success',
+              'text-blue-400': toastType === 'info'
+            }"
+            x-text="toastType === 'error' ? 'error' : (toastType === 'success' ? 'check_circle' : 'info')"
+          ></span>
+          <div class="flex-1">
+            <p
+              class="text-sm font-medium"
+              :class="{
+                'text-red-200': toastType === 'error',
+                'text-green-200': toastType === 'success',
+                'text-blue-200': toastType === 'info'
+              }"
+              x-text="toastMessage"
+            ></p>
+          </div>
+          <button
+            @click="toastVisible = false"
+            class="text-white/60 hover:text-white transition-colors flex-shrink-0"
+          >
+            <span class="material-symbols-outlined text-lg">close</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function apiTester() {
+        return {
+          // Credentials
+          workspaceId: "",
+          clientId: "",
+          clientSecret: "",
+          environment: "qa",
+
+          // Auth state
+          token: null,
+          tokenExpiry: null,
+          connectionStatus: "disconnected", // disconnected, authenticating, connected, error
+
+          // Endpoint config
+          endpointsConfig: {},
+          selectedEndpoint: "",
+
+          // Pagination & Time Period
+          paginationEnabled: false,
+          pageNo: 1,
+          pageSize: 10,
+          timePeriodEnabled: false,
+          periodDays: "30",
+
+          // Response state
+          currentResponse: null,
+          activeTab: "raw",
+          isLoading: false,
+
+          // Status bar
+          statusCode: "---",
+          responseTime: "---",
+          responseSize: "---",
+
+          // UI state
+          showClearDialog: false,
+          tokenCopyIcon: "vpn_key",
+          clipboardCopyIcon: "content_copy",
+          curlCopyIcon: "terminal",
+
+          // Toast notification
+          toastMessage: "",
+          toastVisible: false,
+          toastType: "error", // error, success, info
+
+          // Mode state (import = GET, upload = POST)
+          mode: "import",
+          uploadSchemas: {},
+          uploadRows: [],
+
+          // AG Grid state
+          gridApi: null,
+          gridColumnApi: null,
+          gridRowCount: 0,
+          showImportDialog: false,
+          importJsonText: "",
+
+          // Computed: check if endpoint supports upload
+          get supportsUpload() {
+            return !!this.uploadSchemas[this.selectedEndpoint];
+          },
+
+          // Computed: get current upload schema
+          get currentUploadSchema() {
+            return this.uploadSchemas[this.selectedEndpoint] || null;
+          },
+
+          // Computed: available modes for current endpoint
+          get availableModes() {
+            const modes = ["import"]; // All endpoints support import (GET)
+            if (this.supportsUpload) {
+              modes.push("upload");
+            }
+            return modes;
+          },
+
+          // Computed: execute button text
+          get executeButtonText() {
+            if (this.isLoading) {
+              return this.mode === "upload" ? "UPLOADING..." : "EXECUTING...";
+            }
+            return this.mode === "upload" ? "UPLOAD DATA" : "EXECUTE REQUEST";
+          },
+
+          // Computed: execute button icon
+          get executeButtonIcon() {
+            if (this.isLoading) return "hourglass_empty";
+            return this.mode === "upload" ? "cloud_upload" : "play_arrow";
+          },
+
+          // Computed: line count for payload editor
+
+          // Computed: current endpoint config
+          get currentEndpointConfig() {
+            return this.endpointsConfig[this.selectedEndpoint] || null;
+          },
+
+          // Computed: connection status icon
+          get connectionStatusIcon() {
+            const icons = {
+              disconnected: "pending",
+              authenticating: "pending",
+              connected: "check_circle",
+              error: "error",
+            };
+            return icons[this.connectionStatus] || "pending";
+          },
+
+          // Computed: connection status text
+          get connectionStatusText() {
+            const texts = {
+              disconnected: "Not Connected",
+              authenticating: "Connecting",
+              connected: "Connected",
+              error: "Error",
+            };
+            return texts[this.connectionStatus] || "Not Connected";
+          },
+
+          // Computed: connection tooltip with expiry info
+          get connectionTooltip() {
+            if (this.connectionStatus === "connected" && this.tokenExpiry) {
+              const expiry = new Date(this.tokenExpiry);
+              const now = new Date();
+              const diffMs = expiry - now;
+              if (diffMs > 0) {
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                if (diffHours > 0) {
+                  return `Token expires in ${diffHours}h ${diffMins % 60}m`;
+                }
+                return `Token expires in ${diffMins}m`;
+              }
+              return "Token expired - please re-authenticate";
+            }
+            if (this.connectionStatus === "error") {
+              return "Authentication failed - check credentials";
+            }
+            if (this.connectionStatus === "authenticating") {
+              return "Authenticating...";
+            }
+            return "Click Authenticate to connect";
+          },
+
+          // Computed: status code class
+          get statusCodeClass() {
+            if (this.statusCode.includes("ERROR")) {
+              return "text-red-400";
+            }
+            return "text-gray-400";
+          },
+
+          // Computed: line count
+          get lineCount() {
+            const content = this.getTabContent();
+            if (!content) return 1;
+            return content.split("\n").length;
+          },
+
+          // Computed: display content with syntax highlighting
+          get displayContent() {
+            if (this.isLoading) {
+              return `<div class="flex flex-col items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                    <p class="text-text-secondary">Executing request...</p>
+                </div>`;
+            }
+
+            const content = this.getTabContent();
+            if (!content) {
+              return '<span class="text-text-secondary/50">// Select an endpoint and click "EXECUTE REQUEST" to fetch data</span>';
+            }
+            return this.syntaxHighlight(content);
+          },
+
+          // Get content for the current tab
+          getTabContent() {
+            // Don't show response in import mode if we're in upload mode
+            if (this.mode === 'upload') return null;
+
+            if (!this.currentResponse) return null;
+
+            if (this.activeTab === "raw") {
+              return JSON.stringify(this.currentResponse, null, 2);
+            } else if (this.activeTab === "schema") {
+              const schema = this.extractSchema(this.currentResponse);
+              return JSON.stringify(schema, null, 2);
+            } else if (this.activeTab === "metadata") {
+              const metadata = this.extractMetadata(this.currentResponse);
+              return JSON.stringify(metadata, null, 2);
+            }
+            return null;
+          },
+
+          // Initialize
+          async init() {
+            await this.loadEndpointsConfig();
+            await this.loadUploadSchemas();
+            this.loadFromLocalStorage();
+
+            // Watch for state changes and auto-save
+            this.$watch("workspaceId", () => this.saveToLocalStorage());
+            this.$watch("clientId", () => this.saveToLocalStorage());
+            this.$watch("clientSecret", () => this.saveToLocalStorage());
+            this.$watch("environment", () => this.saveToLocalStorage());
+            this.$watch("selectedEndpoint", () => this.saveToLocalStorage());
+            this.$watch("pageNo", () => this.saveToLocalStorage());
+            this.$watch("pageSize", () => this.saveToLocalStorage());
+            this.$watch("periodDays", () => this.saveToLocalStorage());
+            this.$watch("mode", () => {
+              this.saveToLocalStorage();
+              // Initialize grid when switching to upload mode
+              if (this.mode === 'upload' && this.supportsUpload) {
+                this.$nextTick(() => {
+                  if (!this.gridApi) {
+                    this.initGrid();
+                  }
+                });
+              }
+            });
+          },
+
+          // Load endpoints configuration
+          async loadEndpointsConfig() {
+            try {
+              const response = await axios.get("/api/endpoints");
+              this.endpointsConfig = response.data;
+            } catch (error) {
+              console.error("Error loading endpoints config:", error);
+            }
+          },
+
+          // Load upload schemas
+          async loadUploadSchemas() {
+            try {
+              const response = await axios.get("/api/upload-schemas");
+              this.uploadSchemas = response.data;
+            } catch (error) {
+              console.error("Error loading upload schemas:", error);
+            }
+          },
+
+          // Add a new empty row to upload table
+          addUploadRow() {
+            const schema = this.currentUploadSchema;
+            if (!schema) return;
+
+            const newRow = {};
+            Object.keys(schema.fields).forEach(fieldName => {
+              const fieldConfig = schema.fields[fieldName];
+              if (fieldConfig.type === 'array') {
+                newRow[fieldName] = '[]';
+              } else if (fieldConfig.type === 'boolean') {
+                newRow[fieldName] = false;
+              } else if (fieldConfig.type === 'number') {
+                newRow[fieldName] = 0;
+              } else {
+                newRow[fieldName] = '';
+              }
+            });
+            this.uploadRows.push(newRow);
+          },
+
+          // Remove a row from upload table
+          removeUploadRow(index) {
+            this.uploadRows.splice(index, 1);
+          },
+
+          // Generate template for upload mode
+          async generateTemplate() {
+            if (!this.selectedEndpoint) return;
+            // Add one empty row when generating template
+            this.uploadRows = [];
+            this.addUploadRow();
+            this.currentResponse = null;
+            this.statusCode = "---";
+            this.responseTime = "---";
+            this.responseSize = "---";
+          },
+
+
+          // Handle endpoint change
+          onEndpointChange() {
+            const config = this.currentEndpointConfig;
+            if (!config) {
+              this.paginationEnabled = false;
+              this.timePeriodEnabled = false;
+              this.mode = "import";
+              this.uploadRows = [];
+
+              return;
+            }
+
+            // Reset mode if current mode not supported
+            if (this.mode === "upload" && !this.supportsUpload) {
+              this.mode = "import";
+            }
+
+            // Update pagination
+            this.paginationEnabled = config.supports_pagination || false;
+
+            // Update time period
+            if (config.supports_time_period) {
+              this.timePeriodEnabled = true;
+              this.periodDays = String(config.default_period || 30);
+            } else {
+              this.timePeriodEnabled = false;
+            }
+
+            // Reinitialize grid when endpoint changes in upload mode
+            if (this.mode === "upload" && this.supportsUpload) {
+              this.$nextTick(() => {
+                // Destroy old grid and reinitialize
+                if (this.gridApi) {
+                  this.gridApi.destroy();
+                  this.gridApi = null;
+                  this.gridColumnApi = null;
+                }
+                this.initGrid();
+              });
+            }
+
+            this.currentResponse = null;
+          },
+
+          // Handle credential change - invalidate auth
+          onCredentialChange() {
+            if (this.connectionStatus === "connected") {
+              this.token = null;
+              this.tokenExpiry = null;
+              this.connectionStatus = "disconnected";
+              this.saveToLocalStorage();
+            }
+          },
+
+          // Authenticate
+          async authenticate() {
+            if (!this.workspaceId || !this.clientId || !this.clientSecret) {
+              this.showError("Please fill in all credential fields");
+              return;
+            }
+
+            this.connectionStatus = "authenticating";
+
+            try {
+              const response = await axios.post("/api/generate-token", {
+                workspace_id: this.workspaceId,
+                client_id: this.clientId,
+                client_secret: this.clientSecret,
+                environment: this.environment,
+              });
+
+              this.token = response.data.token;
+              // Set token expiry (typically 1 hour from now)
+              this.tokenExpiry = new Date(
+                Date.now() + 60 * 60 * 1000,
+              ).toISOString();
+              this.connectionStatus = "connected";
+              this.saveToLocalStorage();
+            } catch (error) {
+              this.token = null;
+              this.tokenExpiry = null;
+              this.connectionStatus = "error";
+
+              let errorMsg = "Authentication failed";
+              if (error.response?.data?.detail) {
+                try {
+                  const detail = JSON.parse(error.response.data.detail);
+                  errorMsg = detail.message || errorMsg;
+                } catch {
+                  errorMsg = error.response.data.detail;
+                }
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+
+              this.showError(errorMsg);
+              this.saveToLocalStorage();
+            }
+          },
+
+          // Execute request
+          async executeRequest() {
+            if (!this.workspaceId || !this.clientId || !this.clientSecret) {
+              this.showError("Please fill in all credential fields");
+              return;
+            }
+
+            if (!this.selectedEndpoint) {
+              this.showError("Please select an endpoint");
+              return;
+            }
+
+            // Route to appropriate handler based on mode
+            if (this.mode === "upload") {
+              await this.executeUpload();
+            } else {
+              await this.executeImport();
+            }
+          },
+
+          // Execute import (GET) request
+          async executeImport() {
+            this.isLoading = true;
+            this.statusCode = "---";
+            this.responseTime = "---";
+            this.responseSize = "---";
+
+            const config = this.currentEndpointConfig;
+            const endpointRequest = {
+              endpoint: this.selectedEndpoint,
+            };
+
+            // Add pagination if enabled
+            if (config?.supports_pagination && this.paginationEnabled) {
+              endpointRequest.page_size = this.pageSize;
+              endpointRequest.page_no = this.pageNo;
+            }
+
+            // Add time period if enabled
+            if (config?.supports_time_period && this.timePeriodEnabled) {
+              endpointRequest.period = parseInt(this.periodDays);
+            }
+
+            const startTime = performance.now();
+
+            try {
+              const response = await axios.post("/api/fetch-endpoint", {
+                credentials: {
+                  workspace_id: this.workspaceId,
+                  client_id: this.clientId,
+                  client_secret: this.clientSecret,
+                  environment: this.environment,
+                },
+                endpoint_request: endpointRequest,
+              });
+
+              const endTime = performance.now();
+              const duration = Math.round(endTime - startTime);
+
+              if (response.data.success) {
+                this.currentResponse = response.data.data;
+                this.displayResponseStats(this.currentResponse, duration);
+              } else {
+                const errorMsg =
+                  response.data.error || "Unknown error occurred";
+                this.showError(errorMsg);
+              }
+            } catch (error) {
+              const errorMsg =
+                error.response?.data?.detail ||
+                error.message ||
+                "Request failed";
+              this.showError(errorMsg);
+            } finally {
+              this.isLoading = false;
+            }
+          },
+
+          // Execute upload (POST) request
+          async executeUpload() {
+            // Get data from grid
+            const processedRows = this.getGridData();
+
+            if (processedRows.length === 0) {
+              this.showError("Please add at least one row to upload");
+              return;
+            }
+
+            // Wrap in endpoint key
+            const payload = this.selectedEndpoint === 'pricelist'
+              ? { priceList: processedRows }
+              : { [this.selectedEndpoint]: processedRows };
+
+            this.isLoading = true;
+            this.statusCode = "---";
+            this.responseTime = "---";
+            this.responseSize = "---";
+
+            const startTime = performance.now();
+
+            try {
+              const response = await axios.post("/api/upload-entity", {
+                credentials: {
+                  workspace_id: this.workspaceId,
+                  client_id: this.clientId,
+                  client_secret: this.clientSecret,
+                  environment: this.environment,
+                },
+                endpoint: this.selectedEndpoint,
+                payload: payload,
+              });
+
+              const endTime = performance.now();
+              const duration = Math.round(endTime - startTime);
+
+              if (response.data.success) {
+                this.currentResponse = response.data.data;
+                this.displayResponseStats(this.currentResponse, duration);
+              } else {
+                const errorMsg = response.data.error || "Upload failed";
+                this.showError(errorMsg);
+              }
+            } catch (error) {
+              console.error("Upload error:", error);
+              let errorMsg = "Upload failed";
+
+              if (error.response?.data?.detail) {
+                errorMsg = error.response.data.detail;
+              } else if (error.response?.data?.error) {
+                errorMsg = error.response.data.error;
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+
+              this.showError(errorMsg);
+            } finally {
+              this.isLoading = false;
+            }
+          },
+
+          // Extract schema information from response data
+          extractSchema(data) {
+            const schema = {
+              type: "object",
+              structure: {},
+            };
+
+            if (data && typeof data === "object") {
+              if (data.headers) {
+                schema.structure.headers =
+                  Object.keys(data.headers).length + " columns";
+              }
+              if (data.data && Array.isArray(data.data)) {
+                schema.structure.records = data.data.length;
+                if (data.data.length > 0) {
+                  schema.structure.fields = Object.keys(data.data[0]);
+                }
+              }
+              if (data.totalRecords !== undefined) {
+                schema.structure.totalRecords = data.totalRecords;
+              }
+            }
+
+            return schema;
+          },
+
+          // Extract metadata from response
+          extractMetadata(data) {
+            const metadata = {
+              timestamp: new Date().toISOString(),
+              dataType: Array.isArray(data) ? "array" : typeof data,
+              sizeBytes: new Blob([JSON.stringify(data)]).size,
+            };
+
+            if (data && typeof data === "object") {
+              if (data.startRecord !== undefined)
+                metadata.startRecord = data.startRecord;
+              if (data.endRecord !== undefined)
+                metadata.endRecord = data.endRecord;
+              if (data.totalRecords !== undefined)
+                metadata.totalRecords = data.totalRecords;
+
+              metadata.topLevelKeys = Object.keys(data);
+
+              if (data.data && Array.isArray(data.data)) {
+                metadata.recordCount = data.data.length;
+              }
+            }
+
+            return metadata;
+          },
+
+          // Copy response to clipboard
+          copyToClipboard() {
+            if (!this.currentResponse) return;
+            const json = JSON.stringify(this.currentResponse, null, 2);
+            navigator.clipboard.writeText(json).then(() => {
+              this.clipboardCopyIcon = "done";
+              setTimeout(() => {
+                this.clipboardCopyIcon = "content_copy";
+              }, 2000);
+            });
+          },
+
+          // Copy token to clipboard
+          copyToken() {
+            if (!this.token) {
+              this.showError("No token available. Please authenticate first.");
+              return;
+            }
+
+            navigator.clipboard
+              .writeText(this.token)
+              .then(() => {
+                this.tokenCopyIcon = "done";
+                setTimeout(() => {
+                  this.tokenCopyIcon = "vpn_key";
+                }, 2000);
+              })
+              .catch(() => {
+                this.showError("Failed to copy token to clipboard");
+              });
+          },
+
+          // Download JSON
+          downloadJSON() {
+            if (!this.currentResponse) return;
+            const json = JSON.stringify(this.currentResponse, null, 2);
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "response.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          },
+
+          // Copy cURL command to clipboard
+          async copyCurl() {
+            if (!this.selectedEndpoint) {
+              this.showError("Please select an endpoint first");
+              return;
+            }
+
+            if (!this.workspaceId || !this.clientId || !this.clientSecret) {
+              this.showError("Please fill in credentials first");
+              return;
+            }
+
+            try {
+              // Build request based on current mode
+              const request = {
+                credentials: {
+                  workspace_id: this.workspaceId,
+                  client_id: this.clientId,
+                  client_secret: this.clientSecret,
+                  environment: this.environment,
+                },
+                endpoint: this.selectedEndpoint,
+                method: this.mode === "upload" ? "POST" : "GET",
+              };
+
+              // Add params for GET mode
+              if (this.mode === "import") {
+                if (this.paginationEnabled) {
+                  request.page_size = this.pageSize;
+                  request.page_no = this.pageNo;
+                }
+                if (this.timePeriodEnabled) {
+                  request.period = parseInt(this.periodDays);
+                }
+              }
+
+              // Add payload for POST mode (build from table rows)
+              if (this.mode === "upload" && this.uploadRows.length > 0) {
+                const processedRows = this.uploadRows.map(row => {
+                  const processedRow = {};
+                  const schema = this.currentUploadSchema;
+                  Object.keys(schema.fields).forEach(fieldName => {
+                    const fieldConfig = schema.fields[fieldName];
+                    let value = row[fieldName];
+                    if (value === '' || value === null || value === undefined) {
+                      processedRow[fieldName] = fieldConfig.type === 'array' ? [] : (fieldConfig.type === 'number' ? 0 : (fieldConfig.type === 'boolean' ? false : ''));
+                    } else {
+                      processedRow[fieldName] = fieldConfig.type === 'array' ? (typeof value === 'string' ? JSON.parse(value) : value) : value;
+                    }
+                  });
+                  return processedRow;
+                });
+                request.payload = this.selectedEndpoint === 'pricelist' ? { priceList: processedRows } : { [this.selectedEndpoint]: processedRows };
+              }
+
+              const response = await axios.post("/api/generate-curl", request);
+
+              if (response.data.success) {
+                await navigator.clipboard.writeText(response.data.curl);
+                this.curlCopyIcon = "done";
+                setTimeout(() => {
+                  this.curlCopyIcon = "terminal";
+                }, 2000);
+              } else {
+                this.showError(
+                  response.data.error || "Failed to generate cURL",
+                );
+              }
+            } catch (error) {
+              this.showError(
+                error.response?.data?.detail || "Failed to generate cURL",
+              );
+            }
+          },
+
+          // Show error
+          showError(message) {
+            console.error("Error:", message);
+            this.currentResponse = null;
+            this.statusCode = '<span class="text-red-400">ERROR</span>';
+            this.responseTime = "---";
+            this.responseSize = "---";
+            this.isLoading = false;
+
+            // Set a temporary error message as response for display
+            this._errorMessage = message;
+
+            // Show toast notification
+            this.showToast(message, "error");
+          },
+
+          // Show toast notification
+          showToast(message, type = "info") {
+            this.toastMessage = message;
+            this.toastType = type;
+            this.toastVisible = true;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+              this.toastVisible = false;
+            }, 5000);
+          },
+
+          // Display response stats
+          displayResponseStats(data, duration) {
+            this.statusCode = '<span class="text-green-400">200</span>';
+            this.responseTime = `${duration}ms`;
+            const size = JSON.stringify(data).length;
+            this.responseSize = size > 1024 ? `${(size / 1024).toFixed(2)} KB` : `${size} B`;
+          },
+
+          // Syntax highlight JSON
+          syntaxHighlight(json) {
+            if (!json) return "";
+            return json
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(
+                /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+                (match) => {
+                  let cls = "syntax-number";
+                  if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                      cls = "syntax-key";
+                    } else {
+                      cls = "syntax-string";
+                    }
+                  } else if (/true|false/.test(match)) {
+                    cls = "syntax-boolean";
+                  } else if (/null/.test(match)) {
+                    cls = "syntax-null";
+                  }
+                  return `<span class="${cls}">${match}</span>`;
+                }
+              );
+          },
+
+          // Override displayContent for error state
+          get displayContent() {
+            if (this.isLoading) {
+              return `<div class="flex flex-col items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                    <p class="text-text-secondary">Executing request...</p>
+                </div>`;
+            }
+
+            if (this._errorMessage) {
+              const msg = this._errorMessage;
+              this._errorMessage = null;
+              return `<div class="flex flex-col items-center justify-center py-12">
+                    <span class="material-symbols-outlined text-red-400 text-6xl mb-4">error</span>
+                    <p class="text-red-400 font-semibold mb-2">Request Failed</p>
+                    <p class="text-text-secondary text-sm text-center max-w-md">${msg}</p>
+                </div>`;
+            }
+
+            const content = this.getTabContent();
+            if (!content) {
+              return '<span class="text-text-secondary/50">// Select an endpoint and click "EXECUTE REQUEST" to fetch data</span>';
+            }
+            return this.syntaxHighlight(content);
+          },
+
+          // LocalStorage save
+          saveToLocalStorage() {
+            const data = {
+              workspaceId: this.workspaceId,
+              clientId: this.clientId,
+              clientSecret: this.clientSecret,
+              environment: this.environment,
+              endpoint: this.selectedEndpoint,
+              pageSize: this.pageSize,
+              pageNo: this.pageNo,
+              periodDays: this.periodDays,
+              token: this.token,
+              tokenExpiry: this.tokenExpiry,
+              mode: this.mode,
+            };
+            localStorage.setItem("zotokApiTester", JSON.stringify(data));
+          },
+
+          // Save payload for specific endpoint
+
+          // LocalStorage load
+          loadFromLocalStorage() {
+            const saved = localStorage.getItem("zotokApiTester");
+            if (saved) {
+              try {
+                const data = JSON.parse(saved);
+                if (data.workspaceId) this.workspaceId = data.workspaceId;
+                if (data.clientId) this.clientId = data.clientId;
+                if (data.clientSecret) this.clientSecret = data.clientSecret;
+                if (data.environment) this.environment = data.environment;
+                if (data.endpoint) {
+                  this.selectedEndpoint = data.endpoint;
+                  // Trigger endpoint change after a tick to let config load
+                  setTimeout(() => this.onEndpointChange(), 100);
+                }
+                if (data.pageSize) this.pageSize = data.pageSize;
+                if (data.pageNo) this.pageNo = data.pageNo;
+                if (data.periodDays) this.periodDays = data.periodDays;
+                if (data.mode) this.mode = data.mode;
+                if (data.token) {
+                  this.token = data.token;
+                  this.tokenExpiry = data.tokenExpiry || null;
+                  // Check if token is still valid
+                  if (
+                    this.tokenExpiry &&
+                    new Date(this.tokenExpiry) > new Date()
+                  ) {
+                    this.connectionStatus = "connected";
+                  } else {
+                    // Token expired
+                    this.token = null;
+                    this.tokenExpiry = null;
+                    this.connectionStatus = "disconnected";
+                  }
+                }
+                // Load payload for the saved endpoint
+                if (data.endpoint) {
+                }
+              } catch (error) {
+                console.error("Error loading from localStorage:", error);
+              }
+            }
+          },
+
+          // Clear storage
+          clearStorage() {
+            // Clear main storage
+            localStorage.removeItem("zotokApiTester");
+            // Clear all endpoint payloads
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith("zotokPayload_")) {
+                keysToRemove.push(key);
+              }
+            }
+            keysToRemove.forEach((key) => localStorage.removeItem(key));
+            location.reload();
+          },
+
+          // ============== AG GRID METHODS ==============
+
+          // Initialize AG Grid
+          initGrid() {
+            if (!this.currentUploadSchema) return;
+
+            const schema = this.currentUploadSchema;
+            const columnDefs = [];
+
+            // Add columns based on schema
+            Object.entries(schema.fields).forEach(([fieldName, fieldConfig]) => {
+              const col = {
+                field: fieldName,
+                headerName: fieldName,
+                editable: true,
+                resizable: true,
+                sortable: true,
+                filter: true,
+              };
+
+              // Set cell editor based on type
+              if (fieldConfig.type === 'number') {
+                col.cellEditor = 'agNumberCellEditor';
+              } else if (fieldConfig.type === 'boolean') {
+                col.cellEditor = 'agCheckboxCellEditor';
+                col.cellRenderer = params => {
+                  return params.value ? '✓' : '✗';
+                };
+              } else if (fieldConfig.type === 'array') {
+                col.cellEditor = 'agLargeTextCellEditor';
+                col.cellEditorPopup = true;
+                col.cellEditorParams = {
+                  maxLength: 5000,
+                  rows: 5,
+                  cols: 50
+                };
+                col.cellRenderer = params => {
+                  return typeof params.value === 'string' ? params.value : JSON.stringify(params.value);
+                };
+              }
+
+              columnDefs.push(col);
+            });
+
+            // Add delete button column
+            columnDefs.push({
+              headerName: '',
+              field: 'delete',
+              width: 60,
+              resizable: false,
+              sortable: false,
+              filter: false,
+              editable: false,
+              cellRenderer: (params) => {
+                return '<button class="delete-row-btn" title="Delete row"><span class="material-symbols-outlined text-[18px] text-red-400 hover:text-red-300">delete</span></button>';
+              },
+              onCellClicked: (params) => {
+                this.gridApi.applyTransaction({ remove: [params.data] });
+                this.updateGridRowCount();
+              }
+            });
+
+            const gridOptions = {
+              columnDefs: columnDefs,
+              rowData: [],
+              defaultColDef: {
+                minWidth: 150,
+                resizable: true,
+                sortable: true,
+                filter: true,
+                floatingFilter: false,
+                suppressSizeToFit: true,
+              },
+              suppressDragLeaveHidesColumns: true,
+              suppressColumnVirtualisation: false,
+              animateRows: true,
+              rowSelection: 'multiple',
+              rowHeight: 40,
+              headerHeight: 40,
+              onRowDataUpdated: () => {
+                this.updateGridRowCount();
+              }
+            };
+
+            // Create grid using new API
+            const container = this.$refs.agGridContainer;
+            this.gridApi = agGrid.createGrid(container, gridOptions);
+            this.updateGridRowCount();
+
+            // Add keyboard shortcut for adding row (Ctrl+Enter)
+            container.addEventListener('keydown', (e) => {
+              if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                this.addGridRow();
+              }
+            });
+          },
+
+          // Add a new row to the grid
+          addGridRow() {
+            if (!this.gridApi || !this.currentUploadSchema) return;
+
+            const schema = this.currentUploadSchema;
+            const newRow = {};
+
+            Object.entries(schema.fields).forEach(([fieldName, fieldConfig]) => {
+              if (fieldConfig.type === 'array') {
+                newRow[fieldName] = '[]';
+              } else if (fieldConfig.type === 'boolean') {
+                newRow[fieldName] = false;
+              } else if (fieldConfig.type === 'number') {
+                newRow[fieldName] = 0;
+              } else {
+                newRow[fieldName] = '';
+              }
+            });
+
+            this.gridApi.applyTransaction({ add: [newRow] });
+            this.updateGridRowCount();
+          },
+
+          // Update row count
+          updateGridRowCount() {
+            if (!this.gridApi) return;
+            this.gridRowCount = this.gridApi.getDisplayedRowCount();
+          },
+
+          // Import from JSON
+          importFromJson() {
+            try {
+              const json = JSON.parse(this.importJsonText);
+
+              let items;
+
+              // Check if it's already an array (unwrapped format)
+              if (Array.isArray(json)) {
+                items = json;
+              } else {
+                // Extract array from wrapper
+                const wrapperKey = this.selectedEndpoint === 'pricelist' ? 'priceList' : this.selectedEndpoint;
+
+                if (!json[wrapperKey] || !Array.isArray(json[wrapperKey])) {
+                  this.showToast(`Invalid JSON format. Expected: [...] or {"${wrapperKey}": [...]}`, 'error');
+                  return;
+                }
+
+                items = json[wrapperKey];
+              }
+
+              // Set grid data
+              this.gridApi.setGridOption('rowData', items);
+              this.updateGridRowCount();
+
+              this.showImportDialog = false;
+              this.importJsonText = '';
+              this.showToast(`Imported ${items.length} rows successfully`, 'success');
+            } catch (error) {
+              this.showToast(`Invalid JSON: ${error.message}`, 'error');
+            }
+          },
+
+          // Get data from grid for upload
+          getGridData() {
+            if (!this.gridApi) return [];
+
+            const rowData = [];
+            this.gridApi.forEachNode(node => rowData.push(node.data));
+
+            // Process array fields - convert JSON strings to actual arrays
+            const schema = this.currentUploadSchema;
+            return rowData.map(row => {
+              const processedRow = {};
+              Object.entries(schema.fields).forEach(([fieldName, fieldConfig]) => {
+                let value = row[fieldName];
+
+                if (value === '' || value === null || value === undefined) {
+                  if (fieldConfig.type === 'array') {
+                    processedRow[fieldName] = [];
+                  } else if (fieldConfig.type === 'number') {
+                    processedRow[fieldName] = 0;
+                  } else if (fieldConfig.type === 'boolean') {
+                    processedRow[fieldName] = false;
+                  } else {
+                    processedRow[fieldName] = '';
+                  }
+                } else {
+                  if (fieldConfig.type === 'array') {
+                    try {
+                      processedRow[fieldName] = typeof value === 'string' ? JSON.parse(value) : value;
+                    } catch (e) {
+                      processedRow[fieldName] = [];
+                    }
+                  } else {
+                    processedRow[fieldName] = value;
+                  }
+                }
+              });
+              return processedRow;
+            });
+          },
+        };
+      }
+    </script>
+  </body>
+</html>

@@ -11,6 +11,14 @@ TestSuite.gs
 Issues.md
 review.txt
 test_configs/
-/api-tester/
+# /api-tester/
 20260120_160431.json
 /Random/
+/api-tester/IMPLEMENTATION_PLAN.md
+/api-tester/README.md
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
