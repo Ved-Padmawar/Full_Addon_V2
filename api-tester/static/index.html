@@ -163,44 +163,26 @@
     >
       <!-- Header -->
       <header
-        class="flex-none h-16 border-b border-border-dark bg-[#111722] flex items-center justify-between px-4 z-20 shadow-md"
+        class="flex-none h-16 border-b border-border-dark bg-[#111722] flex items-center justify-between px-6 z-20 shadow-md"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-6">
           <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary text-2xl"
+            <span class="material-symbols-outlined text-primary text-3xl"
               >terminal</span
             >
-            <h1 class="text-base font-bold tracking-tight whitespace-nowrap">Zotok API Tester</h1>
+            <h1 class="text-lg font-bold tracking-tight">Zotok API Explorer</h1>
           </div>
-          <div class="h-6 w-px bg-border-dark"></div>
-          <!-- Navigation Tabs -->
-          <div class="flex items-center gap-2">
-            <a
-              href="/"
-              class="px-3 py-1.5 bg-primary text-white rounded-md text-xs font-medium flex items-center gap-1.5"
-            >
-              <span class="material-symbols-outlined text-base">explore</span>
-              Explorer
-            </a>
-            <a
-              href="/test-runner.html"
-              class="px-3 py-1.5 bg-[#192233] border border-border-dark text-white rounded-md text-xs font-medium hover:border-[#324467] transition-colors flex items-center gap-1.5"
-            >
-              <span class="material-symbols-outlined text-base">rule</span>
-              Tests
-            </a>
-          </div>
-          <div class="h-6 w-px bg-border-dark"></div>
+          <div class="h-6 w-px bg-border-dark mx-2"></div>
           <!-- Environment Dropdown -->
           <div x-data="{ envOpen: false }" @click.away="envOpen = false" class="relative">
             <button
               @click="envOpen = !envOpen"
-              class="pl-8 pr-7 py-1.5 bg-[#192233] border border-border-dark rounded-md text-xs text-white hover:border-[#324467] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap min-w-[140px]"
+              class="pl-10 pr-8 py-1.5 bg-[#192233] border border-border-dark rounded-md text-sm text-white hover:border-[#324467] focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer transition-colors flex items-center gap-2 whitespace-nowrap min-w-[180px]"
             >
-              <span class="absolute left-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-base">dns</span>
-              <span x-text="environment === 'qa' ? 'QA' : 'Production'"></span>
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg">dns</span>
+              <span x-text="environment === 'qa' ? 'QA Environment' : 'Production'"></span>
               <span
-                class="absolute right-1.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-base transition-transform"
+                class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-lg transition-transform"
                 :class="envOpen ? 'rotate-180' : ''"
               >expand_more</span>
             </button>
@@ -213,31 +195,31 @@
               x-transition:leave="transition ease-in duration-75"
               x-transition:leave-start="opacity-100 scale-100"
               x-transition:leave-end="opacity-0 scale-95"
-              class="absolute top-full mt-1 min-w-[140px] bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden"
+              class="absolute top-full mt-1 min-w-[180px] bg-[#192233] border border-border-dark rounded-md shadow-lg z-50 overflow-hidden"
             >
               <button
                 @click="environment = 'qa'; onCredentialChange(); envOpen = false"
-                class="w-full px-3 py-2 text-left text-xs text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
+                class="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
                 :class="environment === 'qa' ? 'bg-[#232f48]' : ''"
               >
-                <span class="material-symbols-outlined text-base" x-show="environment === 'qa'">check</span>
-                <span :class="environment === 'qa' ? '' : 'ml-6'">QA</span>
+                <span class="material-symbols-outlined text-lg" x-show="environment === 'qa'">check</span>
+                <span :class="environment === 'qa' ? '' : 'ml-7'">QA Environment</span>
               </button>
               <button
                 @click="environment = 'prod'; onCredentialChange(); envOpen = false"
-                class="w-full px-3 py-2 text-left text-xs text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
+                class="w-full px-4 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center gap-2 whitespace-nowrap"
                 :class="environment === 'prod' ? 'bg-[#232f48]' : ''"
               >
-                <span class="material-symbols-outlined text-base" x-show="environment === 'prod'">check</span>
-                <span :class="environment === 'prod' ? '' : 'ml-6'">Production</span>
+                <span class="material-symbols-outlined text-lg" x-show="environment === 'prod'">check</span>
+                <span :class="environment === 'prod' ? '' : 'ml-7'">Production</span>
               </button>
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <div class="group relative flex items-center">
             <span
-              class="absolute left-2 material-symbols-outlined text-text-secondary text-base"
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
               >workspaces</span
             >
             <input
@@ -245,12 +227,12 @@
               @input="onCredentialChange()"
               type="text"
               placeholder="Workspace ID"
-              class="pl-8 pr-2 py-1.5 w-32 bg-[#192233] border border-border-dark rounded-md text-xs text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
             />
           </div>
           <div class="group relative flex items-center">
             <span
-              class="absolute left-2 material-symbols-outlined text-text-secondary text-base"
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
               >key</span
             >
             <input
@@ -258,12 +240,12 @@
               @input="onCredentialChange()"
               type="text"
               placeholder="Client ID"
-              class="pl-8 pr-2 py-1.5 w-32 bg-[#192233] border border-border-dark rounded-md text-xs text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
             />
           </div>
           <div class="group relative flex items-center">
             <span
-              class="absolute left-2 material-symbols-outlined text-text-secondary text-base"
+              class="absolute left-3 material-symbols-outlined text-text-secondary text-lg"
               >lock</span
             >
             <input
@@ -271,20 +253,20 @@
               @input="onCredentialChange()"
               type="password"
               placeholder="Client Secret"
-              class="pl-8 pr-2 py-1.5 w-32 bg-[#192233] border border-border-dark rounded-md text-xs text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
+              class="pl-10 pr-3 py-1.5 w-40 bg-[#192233] border border-border-dark rounded-md text-sm text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-secondary/50"
             />
           </div>
           <button
             @click="authenticate()"
-            class="bg-primary hover:bg-blue-600 text-white px-3 py-1.5 rounded-md text-xs font-semibold transition-colors"
+            class="bg-primary hover:bg-blue-600 text-white px-4 py-1.5 rounded-md text-sm font-semibold transition-colors flex items-center gap-2"
           >
-            Authenticate
+            <span>Authenticate</span>
           </button>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-4">
           <!-- Connection Status -->
           <div
-            class="flex h-7 shrink-0 items-center justify-center gap-x-1.5 rounded-lg pl-1.5 pr-2.5 cursor-default"
+            class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg pl-2 pr-4 cursor-default"
             :class="{
                     'bg-gray-500/10 border border-gray-500/20': connectionStatus === 'disconnected',
                     'bg-yellow-500/10 border border-yellow-500/20': connectionStatus === 'authenticating',
@@ -294,7 +276,7 @@
             :title="connectionTooltip"
           >
             <span
-              class="material-symbols-outlined text-base"
+              class="material-symbols-outlined text-[20px]"
               :class="{
                         'text-gray-500': connectionStatus === 'disconnected',
                         'text-yellow-500': connectionStatus === 'authenticating',
@@ -304,7 +286,7 @@
               x-text="connectionStatusIcon"
             ></span>
             <p
-              class="text-[10px] font-bold uppercase tracking-wide"
+              class="text-xs font-bold uppercase tracking-wide"
               :class="{
                         'text-gray-500': connectionStatus === 'disconnected',
                         'text-yellow-500': connectionStatus === 'authenticating',

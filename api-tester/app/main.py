@@ -24,13 +24,6 @@ async def read_root():
     return html_file.read_text(encoding="utf-8")
 
 
-@app.get("/test-runner.html", response_class=HTMLResponse)
-async def test_runner():
-    """Serve the test runner page"""
-    html_file = Path("static/test-runner.html")
-    return html_file.read_text(encoding="utf-8")
-
-
 @app.get("/health")
 async def health():
     """Health check endpoint"""
