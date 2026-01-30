@@ -150,6 +150,12 @@
       button {
         user-select: none;
       }
+      /* Search highlight styles */
+      mark[data-search-hit] {
+        border-radius: 2px;
+        padding: 1px 2px;
+        transition: all 0.2s ease;
+      }
     </style>
   </head>
   <body
@@ -915,6 +921,45 @@
         </div>
       </div>
 
+      <!-- Search Modal (Ctrl+F) -->
+      <div
+        x-show="showSearchModal"
+        x-cloak
+        @keydown.escape.window="showSearchModal = false; clearSearch()"
+        class="fixed top-4 right-4 z-50"
+      >
+        <div
+          class="bg-[#192233] border border-border-dark rounded shadow-2xl flex items-center gap-2 px-3 py-2"
+          x-transition:enter="transition ease-out duration-150"
+          x-transition:enter-start="opacity-0 scale-95"
+          x-transition:enter-end="opacity-100 scale-100"
+          x-transition:leave="transition ease-in duration-100"
+          x-transition:leave-start="opacity-100 scale-100"
+          x-transition:leave-end="opacity-0 scale-95"
+        >
+          <input
+            x-ref="searchInput"
+            x-model="searchQuery"
+            @input="performSearch()"
+            @keydown.enter.prevent="navigateSearch('next')"
+            @keydown.shift.enter.prevent="navigateSearch('prev')"
+            type="text"
+            placeholder="Find in JSON..."
+            class="bg-[#111722] border border-border-dark rounded px-2 py-1 text-sm text-white placeholder:text-text-secondary/50 w-48 focus:outline-none focus:border-primary"
+          />
+          <span x-show="searchMatches.length > 0" class="text-xs text-text-secondary whitespace-nowrap" x-text="`${currentMatchIndex + 1}/${searchMatches.length}`"></span>
+          <button @click="navigateSearch('prev')" class="p-1 text-text-secondary hover:text-white rounded hover:bg-[#232f48]" title="Previous (Shift+Enter)">
+            <span class="material-symbols-outlined text-[16px]">keyboard_arrow_up</span>
+          </button>
+          <button @click="navigateSearch('next')" class="p-1 text-text-secondary hover:text-white rounded hover:bg-[#232f48]" title="Next (Enter)">
+            <span class="material-symbols-outlined text-[16px]">keyboard_arrow_down</span>
+          </button>
+          <button @click="showSearchModal = false; clearSearch()" class="p-1 text-text-secondary hover:text-white rounded hover:bg-[#232f48]" title="Close (Esc)">
+            <span class="material-symbols-outlined text-[16px]">close</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Toast Notification -->
       <div
         x-show="toastVisible"
@@ -1005,6 +1050,12 @@
           tokenCopyIcon: "vpn_key",
           clipboardCopyIcon: "content_copy",
           curlCopyIcon: "terminal",
+
+          // JSON search state
+          showSearchModal: false,
+          searchQuery: "",
+          searchMatches: [],
+          currentMatchIndex: -1,
 
           // Toast notification
           toastMessage: "",
@@ -1186,6 +1237,32 @@
                 });
               }
             });
+
+            // Clear search when content changes
+            this.$watch("currentResponse", () => {
+              this.clearSearch();
+              this.showSearchModal = false;
+            });
+            this.$watch("activeTab", () => {
+              this.clearSearch();
+            });
+
+            // Watch for search modal visibility to focus input
+            this.$watch("showSearchModal", (value) => {
+              if (value) {
+                this.$nextTick(() => {
+                  this.$refs.searchInput?.focus();
+                });
+              }
+            });
+
+            // Global keyboard shortcut for Ctrl+F / Cmd+F
+            document.addEventListener('keydown', (e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                this.showSearchModal = true;
+              }
+            });
           },
 
           // Load endpoints configuration
@@ -1319,9 +1396,9 @@
               });
 
               this.token = response.data.token;
-              // Set token expiry (typically 1 hour from now)
+              // Set token expiry (28 days from now)
               this.tokenExpiry = new Date(
-                Date.now() + 60 * 60 * 1000,
+                Date.now() + 28 * 24 * 60 * 60 * 1000,
               ).toISOString();
               this.connectionStatus = "connected";
               this.saveToLocalStorage();
@@ -1796,8 +1873,19 @@
                     new Date(this.tokenExpiry) > new Date()
                   ) {
                     this.connectionStatus = "connected";
+                  } else if (this.workspaceId && this.clientId && this.clientSecret) {
+                    // Token expired but credentials exist - silently refresh
+                    this.connectionStatus = "authenticating";
+                    this.token = null;
+                    this.tokenExpiry = null;
+                    // Silent refresh in background
+                    this.authenticate().then(() => {
+                      // Authentication handled in authenticate() method
+                    }).catch(() => {
+                      this.connectionStatus = "disconnected";
+                    });
                   } else {
-                    // Token expired
+                    // Token expired and no credentials
                     this.token = null;
                     this.tokenExpiry = null;
                     this.connectionStatus = "disconnected";
@@ -1987,6 +2075,128 @@
             } catch (error) {
               this.showToast(`Invalid JSON: ${error.message}`, 'error');
             }
+          },
+
+          // ============== JSON SEARCH METHODS ==============
+
+          // Perform search using TreeWalker
+          performSearch() {
+            // Clear previous highlights but keep searchQuery
+            this.clearHighlights();
+
+            if (!this.searchQuery || this.mode === 'upload') return;
+
+            const container = document.querySelector('[x-html="displayContent"]');
+            if (!container) return;
+
+            const query = this.searchQuery.toLowerCase();
+            const matches = [];
+
+            // Create TreeWalker to traverse text nodes
+            const walker = document.createTreeWalker(
+              container,
+              NodeFilter.SHOW_TEXT,
+              {
+                acceptNode: (node) => {
+                  // Skip empty text nodes
+                  if (!node.textContent.trim()) return NodeFilter.FILTER_REJECT;
+                  // Skip nodes already inside mark tags
+                  if (node.parentElement?.tagName === 'MARK') return NodeFilter.FILTER_REJECT;
+                  return NodeFilter.FILTER_ACCEPT;
+                }
+              }
+            );
+
+            // Find all matches
+            let node;
+            while (node = walker.nextNode()) {
+              const text = node.textContent;
+              const lowerText = text.toLowerCase();
+              let index = lowerText.indexOf(query);
+
+              while (index !== -1) {
+                matches.push({ node, index, length: this.searchQuery.length });
+                index = lowerText.indexOf(query, index + 1);
+              }
+            }
+
+            // Highlight all matches
+            matches.forEach((match, idx) => {
+              const { node, index, length } = match;
+              const text = node.textContent;
+
+              // Split text into before, match, and after
+              const before = text.substring(0, index);
+              const matchText = text.substring(index, index + length);
+              const after = text.substring(index + length);
+
+              // Create mark element
+              const mark = document.createElement('mark');
+              mark.className = 'bg-yellow-400 text-black';
+              mark.setAttribute('data-search-hit', idx);
+              mark.textContent = matchText;
+
+              // Create fragment with new nodes
+              const fragment = document.createDocumentFragment();
+              if (before) fragment.appendChild(document.createTextNode(before));
+              fragment.appendChild(mark);
+              if (after) fragment.appendChild(document.createTextNode(after));
+
+              // Replace original text node
+              node.parentNode.replaceChild(fragment, node);
+            });
+
+            this.searchMatches = matches;
+            if (matches.length > 0) {
+              this.currentMatchIndex = 0;
+              this.highlightCurrentMatch();
+            }
+          },
+
+          // Navigate between search matches
+          navigateSearch(direction) {
+            if (this.searchMatches.length === 0) return;
+
+            if (direction === 'next') {
+              this.currentMatchIndex = (this.currentMatchIndex + 1) % this.searchMatches.length;
+            } else if (direction === 'prev') {
+              this.currentMatchIndex = (this.currentMatchIndex - 1 + this.searchMatches.length) % this.searchMatches.length;
+            }
+
+            this.highlightCurrentMatch();
+          },
+
+          // Highlight current match and scroll into view
+          highlightCurrentMatch() {
+            // Just scroll to current match, no color change
+            const currentMark = document.querySelector(`mark[data-search-hit="${this.currentMatchIndex}"]`);
+            if (currentMark) {
+              currentMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          },
+
+          // Clear only highlights (keep query)
+          clearHighlights() {
+            this.searchMatches = [];
+            this.currentMatchIndex = -1;
+
+            // Remove all mark tags and restore original text
+            const container = document.querySelector('[x-html="displayContent"]');
+            if (!container) return;
+
+            container.querySelectorAll('mark[data-search-hit]').forEach(mark => {
+              const textNode = document.createTextNode(mark.textContent);
+              mark.parentNode.replaceChild(textNode, mark);
+            });
+
+            // Normalize text nodes to merge adjacent text nodes
+            container.normalize();
+          },
+
+          // Clear search and remove highlights
+          clearSearch() {
+            this.searchQuery = "";
+            this.clearHighlights();
           },
 
           // Get data from grid for upload

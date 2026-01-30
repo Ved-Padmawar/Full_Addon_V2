@@ -69,6 +69,7 @@ const UPLOAD_SCHEMAS = {
     erpId: "string",
     additionalUnit: "string",
     parentSku: "string",
+    minRemShelfLife: "number",
   },
 
   // Add more endpoints here as needed:
