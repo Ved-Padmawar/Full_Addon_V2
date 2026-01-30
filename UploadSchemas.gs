@@ -30,14 +30,15 @@ const UPLOAD_SCHEMAS = {
     billingAddress: "string",
     gstNumber: "string",
     creditLimit: "number",
-    creditDays: "number",
+    creditNumberOfDays: "number",
     pincode: "string",
     city: "string",
     state: "string",
     priceListCode: "string",
     routes: "array",
     segments: "array",
-    cfa: "array",
+    cfaDivisions: "array",
+    contacts: "array",
   },
 
   /**
