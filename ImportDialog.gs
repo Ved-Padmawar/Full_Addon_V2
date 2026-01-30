@@ -847,6 +847,12 @@ const ImportDialog = {
         `Processing ${dataRows.length} rows with ${headers.length} columns`,
       );
 
+      // Normalize field name for case-insensitive lookup
+      const normalizeFieldName = (name) => {
+        if (!name) return '';
+        return String(name).toLowerCase().trim();
+      };
+
       // Convert mappings to object if it's an array
       let mappingObj = {};
       if (Array.isArray(mappings)) {
@@ -857,6 +863,13 @@ const ImportDialog = {
         mappingObj = mappings;
       }
 
+      // Build normalized mapping index for case-insensitive lookup
+      const normalizedMappingIndex = {};
+      Object.keys(mappingObj).forEach((key) => {
+        const normalized = normalizeFieldName(key);
+        normalizedMappingIndex[normalized] = key; // Maps normalized key to original key
+      });
+
       // Build header index map once (O(n) instead of O(n²))
       const headerIndex = {};
       headers.forEach((h, i) => (headerIndex[h] = i));
@@ -866,8 +879,21 @@ const ImportDialog = {
         const record = {};
 
         Object.keys(fieldTypes).forEach((apiField) => {
-          if (mappingObj.hasOwnProperty(apiField)) {
-            const sheetColumn = mappingObj[apiField];
+          // Try exact match first, then case-insensitive match
+          let mappingKey = apiField;
+          if (!mappingObj.hasOwnProperty(apiField)) {
+            // Try case-insensitive lookup
+            const normalizedApiField = normalizeFieldName(apiField);
+            if (normalizedMappingIndex.hasOwnProperty(normalizedApiField)) {
+              mappingKey = normalizedMappingIndex[normalizedApiField];
+              Logger.log(`Case-insensitive match: "${apiField}" -> "${mappingKey}"`);
+            } else {
+              mappingKey = null;
+            }
+          }
+
+          if (mappingKey && mappingObj.hasOwnProperty(mappingKey)) {
+            const sheetColumn = mappingObj[mappingKey];
             const columnIndex = headerIndex[sheetColumn] ?? -1;
 
             if (columnIndex !== -1) {
