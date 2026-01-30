@@ -17,6 +17,9 @@ test_configs/
 /api-tester/IMPLEMENTATION_PLAN.md
 /api-tester/README.md
 
+# Claude agent guide
+Claude.md
+
 # Python
 __pycache__/
 *.pyc
