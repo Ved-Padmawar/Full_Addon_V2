@@ -37,17 +37,23 @@ Access at http://localhost:8000
 - `app/upload_schemas.py` - Schema definitions and validation for POST endpoints
 - `app/routers/api.py` - All API endpoints (token, fetch, upload, pricelist, curl generation)
 
-**Frontend (Vanilla JS + Alpine.js)**
-- `static/index.html` - Main UI with both Explorer and Test Mode tabs
-- `static/js/app.js` - Alpine.js components for API interactions
+**Frontend (Alpine.js)**
+- `static/index.html` - Main UI with both Explorer and Test Mode tabs (Alpine.js components embedded)
 
 ### Authentication Flow
 
 1. User provides Workspace ID, Client ID, Client Secret
 2. `generate_signature()` creates HMAC-SHA256 signature: `HMAC(client_secret, "{workspace_id}_{client_id}")`
 3. `get_token()` calls `/mdm-integration/v1/api/auth/login` with signature
-4. Token expires after 1 hour (tracked via `expiresAt` field)
+4. Token expires after 28 days (tracked via `tokenExpiry` field in localStorage)
 5. Token used as `Bearer {token}` header for all data requests
+
+**Token Auto-Refresh:**
+- Token and expiry stored in localStorage (static/index.html:1840)
+- On page load, checks if token is expired (static/index.html:1872-1873)
+- If expired + credentials exist → silent auto-refresh in background (static/index.html:1876-1886)
+- If expired + no credentials → clear token and show disconnected state
+- No manual re-authentication required if credentials are saved
 
 ### Endpoint Configuration System
 
@@ -213,9 +219,7 @@ api-tester/
 │   └── routers/
 │       └── api.py           # All API endpoints
 ├── static/
-│   ├── index.html           # Main UI (Explorer + Test Mode)
-│   └── js/
-│       └── app.js           # Alpine.js frontend logic
+│   └── index.html           # Main UI with embedded Alpine.js components
 ├── pyproject.toml           # Poetry dependencies
 ├── run.py                   # Quick runner script
 ├── README.md                # User documentation
