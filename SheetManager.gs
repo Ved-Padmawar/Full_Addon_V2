@@ -596,7 +596,7 @@ const SheetManager = {
       if (typeof firstRecord === "object" && firstRecord !== null) {
         headers = Object.keys(firstRecord);
         rows = data.map((record) =>
-          headers.map((header) => record[header] || ""),
+          headers.map((header) => record[header] ?? ""),
         );
       } else {
         return {
@@ -956,9 +956,9 @@ const SheetManager = {
             return row;
           } else if (typeof row === "object") {
             if (this._headerKeys) {
-              return this._headerKeys.map((key) => row[key] || "");
+              return this._headerKeys.map((key) => row[key] ?? "");
             } else {
-              return headers.map((header) => row[header] || "");
+              return headers.map((header) => row[header] ?? "");
             }
           } else {
             return [row];
