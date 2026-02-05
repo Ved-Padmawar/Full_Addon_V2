@@ -218,6 +218,15 @@ All uploads must wrap payload in endpoint key:
 - Checkbox to enable/disable
 - Dropdown: 7, 30, or 90 days
 - Only shown for time-based endpoints (orders, trips, supply-tracker, customers)
+- Hidden via `x-show="currentEndpointConfig?.supports_time_period"` for endpoints that don't support it
+
+**Pricelist Selection (Import Mode Only):**
+- Special card shown when `pricelist` endpoint selected
+- "Fetch" button (top-right) to load available pricelists
+- Multi-select dropdown with checkmarks (right-aligned)
+- "Select All" option at top of dropdown
+- Shows count of selected items (e.g., "3 selected" or "All Pricelists (61)")
+- Execute button triggers product fetch for selected pricelists
 
 **Upload Schema Reference:**
 - Shows field list with types
@@ -282,6 +291,7 @@ All uploads must wrap payload in endpoint key:
 
 ### Import Mode (GET Request Flow)
 
+**Standard Endpoints:**
 ```
 User Input (endpoint + params)
   ↓
@@ -308,6 +318,34 @@ Frontend displayResponse()
   → Line numbering
   → Tab switching
   → Update status bar
+```
+
+**Pricelist Two-Step Workflow:**
+```
+1. Fetch Pricelists (Button Click)
+   ↓
+   fetchPricelists()
+   ↓
+   POST /api/fetch-pricelist {pageSize: 100, pageNo: 1}
+   ↓
+   Store in availablePricelists[]
+   ↓
+   Populate multi-select dropdown
+
+2. Select Pricelist(s) + Execute
+   ↓
+   User selects 1+ pricelists from dropdown
+   ↓
+   Click "EXECUTE REQUEST"
+   ↓
+   fetchPricelistItems()
+   ↓
+   Loop through selectedPricelistIds[]
+     → POST /api/fetch-pricelist-items {pricelist_id}
+     → Add priceListName & priceListCode to each item
+     → Combine all items
+   ↓
+   Display combined response with metadata
 ```
 
 ### Upload Mode (POST Request Flow)
@@ -377,7 +415,12 @@ Key: `zotokApiTester`
   mode: "import" | "upload",
   pageSize: number,
   pageNo: number,
-  periodDays: "7" | "30" | "90"
+  periodDays: "7" | "30" | "90",
+
+  // Pricelist-specific state
+  pricelistsFetched: boolean,
+  availablePricelists: array,
+  selectedPricelistIds: array  // Multi-select support
 }
 ```
 
@@ -558,7 +601,88 @@ orjson = "^3.11.7"
 - Axios (for HTTP requests)
 - Material Symbols (icons)
 
+## Recent Updates (2026-02-06)
+
+### Time Period Visibility Fix
+- Time period dropdown now conditionally rendered with `x-show="currentEndpointConfig?.supports_time_period"`
+- Only appears for endpoints that actually support time periods (customers, orders, trips, supply-tracker)
+- Hidden for products, pricelist, salesman-attendance
+
+### Pricelist Two-Step Workflow
+**New UI Card (Import Mode):**
+- Header: "Pricelists" with small "Fetch" button (top-right)
+- Multi-select dropdown with checkmarks on the right side
+- "Select All" option with checkmark indicator
+- Dropdown displays selection count (e.g., "3 selected", "All Pricelists (61)")
+
+**New Alpine.js State:**
+```javascript
+pricelistsFetched: false,        // Has fetch been triggered
+availablePricelists: [],         // Array of pricelist objects
+selectedPricelistIds: []         // Array of selected IDs (multi-select)
+```
+
+**New Methods:**
+```javascript
+// Fetch all pricelists (first API call)
+async fetchPricelists() {
+  POST /api/fetch-pricelist {pageSize: 100, pageNo: 1}
+  Populates availablePricelists[]
+  Shows success toast with count
+}
+
+// Fetch items for selected pricelists (second API call)
+async fetchPricelistItems() {
+  Loops through selectedPricelistIds[]
+  POST /api/fetch-pricelist-items for each ID
+  Adds priceListName & priceListCode metadata to items
+  Combines all results into single response
+  Displays in main content area
+}
+
+// Success notification helper
+showSuccess(message) {
+  Shows green toast notification
+}
+```
+
+**executeRequest() Enhancement:**
+- Detects pricelist endpoint in import mode
+- Validates that pricelists have been fetched
+- Validates that at least one pricelist is selected
+- Routes to `fetchPricelistItems()` instead of standard flow
+
+**onEndpointChange() Update:**
+- Resets pricelist state when switching endpoints:
+  ```javascript
+  this.pricelistsFetched = false;
+  this.availablePricelists = [];
+  this.selectedPricelistIds = [];
+  ```
+
+**UI Color Consistency:**
+- Pricelist dropdown uses same colors as other dropdowns:
+  - Button: `bg-[#111722]` (matches time period dropdown)
+  - Dropdown menu: `bg-[#192233]` (matches endpoint dropdown)
+  - Item hover/selected: `bg-[#232f48]` (matches endpoint dropdown)
+
+**Workflow:**
+1. Select "pricelist" endpoint → Pricelist card appears
+2. Click "Fetch" button → Loads all 61 pricelists
+3. Dropdown populates with names and codes
+4. User selects one or multiple pricelists (checkmarks appear on right)
+5. Click "EXECUTE REQUEST" → Fetches products from selected pricelists
+6. Combined results display in main content area with metadata
+
+**Key Design Decisions:**
+- Multi-select instead of single-select for flexibility
+- Removed redundant "Fetch Products" button from card (execute button handles it)
+- Execute button text remains "EXECUTE REQUEST" for consistency
+- Checkmarks on right side (not left) for cleaner look
+- "Select All" option at top of dropdown with visual indicator
+- Fetches only first page (100 items) to avoid performance issues
+
 ---
 
-**Last Updated:** 2026-02-02
-**Version:** 1.0 (Complete rewrite based on actual implementation)
+**Last Updated:** 2026-02-06
+**Version:** 1.1 (Added pricelist two-step workflow + time period visibility fix)

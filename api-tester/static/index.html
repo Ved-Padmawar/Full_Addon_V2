@@ -490,6 +490,8 @@
               <!-- Time Period -->
               <div
                 class="p-3 bg-[#192233] rounded-lg border border-border-dark"
+                x-show="currentEndpointConfig?.supports_time_period"
+                x-cloak
               >
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center gap-2">
@@ -617,6 +619,99 @@
               </div>
 
               <!-- Quick Actions section removed - Add Row button is now under the table -->
+            </div>
+
+            <!-- Pricelist Selection (only for pricelist endpoint in import mode) -->
+            <div
+              class="space-y-4"
+              x-show="selectedEndpoint === 'pricelist' && mode === 'import'"
+              x-cloak
+            >
+              <div
+                class="p-3 bg-[#192233] rounded-lg border border-border-dark"
+              >
+                <!-- Header with Fetch Button -->
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-text-secondary"
+                      >receipt_long</span
+                    >
+                    <span class="text-sm font-medium text-white"
+                      >Pricelists</span
+                    >
+                  </div>
+                  <!-- Small Fetch Pricelists Button (top right) -->
+                  <button
+                    @click="fetchPricelists()"
+                    :disabled="isLoading || !token"
+                    class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.95] transition-all text-white rounded text-xs font-medium flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span class="material-symbols-outlined text-[16px]">refresh</span>
+                    <span>Fetch</span>
+                  </button>
+                </div>
+
+                <!-- Pricelist Dropdown (Multi-select) -->
+                <div
+                  :class="{ 'opacity-50 pointer-events-none': !pricelistsFetched || availablePricelists.length === 0 }"
+                >
+                  <div x-data="{ pricelistDropdownOpen: false }" @click.away="pricelistDropdownOpen = false" class="relative">
+                    <button
+                      @click="(pricelistsFetched && availablePricelists.length > 0) && (pricelistDropdownOpen = !pricelistDropdownOpen)"
+                      :disabled="!pricelistsFetched || availablePricelists.length === 0"
+                      class="w-full bg-[#111722] border border-border-dark rounded px-3 py-2 pr-8 text-sm text-white hover:border-[#324467] focus:border-primary outline-none cursor-pointer transition-colors text-left relative"
+                    >
+                      <span x-text="!pricelistsFetched ? 'Click Fetch to load pricelists...' : (availablePricelists.length === 0 ? 'No pricelists available' : (selectedPricelistIds.length === 0 ? 'Select pricelists...' : (selectedPricelistIds.length === availablePricelists.length ? 'All Pricelists (' + selectedPricelistIds.length + ')' : selectedPricelistIds.length + ' selected')))"></span>
+                      <span
+                        class="absolute right-2 top-1/2 -translate-y-1/2 material-symbols-outlined text-text-secondary text-sm transition-transform"
+                        :class="pricelistDropdownOpen ? 'rotate-180' : ''"
+                      >expand_more</span>
+                    </button>
+                    <div
+                      x-show="pricelistDropdownOpen"
+                      x-cloak
+                      x-transition:enter="transition ease-out duration-100"
+                      x-transition:enter-start="opacity-0 scale-95"
+                      x-transition:enter-end="opacity-100 scale-100"
+                      x-transition:leave="transition ease-in duration-75"
+                      x-transition:leave-start="opacity-100 scale-100"
+                      x-transition:leave-end="opacity-0 scale-95"
+                      class="absolute top-full mt-1 w-full bg-[#192233] border border-border-dark rounded shadow-lg z-50 max-h-48 overflow-y-auto"
+                    >
+                      <!-- Select All option -->
+                      <button
+                        @click.stop="selectedPricelistIds = selectedPricelistIds.length === availablePricelists.length ? [] : availablePricelists.map(p => p.priceListId)"
+                        class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center justify-between border-b border-border-dark"
+                      >
+                        <span class="font-medium">Select All</span>
+                        <span class="material-symbols-outlined text-sm" x-show="selectedPricelistIds.length === availablePricelists.length">check</span>
+                      </button>
+
+                      <!-- Individual pricelists with checkmarks on right -->
+                      <template x-for="pricelist in availablePricelists" :key="pricelist.priceListId">
+                        <button
+                          @click.stop="
+                            if (selectedPricelistIds.includes(pricelist.priceListId)) {
+                              selectedPricelistIds = selectedPricelistIds.filter(id => id !== pricelist.priceListId)
+                            } else {
+                              selectedPricelistIds.push(pricelist.priceListId)
+                            }
+                          "
+                          class="w-full px-3 py-2 text-left text-sm text-white hover:bg-[#232f48] transition-colors flex items-center justify-between"
+                          :class="selectedPricelistIds.includes(pricelist.priceListId) ? 'bg-[#232f48]' : ''"
+                        >
+                          <div class="flex-1">
+                            <div x-text="pricelist.name"></div>
+                            <div class="text-xs text-text-secondary" x-text="pricelist.code"></div>
+                          </div>
+                          <span class="material-symbols-outlined text-sm ml-2" x-show="selectedPricelistIds.includes(pricelist.priceListId)">check</span>
+                        </button>
+                      </template>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1074,6 +1169,11 @@
           showImportDialog: false,
           importJsonText: "",
 
+          // Pricelist state
+          pricelistsFetched: false,
+          availablePricelists: [],
+          selectedPricelistIds: [], // Changed to array for multi-select
+
           // Computed: check if endpoint supports upload
           get supportsUpload() {
             return !!this.uploadSchemas[this.selectedEndpoint];
@@ -1365,6 +1465,11 @@
               });
             }
 
+            // Reset pricelist state when changing endpoints
+            this.pricelistsFetched = false;
+            this.availablePricelists = [];
+            this.selectedPricelistIds = [];
+
             this.currentResponse = null;
           },
 
@@ -1433,6 +1538,20 @@
 
             if (!this.selectedEndpoint) {
               this.showError("Please select an endpoint");
+              return;
+            }
+
+            // Special handling for pricelist in import mode
+            if (this.selectedEndpoint === 'pricelist' && this.mode === 'import') {
+              if (!this.pricelistsFetched) {
+                this.showError("Please fetch pricelists first using the 'Fetch' button");
+                return;
+              }
+              if (this.selectedPricelistIds.length === 0) {
+                this.showError("Please select at least one pricelist from the dropdown");
+                return;
+              }
+              await this.fetchPricelistItems();
               return;
             }
 
@@ -1558,6 +1677,117 @@
                 errorMsg = error.message;
               }
 
+              this.showError(errorMsg);
+            } finally {
+              this.isLoading = false;
+            }
+          },
+
+          // Fetch pricelists (first API call)
+          async fetchPricelists() {
+            if (!this.workspaceId || !this.clientId || !this.clientSecret) {
+              this.showError("Please fill in all credential fields");
+              return;
+            }
+
+            this.isLoading = true;
+            this.pricelistsFetched = false;
+            this.availablePricelists = [];
+            this.selectedPricelistIds = [];
+
+            try {
+              const response = await axios.post("/api/fetch-pricelist", {
+                credentials: {
+                  workspace_id: this.workspaceId,
+                  client_id: this.clientId,
+                  client_secret: this.clientSecret,
+                  environment: this.environment,
+                },
+                page_size: 100, // Fetch up to 100 pricelists
+                page_no: 1,
+              });
+
+              if (response.data.success && response.data.data && response.data.data.data) {
+                this.availablePricelists = response.data.data.data;
+                this.pricelistsFetched = true;
+                this.showSuccess(`Fetched ${this.availablePricelists.length} pricelists`);
+              } else {
+                const errorMsg = response.data.error || "Failed to fetch pricelists";
+                this.showError(errorMsg);
+              }
+            } catch (error) {
+              const errorMsg =
+                error.response?.data?.detail ||
+                error.message ||
+                "Request failed";
+              this.showError(errorMsg);
+            } finally {
+              this.isLoading = false;
+            }
+          },
+
+          // Fetch pricelist items (second API call - supports multi-select)
+          async fetchPricelistItems() {
+            if (this.selectedPricelistIds.length === 0) {
+              this.showError("Please select at least one pricelist");
+              return;
+            }
+
+            this.isLoading = true;
+            this.statusCode = "---";
+            this.responseTime = "---";
+            this.responseSize = "---";
+            this.currentResponse = null;
+
+            const startTime = performance.now();
+
+            try {
+              const allItems = [];
+
+              // Fetch items for each selected pricelist
+              for (const pricelistId of this.selectedPricelistIds) {
+                const pricelist = this.availablePricelists.find(p => p.priceListId === pricelistId);
+
+                const response = await axios.post("/api/fetch-pricelist-items", {
+                  credentials: {
+                    workspace_id: this.workspaceId,
+                    client_id: this.clientId,
+                    client_secret: this.clientSecret,
+                    environment: this.environment,
+                  },
+                  pricelist_id: pricelistId,
+                });
+
+                if (response.data.success && response.data.data) {
+                  // Add pricelist metadata to each item
+                  const items = Array.isArray(response.data.data)
+                    ? response.data.data
+                    : (response.data.data.data || []);
+
+                  items.forEach(item => {
+                    item.priceListName = pricelist?.name || 'Unknown';
+                    item.priceListCode = pricelist?.code || 'Unknown';
+                  });
+
+                  allItems.push(...items);
+                }
+              }
+
+              const endTime = performance.now();
+              const duration = Math.round(endTime - startTime);
+
+              this.currentResponse = {
+                data: allItems,
+                totalRecords: allItems.length,
+                pricelistCount: this.selectedPricelistIds.length
+              };
+              this.displayResponseStats(this.currentResponse, duration);
+              this.showSuccess(`Fetched ${allItems.length} items from ${this.selectedPricelistIds.length} pricelist${this.selectedPricelistIds.length > 1 ? 's' : ''}`);
+            } catch (error) {
+              const errorMsg =
+                error.response?.data?.detail ||
+                error.message ||
+                "Request failed";
               this.showError(errorMsg);
             } finally {
               this.isLoading = false;
@@ -1750,6 +1980,12 @@
 
             // Show toast notification
             this.showToast(message, "error");
+          },
+
+          // Show success
+          showSuccess(message) {
+            console.log("Success:", message);
+            this.showToast(message, "success");
           },
 
           // Show toast notification
