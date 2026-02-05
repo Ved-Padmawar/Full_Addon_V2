@@ -70,6 +70,7 @@ const UPLOAD_SCHEMAS = {
     additionalUnit: "string",
     parentSku: "string",
     minRemShelfLife: "number",
+    stockOnHand: "number",
   },
 
   // Add more endpoints here as needed:
